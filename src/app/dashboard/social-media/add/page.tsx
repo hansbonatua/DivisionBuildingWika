@@ -2,10 +2,40 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import SocialPostForm from "@/components/dashboard/social-media/SocialPostForm";
+import SocialPostForm, { type SocialPostFormValues } from "@/components/dashboard/social-media/SocialPostForm";
 
 export default function AddSocialPostPage() {
   const router = useRouter();
+
+  async function handleCreate(values: SocialPostFormValues): Promise<void> {
+    const response = await fetch("/api/social-posts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        platform: values.platform,
+        account: values.account,
+        caption: values.caption,
+        url: values.url,
+        type: values.type,
+        imageUrl: values.imageUrl,
+        imageAlt: values.imageAlt,
+        status: values.status,
+      }),
+    });
+    if (!response.ok) {
+      let message = "Gagal menambahkan post social media.";
+      try {
+        const body = (await response.json()) as { error?: { message?: string } };
+        if (body.error?.message) {
+          message = body.error.message;
+        }
+      } catch {
+        /* keep default message */
+      }
+      throw new Error(message);
+    }
+    router.push("/dashboard/social-media");
+  }
 
   return (
     <div className="space-y-6">
@@ -21,7 +51,7 @@ export default function AddSocialPostPage() {
         </nav>
         <h1 className="text-2xl font-bold tracking-tight text-primary">Tambah Post</h1>
         <p className="mt-1 max-w-3xl text-base text-primary/70">
-          Buat postingan Instagram baru. Demo: data tidak disimpan permanen.
+          Buat postingan Instagram baru. Status awal: Draft.
         </p>
       </div>
 
@@ -29,11 +59,7 @@ export default function AddSocialPostPage() {
         <div className="flex items-center gap-2 border-b border-outline p-4">
           <h2 className="text-lg font-bold text-primary">Add Instagram Post</h2>
         </div>
-        <SocialPostForm
-          mode="add"
-          submitLabel="Simpan Postingan"
-          onSubmit={() => router.push("/dashboard/social-media")}
-        />
+        <SocialPostForm mode="add" submitLabel="Simpan Postingan" onSubmit={handleCreate} />
       </div>
     </div>
   );

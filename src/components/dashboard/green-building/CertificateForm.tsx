@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import {
   LEVEL_OPTIONS,
   PUBLISH_OPTIONS,
@@ -12,7 +11,6 @@ import {
 } from "@/lib/demo/green-building";
 
 export type CertificateFormValues = {
-  image: string;
   projectName: string;
   certificationBody: string;
   certificationType: string;
@@ -21,19 +19,20 @@ export type CertificateFormValues = {
   certificateNumber: string;
   score: number;
   description: string;
-  status: CertificateItem["status"];
-  expiryDate: string;
-  displayOrder: number;
-  publishStatus: string;
+  imageUrl: string;
+  imageAlt: string;
+  status: CertificateVerification;
+  publishStatus: CertificatePublish;
 };
+
+export type CertificateFormData = CertificateFormValues;
 
 type CertificateFormProps = {
   mode: "add" | "edit";
-  initialData?: CertificateItem;
+  initialData?: CertificateFormData;
   submitLabel: string;
-  onSubmit: (values: CertificateFormValues) => void;
-  onImageChange?: (image: string) => void;
-  onValuesChange?: (values: CertificateFormValues) => void;
+  onSubmit: (values: CertificateFormValues) => void | Promise<void>;
+  onValuesChange?: (values: CertificateFormValues, previewImage: string | null) => void;
 };
 
 const inputClass =
@@ -44,7 +43,6 @@ export default function CertificateForm({
   initialData,
   submitLabel,
   onSubmit,
-  onImageChange,
   onValuesChange,
 }: CertificateFormProps) {
   const [formProject, setFormProject] = useState(initialData?.projectName ?? "");
@@ -53,38 +51,42 @@ export default function CertificateForm({
   );
   const [formType, setFormType] = useState(initialData?.certificationType ?? TYPE_OPTIONS[0]);
   const [formLevel, setFormLevel] = useState(initialData?.level ?? LEVEL_OPTIONS[0]);
-  const [formYear, setFormYear] = useState(initialData?.year ?? 2026);
+  const [formYear, setFormYear] = useState(initialData?.year ?? new Date().getFullYear());
   const [formNumber, setFormNumber] = useState(initialData?.certificateNumber ?? "");
   const [formScore, setFormScore] = useState(initialData?.score ?? 0);
   const [formDescription, setFormDescription] = useState(initialData?.description ?? "");
-  const [formStatus, setFormStatus] = useState<CertificateItem["status"]>(
+  const [formImageUrl, setFormImageUrl] = useState(initialData?.imageUrl ?? "");
+  const [formImageAlt, setFormImageAlt] = useState(initialData?.imageAlt ?? "");
+  const [formStatus, setFormStatus] = useState<CertificateVerification>(
     initialData?.status ?? "Verified",
   );
-  const [formExpiry, setFormExpiry] = useState(initialData?.expiryDate ?? "");
-  const [formOrder, setFormOrder] = useState(initialData?.displayOrder ?? 1);
-  const [formPublish, setFormPublish] = useState(initialData?.publishStatus ?? PUBLISH_OPTIONS[0]);
-  const [previewImage, setPreviewImage] = useState(
-    initialData?.image ?? "/asset/hero/7.jpg",
+  const [formPublish, setFormPublish] = useState<CertificatePublish>(
+    initialData?.publishStatus ?? "Draft",
   );
+  const [previewFile, setPreviewFile] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const currentValues: CertificateFormValues = {
+    projectName: formProject,
+    certificationBody: formBody,
+    certificationType: formType,
+    level: formLevel,
+    year: formYear,
+    certificateNumber: formNumber,
+    score: formScore,
+    description: formDescription,
+    imageUrl: formImageUrl,
+    imageAlt: formImageAlt,
+    status: formStatus,
+    publishStatus: formPublish,
+  };
 
   useEffect(() => {
-    onValuesChange?.({
-      image: previewImage,
-      projectName: formProject,
-      certificationBody: formBody,
-      certificationType: formType,
-      level: formLevel,
-      year: formYear,
-      certificateNumber: formNumber,
-      score: formScore,
-      description: formDescription,
-      status: formStatus,
-      expiryDate: formExpiry,
-      displayOrder: formOrder,
-      publishStatus: formPublish,
-    });
+    onValuesChange?.(currentValues, previewFile);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    previewImage,
     formProject,
     formBody,
     formType,
@@ -93,11 +95,11 @@ export default function CertificateForm({
     formNumber,
     formScore,
     formDescription,
+    formImageUrl,
+    formImageAlt,
     formStatus,
-    formExpiry,
-    formOrder,
     formPublish,
-    onValuesChange,
+    previewFile,
   ]);
 
   function handleFileChange(event: React.ChangeEvent<HTMLInputElement>): void {
@@ -105,53 +107,125 @@ export default function CertificateForm({
     if (!file) {
       return;
     }
-    if (previewImage.startsWith("blob:")) {
-      URL.revokeObjectURL(previewImage);
+    if (previewFile?.startsWith("blob:")) {
+      URL.revokeObjectURL(previewFile);
     }
-    const url = URL.createObjectURL(file);
-    setPreviewImage(url);
-    onImageChange?.(url);
+    // Preview-only: object URLs are never sent to the API (see handleSubmit).
+    setPreviewFile(URL.createObjectURL(file));
   }
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>): void {
-    event.preventDefault();
-    onSubmit({
-      image: previewImage,
-      projectName: formProject,
-      certificationBody: formBody,
-      certificationType: formType,
-      level: formLevel,
-      year: formYear,
-      certificateNumber: formNumber,
-      score: formScore,
-      description: formDescription,
-      status: formStatus,
-      expiryDate: formExpiry,
-      displayOrder: formOrder,
-      publishStatus: formPublish,
-    });
+  function handleRemovePreview(): void {
+    if (previewFile?.startsWith("blob:")) {
+      URL.revokeObjectURL(previewFile);
+    }
+    setPreviewFile(null);
   }
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    if (!formProject.trim() || !formBody.trim() || !formImageUrl.trim()) {
+      setFormError("Lengkapi project name, certification body, dan URL gambar.");
+      return;
+    }
+    if (formImageUrl.trim().startsWith("blob:")) {
+      setFormError("Gunakan URL gambar yang dapat disimpan. Upload file permanen belum tersedia.");
+      return;
+    }
+    setFormError(null);
+    setSubmitting(true);
+    try {
+      await onSubmit({
+        ...currentValues,
+        projectName: formProject.trim(),
+        certificationBody: formBody.trim(),
+        certificationType: formType,
+        level: formLevel,
+        year: Number.isFinite(formYear) ? formYear : new Date().getFullYear(),
+        certificateNumber: formNumber.trim(),
+        score: Number.isFinite(formScore) ? formScore : 0,
+        description: formDescription.trim(),
+        imageUrl: formImageUrl.trim(),
+        imageAlt: formImageAlt.trim(),
+        status: formStatus,
+        publishStatus: formPublish,
+      });
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : "Gagal menyimpan sertifikat.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  const canvasSrc = previewFile ?? (formImageUrl.startsWith("blob:") ? "" : formImageUrl);
 
   return (
-    <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-4 p-5 md:grid-cols-2">
-      <div>
-        <label htmlFor="f_image" className="mb-1.5 block text-xs font-semibold text-slate-700">
+    <form onSubmit={(e) => void handleSubmit(e)} className="grid grid-cols-1 gap-4 p-5 md:grid-cols-2">
+      <div className="md:col-span-2">
+        <label className="mb-1.5 block text-xs font-semibold text-slate-700">
           Certificate Image (JPG/PNG/WebP)
         </label>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <div className="relative h-16 w-24 shrink-0 overflow-hidden rounded-lg border border-outline/60 bg-slate-100">
-            <Image src={previewImage} alt="Preview sertifikat" fill sizes="96px" className="object-cover" />
+            {canvasSrc ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={canvasSrc} alt="Preview sertifikat" className="h-full w-full object-cover" />
+            ) : null}
           </div>
-          <div className="flex-1">
+          <div className="flex flex-1 flex-wrap items-center gap-2">
             <input
-              id="f_image"
+              ref={fileInputRef}
               type="file"
               accept=".jpg,.jpeg,.png,.webp"
               onChange={handleFileChange}
-              className="w-full text-xs text-slate-600 file:mr-3 file:rounded-md file:border file:border-outline/70 file:bg-white file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-primary hover:file:bg-slate-50"
+              className="hidden"
+              aria-label={mode === "add" ? "Pratinjau foto sertifikat" : "Ganti pratinjau foto"}
             />
-            <p className="mt-1 text-[11px] text-slate-400">Preview tampil otomatis sebelum save.</p>
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="rounded-md border border-outline/70 bg-white px-3 py-1.5 text-xs font-semibold text-primary shadow-sm transition-colors hover:bg-slate-50"
+            >
+              {mode === "add" ? "Pilih Pratinjau" : "Ganti Pratinjau"}
+            </button>
+            {previewFile ? (
+              <button
+                type="button"
+                onClick={handleRemovePreview}
+                className="rounded-md border border-outline/70 bg-white px-3 py-1.5 text-xs font-semibold text-slate-500 shadow-sm transition-colors hover:bg-slate-50"
+              >
+                Hapus Pratinjau
+              </button>
+            ) : null}
+            <p className="w-full text-[11px] text-slate-400">
+              Pratinjau bersifat lokal dan tidak tersimpan. Yang tersimpan adalah URL di bawah.
+            </p>
           </div>
+        </div>
+        <div className="mt-3">
+          <label htmlFor="f_imageUrl" className="mb-1.5 block text-xs font-semibold text-slate-700">
+            URL Gambar Sertifikat <span className="text-red-700">*</span>
+          </label>
+          <input
+            id="f_imageUrl"
+            type="text"
+            placeholder="misal: /asset/hero/7.jpg atau https://..."
+            value={formImageUrl}
+            onChange={(e) => setFormImageUrl(e.target.value)}
+            className={inputClass}
+          />
+        </div>
+        <div className="mt-3">
+          <label htmlFor="f_imageAlt" className="mb-1.5 block text-xs font-semibold text-slate-700">
+            Alt Text Gambar
+          </label>
+          <input
+            id="f_imageAlt"
+            type="text"
+            placeholder="Deskripsi gambar untuk aksesibilitas."
+            value={formImageAlt}
+            onChange={(e) => setFormImageAlt(e.target.value)}
+            className={inputClass}
+          />
         </div>
       </div>
       <div>
@@ -190,7 +264,7 @@ export default function CertificateForm({
         <label htmlFor="f_year" className="mb-1.5 block text-xs font-semibold text-slate-700">
           Certification Year
         </label>
-        <input id="f_year" type="number" min={2000} max={2100} value={formYear} onChange={(e) => setFormYear(Number(e.target.value) || 2026)} className={inputClass} />
+        <input id="f_year" type="number" min={2000} max={2100} value={formYear} onChange={(e) => setFormYear(Number(e.target.value) || new Date().getFullYear())} className={inputClass} />
       </div>
       <div>
         <label htmlFor="f_number" className="mb-1.5 block text-xs font-semibold text-slate-700">
@@ -217,35 +291,29 @@ export default function CertificateForm({
         <label htmlFor="f_status" className="mb-1.5 block text-xs font-semibold text-slate-700">
           Verification Status
         </label>
-        <select id="f_status" value={formStatus} onChange={(e) => setFormStatus(e.target.value as CertificateItem["status"])} className={inputClass}>
+        <select id="f_status" value={formStatus} onChange={(e) => setFormStatus(e.target.value as CertificateFormValues["status"])} className={inputClass}>
           {STATUS_OPTIONS.map((option) => (
             <option key={option}>{option}</option>
           ))}
         </select>
-      </div>
-      <div>
-        <label htmlFor="f_expiry" className="mb-1.5 block text-xs font-semibold text-slate-700">
-          Expiry Date
-        </label>
-        <input id="f_expiry" type="date" value={formExpiry} onChange={(e) => setFormExpiry(e.target.value)} className={inputClass} />
-      </div>
-      <div>
-        <label htmlFor="f_order" className="mb-1.5 block text-xs font-semibold text-slate-700">
-          Display Order
-        </label>
-        <input id="f_order" type="number" min={1} value={formOrder} onChange={(e) => setFormOrder(Number(e.target.value) || 1)} className={inputClass} />
-        <p className="mt-1 text-[11px] text-slate-400">Urutan tampil pada landing page.</p>
+        <p className="mt-1 text-[11px] text-slate-400">Status verifikasi, bukan visibilitas publik.</p>
       </div>
       <div>
         <label htmlFor="f_publish" className="mb-1.5 block text-xs font-semibold text-slate-700">
           Publish Status
         </label>
-        <select id="f_publish" value={formPublish} onChange={(e) => setFormPublish(e.target.value)} className={inputClass}>
+        <select id="f_publish" value={formPublish} onChange={(e) => setFormPublish(e.target.value as CertificateFormValues["publishStatus"])} className={inputClass}>
           {PUBLISH_OPTIONS.map((option) => (
             <option key={option}>{option}</option>
           ))}
         </select>
+        <p className="mt-1 text-[11px] text-slate-400">Hanya Published yang tampil di landing page.</p>
       </div>
+      {formError ? (
+        <p role="alert" className="rounded-lg border border-red-300 bg-red-50 px-3.5 py-2.5 text-xs font-semibold text-red-700 md:col-span-2">
+          {formError}
+        </p>
+      ) : null}
       <div className="mt-2 flex items-center justify-end gap-3 border-t border-outline pt-2 md:col-span-2">
         <Link
           href="/dashboard/green-building"
@@ -255,11 +323,15 @@ export default function CertificateForm({
         </Link>
         <button
           type="submit"
-          className="rounded-lg bg-secondary px-5 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-primary"
+          disabled={submitting}
+          className="rounded-lg bg-secondary px-5 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-primary disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {submitLabel}
+          {submitting ? "Menyimpan..." : submitLabel}
         </button>
       </div>
     </form>
   );
 }
+
+export type CertificateVerification = CertificateItem["status"];
+export type CertificatePublish = "Draft" | "Published" | "Archived";

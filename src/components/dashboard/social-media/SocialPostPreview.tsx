@@ -1,6 +1,5 @@
 import Image from "next/image";
 import SocialPostStatusBadge from "@/components/dashboard/social-media/SocialPostStatusBadge";
-import type { SocialPost } from "@/lib/demo/social-media";
 
 type SocialPostPreviewProps = {
   image: string;
@@ -8,7 +7,7 @@ type SocialPostPreviewProps = {
   caption: string;
   url: string;
   type: string;
-  status: SocialPost["status"];
+  status: "Published" | "Draft" | "Hidden";
 };
 
 export default function SocialPostPreview({

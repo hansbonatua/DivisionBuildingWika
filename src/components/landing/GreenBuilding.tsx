@@ -14,7 +14,7 @@ const CERT_DELAY_MS = 3500;
 const SNAP_MS = 520;
 const DRAG_THRESHOLD_PX = 50;
 
-const certificates: Certificate[] = [
+const FALLBACK_GREEN_BUILDINGS: Certificate[] = [
   { image: "/asset/hero/1-IKN.jpg", alt: "Lorem Ipsum Certificate 01", name: "Lorem Ipsum Certificate Name 01", score: 91 },
   { image: "/asset/hero/9.jpg", alt: "Lorem Ipsum Certificate 02", name: "Lorem Ipsum Certificate Name 02", score: 93 },
   { image: "/asset/hero/11.jpg", alt: "Lorem Ipsum Certificate 03", name: "Lorem Ipsum Certificate Name 03", score: 95 },
@@ -29,9 +29,35 @@ const certificates: Certificate[] = [
   { image: "/asset/hero/4.jpg", alt: "Lorem Ipsum Certificate 12", name: "Lorem Ipsum Certificate Name 12", score: 96 },
 ];
 
-const TOTAL = certificates.length;
+type GreenBuildingPublicPayload = {
+  projectName?: unknown;
+  imageUrl?: unknown;
+  imageAlt?: unknown;
+  score?: unknown;
+};
+
+function toLandingCertificate(item: GreenBuildingPublicPayload): Certificate | null {
+  if (typeof item.projectName !== "string" || item.projectName.length === 0) {
+    return null;
+  }
+  if (typeof item.imageUrl !== "string" || item.imageUrl.length === 0) {
+    return null;
+  }
+  return {
+    image: item.imageUrl,
+    alt:
+      typeof item.imageAlt === "string" && item.imageAlt.length > 0
+        ? item.imageAlt
+        : item.projectName,
+    name: item.projectName,
+    score: typeof item.score === "number" && Number.isFinite(item.score) ? item.score : 0,
+  };
+}
 
 export default function GreenBuilding() {
+  // Fallback-first render keeps SSR/hydration deterministic; API swaps in when valid.
+  const [certificates, setCertificates] = useState<Certificate[]>(FALLBACK_GREEN_BUILDINGS);
+  const TOTAL = certificates.length;
   const [perView, setPerView] = useState(3);
   const [trackPos, setTrackPos] = useState(3);
   const [animate, setAnimate] = useState(false);
@@ -77,7 +103,36 @@ export default function GreenBuilding() {
   useEffect(() => {
     setAnimate(false);
     setTrackPos(perView);
-  }, [perView]);
+  }, [perView, certificates.length]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/green-buildings/public")
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        return response.json() as Promise<{ data?: unknown }>;
+      })
+      .then((body) => {
+        if (cancelled || !Array.isArray(body.data)) {
+          return;
+        }
+        const mapped = body.data
+          .map((item) => toLandingCertificate(item as GreenBuildingPublicPayload))
+          .filter((cert): cert is Certificate => cert !== null);
+        if (mapped.length > 0) {
+          setCertificates(mapped);
+        }
+      })
+      .catch(() => {
+        // Silent fallback: static certificates remain. No user-facing error on landing.
+        console.warn("Landing green building uses static fallback (public API unavailable).");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     startAutoplay();
@@ -107,7 +162,7 @@ export default function GreenBuilding() {
         clearTimeout(snapTimeoutRef.current);
       }
     };
-  }, [trackPos, perView]);
+  }, [trackPos, perView, TOTAL]);
 
   const extended = useMemo(
     () => [
@@ -115,7 +170,7 @@ export default function GreenBuilding() {
       ...certificates.map((c, i) => ({ cert: c, key: `main-${i}`, clone: false })),
       ...certificates.slice(0, perView).map((c, i) => ({ cert: c, key: `post-${i}`, clone: true })),
     ],
-    [perView],
+    [perView, certificates, TOTAL],
   );
 
   const real = ((trackPos - perView) % TOTAL + TOTAL) % TOTAL;
@@ -255,14 +310,25 @@ export default function GreenBuilding() {
                     }`}
                   >
                     <div className="relative aspect-[16/10] overflow-hidden">
-                      <Image
-                        src={item.cert.image}
-                        alt={item.clone ? "" : item.cert.alt}
-                        fill
-                        sizes="(max-width: 640px) 100vw, 33vw"
-                        loading="lazy"
-                        className="object-cover"
-                      />
+                      {item.cert.image.startsWith("/") ? (
+                        <Image
+                          src={item.cert.image}
+                          alt={item.clone ? "" : item.cert.alt}
+                          fill
+                          sizes="(max-width: 640px) 100vw, 33vw"
+                          loading="lazy"
+                          className="object-cover"
+                        />
+                      ) : (
+                        // Remote CMS URLs bypass next/image so no remotePatterns config is needed.
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={item.cert.image}
+                          alt={item.clone ? "" : item.cert.alt}
+                          loading="lazy"
+                          className="h-full w-full object-cover"
+                        />
+                      )}
                       <span className="absolute left-3 top-3 rounded-md border border-outline/30 bg-surface/90 px-2.5 py-1 text-[11px] font-bold text-secondary backdrop-blur-sm">
                         Lorem
                       </span>
@@ -313,7 +379,7 @@ export default function GreenBuilding() {
           <div className="flex flex-wrap items-center justify-center gap-1.5">
             {certificates.map((cert, index) => (
               <button
-                key={cert.name}
+                key={`${cert.image}-${cert.name}-${index}`}
                 type="button"
                 aria-label={`Ke sertifikat ${String(index + 1).padStart(2, "0")}`}
                 aria-current={index === real}

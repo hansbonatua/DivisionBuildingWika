@@ -2,16 +2,17 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import type { CertificateItem } from "@/lib/demo/green-building";
+import type { GreenBuildingApiItem } from "@/components/dashboard/green-building/green-building-api.types";
 import CertificateStatusBadge from "@/components/dashboard/green-building/CertificateStatusBadge";
 
 type CertificateTableProps = {
-  certificates: CertificateItem[];
-  onDelete: (id: number) => void;
+  certificates: GreenBuildingApiItem[];
+  deletingId: string | null;
+  onDelete: (id: string) => void;
 };
 
-export default function CertificateTable({ certificates, onDelete }: CertificateTableProps) {
-  const rows = [...certificates].sort((a, b) => a.displayOrder - b.displayOrder);
+export default function CertificateTable({ certificates, deletingId, onDelete }: CertificateTableProps) {
+  const rows = [...certificates].sort((a, b) => a.sortOrder - b.sortOrder);
   return (
     <div className="overflow-hidden rounded-lg border border-outline bg-surface shadow-sm">
       <div className="flex items-center justify-between border-b border-outline p-4">
@@ -50,45 +51,73 @@ export default function CertificateTable({ certificates, onDelete }: Certificate
             </tr>
           </thead>
           <tbody>
-            {rows.map((row) => (
-              <tr key={row.id} className="border-t border-outline/40 hover:bg-background/50">
-                <td className="px-4 py-2.5">
-                  <div className="relative h-12 w-16 overflow-hidden rounded border border-outline/40">
-                    <Image src={row.image} alt="" fill sizes="64px" loading="lazy" className="object-cover" />
-                  </div>
-                </td>
-                <td className="px-4 py-2.5 font-bold text-primary">{row.projectName}</td>
-                <td className="px-4 py-2.5 text-primary/70">
-                  {row.certificationBody}
-                  <span className="text-primary/50"> • {row.certificationType}</span>
-                </td>
-                <td className="px-4 py-2.5 font-semibold text-secondary">{row.level}</td>
-                <td className="px-4 py-2.5 text-primary/70">{row.year}</td>
-                <td className="px-4 py-2.5">
-                  <span className="rounded-lg bg-background px-1.5 py-0.5 text-[10px] font-bold text-primary/70">
-                    #{row.displayOrder}
-                  </span>
-                </td>
-                <td className="px-4 py-2.5">
-                  <CertificateStatusBadge status={row.status} />
-                </td>
-                <td className="whitespace-nowrap px-4 py-2.5 text-right">
-                  <Link
-                    href={`/dashboard/green-building/${row.id}/edit`}
-                    className="rounded px-2.5 py-1 text-xs font-bold text-secondary hover:bg-blue-50"
-                  >
-                    Edit
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={() => onDelete(row.id)}
-                    className="rounded px-2.5 py-1 text-xs font-bold text-red-700 hover:bg-red-50"
-                  >
-                    Delete
-                  </button>
-                </td>
-              </tr>
-            ))}
+            {rows.map((row) => {
+              const remote = !row.imageUrl.startsWith("/");
+              return (
+                <tr key={row._id} className="border-t border-outline/40 hover:bg-background/50">
+                  <td className="px-4 py-2.5">
+                    {row.imageUrl ? (
+                      remote ? (
+                        // Remote CMS URLs bypass next/image so no remotePatterns config is needed.
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={row.imageUrl}
+                          alt={row.imageAlt || row.projectName}
+                          loading="lazy"
+                          className="h-12 w-16 rounded border border-outline/40 object-cover"
+                        />
+                      ) : (
+                        <div className="relative h-12 w-16 overflow-hidden rounded border border-outline/40">
+                          <Image
+                            src={row.imageUrl}
+                            alt={row.imageAlt || row.projectName}
+                            fill
+                            sizes="64px"
+                            loading="lazy"
+                            className="object-cover"
+                          />
+                        </div>
+                      )
+                    ) : (
+                      <div className="flex h-12 w-16 items-center justify-center rounded border border-outline/40 bg-background text-[10px] font-bold text-primary/40">
+                        No image
+                      </div>
+                    )}
+                  </td>
+                  <td className="px-4 py-2.5 font-bold text-primary">{row.projectName}</td>
+                  <td className="px-4 py-2.5 text-primary/70">
+                    {row.certificationBody}
+                    <span className="text-primary/50"> • {row.certificationType}</span>
+                  </td>
+                  <td className="px-4 py-2.5 font-semibold text-secondary">{row.level}</td>
+                  <td className="px-4 py-2.5 text-primary/70">{row.year}</td>
+                  <td className="px-4 py-2.5">
+                    <span className="rounded-lg bg-background px-1.5 py-0.5 text-[10px] font-bold text-primary/70">
+                      #{row.sortOrder}
+                    </span>
+                  </td>
+                  <td className="px-4 py-2.5">
+                    <CertificateStatusBadge status={row.status} />
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-2.5 text-right">
+                    <Link
+                      href={`/dashboard/green-building/${row._id}/edit`}
+                      className="rounded px-2.5 py-1 text-xs font-bold text-secondary hover:bg-blue-50"
+                    >
+                      Edit
+                    </Link>
+                    <button
+                      type="button"
+                      disabled={deletingId === row._id}
+                      onClick={() => onDelete(row._id)}
+                      className="rounded px-2.5 py-1 text-xs font-bold text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

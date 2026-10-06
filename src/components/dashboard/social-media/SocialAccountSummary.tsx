@@ -1,6 +1,12 @@
 import { getAccountPostCount, type SocialAccount } from "@/lib/demo/social-media";
 
-export default function SocialAccountSummary({ accounts }: { accounts: SocialAccount[] }) {
+export default function SocialAccountSummary({
+  accounts,
+  counts,
+}: {
+  accounts: SocialAccount[];
+  counts?: Record<string, number>;
+}) {
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
       {accounts.map((account) => (
@@ -16,7 +22,7 @@ export default function SocialAccountSummary({ accounts }: { accounts: SocialAcc
             <div className="truncate text-[11px] text-slate-500">{account.description}</div>
           </div>
           <span className="shrink-0 rounded-full bg-background px-2.5 py-1 text-[11px] font-bold text-primary/70">
-            {getAccountPostCount(account.username)} post
+            {counts?.[account.username] ?? getAccountPostCount(account.username)} post
           </span>
         </div>
       ))}

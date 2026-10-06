@@ -1,3 +1,7 @@
+"use client";
+
+import { useEffect, useState } from "react";
+
 type SocialPost = {
   permalink: string;
 };
@@ -9,7 +13,7 @@ type SocialAccount = {
   posts: SocialPost[];
 };
 
-const accounts: SocialAccount[] = [
+const FALLBACK_SOCIAL_POSTS: SocialAccount[] = [
   {
     handle: "@wika.building",
     description: "Project Execution & Engineering Field Highlights",
@@ -91,7 +95,74 @@ function ExternalLinkIcon() {
   );
 }
 
+type SocialPublicPayload = {
+  platform?: unknown;
+  account?: unknown;
+  url?: unknown;
+};
+
+function toPermalink(item: SocialPublicPayload): { account: string; permalink: string } | null {
+  if (item.platform !== "instagram") {
+    return null;
+  }
+  if (typeof item.account !== "string" || item.account.length === 0) {
+    return null;
+  }
+  if (typeof item.url !== "string" || item.url.length === 0) {
+    return null;
+  }
+  return { account: item.account, permalink: item.url };
+}
+
 export default function SocialMedia() {
+  // Fallback-first render keeps SSR/hydration deterministic; API swaps in when valid.
+  const [accounts, setAccounts] = useState<SocialAccount[]>(FALLBACK_SOCIAL_POSTS);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/social-posts/public")
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        return response.json() as Promise<{ data?: unknown }>;
+      })
+      .then((body) => {
+        if (cancelled || !Array.isArray(body.data)) {
+          return;
+        }
+        const byAccount = new Map<string, string[]>();
+        for (const item of body.data) {
+          const parsed = toPermalink(item as SocialPublicPayload);
+          if (!parsed) {
+            continue;
+          }
+          const list = byAccount.get(parsed.account) ?? [];
+          list.push(parsed.permalink);
+          byAccount.set(parsed.account, list);
+        }
+        if (byAccount.size === 0) {
+          return;
+        }
+        setAccounts((prev) =>
+          prev.map((account) => {
+            const permalinks = byAccount.get(account.handle);
+            if (!permalinks || permalinks.length === 0) {
+              return account;
+            }
+            return { ...account, posts: permalinks.map((permalink) => ({ permalink })) };
+          }),
+        );
+      })
+      .catch(() => {
+        // Silent fallback: static posts remain. No user-facing error on landing.
+        console.warn("Landing social media uses static fallback (public API unavailable).");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <section id="social-media" className="w-full max-w-full overflow-hidden bg-surface py-20 lg:py-28">
       <div className="mx-auto w-full max-w-7xl px-6 lg:px-8">
@@ -137,9 +208,9 @@ export default function SocialMedia() {
                 </a>
               </div>
               <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                {account.posts.map((post) => (
+                {account.posts.map((post, index) => (
                   <div
-                    key={post.permalink}
+                    key={`${account.handle}-${post.permalink}-${index}`}
                     className="flex flex-col items-center gap-4 overflow-hidden rounded-2xl border border-outline/40 bg-white p-6 text-center shadow-[0_4px_12px_rgba(0,0,0,0.06)]"
                   >
                     <InstagramGlyph />

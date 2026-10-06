@@ -2,16 +2,17 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import type { SocialPost } from "@/lib/demo/social-media";
+import type { SocialPostApiItem } from "@/components/dashboard/social-media/social-post-api.types";
 import SocialPostStatusBadge from "@/components/dashboard/social-media/SocialPostStatusBadge";
 
 type SocialPostTableProps = {
-  posts: SocialPost[];
-  onDelete: (id: number) => void;
+  posts: SocialPostApiItem[];
+  deletingId: string | null;
+  onDelete: (id: string) => void;
 };
 
-export default function SocialPostTable({ posts, onDelete }: SocialPostTableProps) {
-  const rows = [...posts].sort((a, b) => a.order - b.order);
+export default function SocialPostTable({ posts, deletingId, onDelete }: SocialPostTableProps) {
+  const rows = [...posts].sort((a, b) => a.sortOrder - b.sortOrder);
   return (
     <div className="overflow-hidden rounded-lg border border-outline bg-surface shadow-sm">
       <div className="flex items-center justify-between border-b border-outline p-4">
@@ -49,45 +50,73 @@ export default function SocialPostTable({ posts, onDelete }: SocialPostTableProp
             </tr>
           </thead>
           <tbody>
-            {rows.map((post) => (
-              <tr key={post.id} className="border-t border-outline/40 hover:bg-background/50">
-                <td className="px-4 py-2.5">
-                  <div className="flex items-center gap-3">
-                    <div className="relative h-12 w-16 shrink-0 overflow-hidden rounded border border-outline/40">
-                      <Image src={post.image} alt="" fill sizes="64px" loading="lazy" className="object-cover" />
+            {rows.map((post) => {
+              const remote = !post.imageUrl.startsWith("/");
+              return (
+                <tr key={post._id} className="border-t border-outline/40 hover:bg-background/50">
+                  <td className="px-4 py-2.5">
+                    <div className="flex items-center gap-3">
+                      {post.imageUrl ? (
+                        remote ? (
+                          // Remote CMS URLs bypass next/image so no remotePatterns config is needed.
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={post.imageUrl}
+                            alt={post.imageAlt || post.account}
+                            loading="lazy"
+                            className="h-12 w-16 shrink-0 rounded border border-outline/40 object-cover"
+                          />
+                        ) : (
+                          <div className="relative h-12 w-16 shrink-0 overflow-hidden rounded border border-outline/40">
+                            <Image
+                              src={post.imageUrl}
+                              alt={post.imageAlt || post.account}
+                              fill
+                              sizes="64px"
+                              loading="lazy"
+                              className="object-cover"
+                            />
+                          </div>
+                        )
+                      ) : (
+                        <div className="flex h-12 w-16 shrink-0 items-center justify-center rounded border border-outline/40 bg-background text-[10px] font-bold text-primary/40">
+                          No image
+                        </div>
+                      )}
+                      <p className="max-w-56 truncate font-medium text-primary/70" title={post.caption}>
+                        {post.caption || "—"}
+                      </p>
                     </div>
-                    <p className="max-w-56 truncate font-medium text-primary/70" title={post.caption}>
-                      {post.caption}
-                    </p>
-                  </div>
-                </td>
-                <td className="whitespace-nowrap px-4 py-2.5 font-bold text-primary">{post.account}</td>
-                <td className="px-4 py-2.5 text-primary/70">{post.type}</td>
-                <td className="px-4 py-2.5">
-                  <span className="rounded-lg bg-background px-1.5 py-0.5 text-[10px] font-bold text-primary/70">
-                    #{post.order}
-                  </span>
-                </td>
-                <td className="px-4 py-2.5">
-                  <SocialPostStatusBadge status={post.status} />
-                </td>
-                <td className="whitespace-nowrap px-4 py-2.5 text-right">
-                  <Link
-                    href={`/dashboard/social-media/${post.id}/edit`}
-                    className="rounded px-2.5 py-1 text-xs font-bold text-secondary hover:bg-blue-50"
-                  >
-                    Edit
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={() => onDelete(post.id)}
-                    className="rounded px-2.5 py-1 text-xs font-bold text-red-700 hover:bg-red-50"
-                  >
-                    Delete
-                  </button>
-                </td>
-              </tr>
-            ))}
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-2.5 font-bold text-primary">{post.account}</td>
+                  <td className="px-4 py-2.5 text-primary/70">{post.type}</td>
+                  <td className="px-4 py-2.5">
+                    <span className="rounded-lg bg-background px-1.5 py-0.5 text-[10px] font-bold text-primary/70">
+                      #{post.sortOrder}
+                    </span>
+                  </td>
+                  <td className="px-4 py-2.5">
+                    <SocialPostStatusBadge status={post.status} />
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-2.5 text-right">
+                    <Link
+                      href={`/dashboard/social-media/${post._id}/edit`}
+                      className="rounded px-2.5 py-1 text-xs font-bold text-secondary hover:bg-blue-50"
+                    >
+                      Edit
+                    </Link>
+                    <button
+                      type="button"
+                      disabled={deletingId === post._id}
+                      onClick={() => onDelete(post._id)}
+                      className="rounded px-2.5 py-1 text-xs font-bold text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

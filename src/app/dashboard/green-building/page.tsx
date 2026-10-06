@@ -1,15 +1,54 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { initialCertificates } from "@/lib/demo/green-building";
 import CertificateTable from "@/components/dashboard/green-building/CertificateTable";
+import type { GreenBuildingApiItem } from "@/components/dashboard/green-building/green-building-api.types";
 
 export default function GreenBuildingIndexPage() {
-  const [certificates, setCertificates] = useState(initialCertificates);
+  const [certificates, setCertificates] = useState<GreenBuildingApiItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  function handleDelete(id: number): void {
-    setCertificates((prev) => prev.filter((certificate) => certificate.id !== id));
+  async function loadCertificates(): Promise<void> {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch("/api/green-buildings");
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      const body = (await response.json()) as { data?: GreenBuildingApiItem[] };
+      setCertificates(Array.isArray(body.data) ? body.data : []);
+    } catch {
+      setError("Gagal memuat data sertifikat.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void loadCertificates();
+  }, []);
+
+  async function handleDelete(id: string): Promise<void> {
+    if (deletingId !== null) {
+      return;
+    }
+    setDeletingId(id);
+    setError(null);
+    try {
+      const response = await fetch(`/api/green-buildings/${id}`, { method: "DELETE" });
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      setCertificates((prev) => prev.filter((certificate) => certificate._id !== id));
+    } catch {
+      setError("Gagal menghapus sertifikat.");
+    } finally {
+      setDeletingId(null);
+    }
   }
 
   return (
@@ -54,7 +93,32 @@ export default function GreenBuildingIndexPage() {
         </div>
       </div>
 
-      <CertificateTable certificates={certificates} onDelete={handleDelete} />
+      {loading ? (
+        <div className="rounded-lg border border-outline bg-surface p-8 text-center shadow-sm">
+          <p className="text-sm font-medium text-primary/70">Memuat data sertifikat...</p>
+        </div>
+      ) : error ? (
+        <div className="rounded-lg border border-outline bg-surface p-8 text-center shadow-sm">
+          <p className="text-sm font-bold text-primary">{error}</p>
+          <button
+            type="button"
+            onClick={() => void loadCertificates()}
+            className="mt-4 rounded-lg bg-primary px-5 py-2.5 text-xs font-bold text-white transition-colors hover:bg-secondary"
+          >
+            Coba Lagi
+          </button>
+        </div>
+      ) : certificates.length === 0 ? (
+        <div className="rounded-lg border border-outline bg-surface p-8 text-center shadow-sm">
+          <p className="text-sm font-medium text-primary/70">Belum ada data sertifikat.</p>
+        </div>
+      ) : (
+        <CertificateTable
+          certificates={certificates}
+          deletingId={deletingId}
+          onDelete={(id) => void handleDelete(id)}
+        />
+      )}
     </div>
   );
 }
