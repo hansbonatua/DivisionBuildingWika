@@ -1,15 +1,54 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { initialProjects } from "@/lib/demo/projects";
 import ProjectTable from "@/components/dashboard/projects/ProjectTable";
+import type { PortfolioProjectApiItem } from "@/components/dashboard/projects/portfolio-project-api.types";
 
 export default function ProjectsIndexPage() {
-  const [projects, setProjects] = useState(initialProjects);
+  const [projects, setProjects] = useState<PortfolioProjectApiItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  function handleDelete(id: number): void {
-    setProjects((prev) => prev.filter((project) => project.id !== id));
+  async function loadProjects(): Promise<void> {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch("/api/portfolio-projects");
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      const body = (await response.json()) as { data?: PortfolioProjectApiItem[] };
+      setProjects(Array.isArray(body.data) ? body.data : []);
+    } catch {
+      setError("Gagal memuat data project.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void loadProjects();
+  }, []);
+
+  async function handleDelete(id: string): Promise<void> {
+    if (deletingId !== null) {
+      return;
+    }
+    setDeletingId(id);
+    setError(null);
+    try {
+      const response = await fetch(`/api/portfolio-projects/${id}`, { method: "DELETE" });
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      setProjects((prev) => prev.filter((project) => project._id !== id));
+    } catch {
+      setError("Gagal menghapus project.");
+    } finally {
+      setDeletingId(null);
+    }
   }
 
   return (
@@ -52,7 +91,32 @@ export default function ProjectsIndexPage() {
         </div>
       </div>
 
-      <ProjectTable projects={projects} onDelete={handleDelete} />
+      {loading ? (
+        <div className="rounded-lg border border-outline/60 bg-surface p-8 text-center shadow-sm">
+          <p className="text-sm font-medium text-primary/70">Memuat data project...</p>
+        </div>
+      ) : error ? (
+        <div className="rounded-lg border border-outline/60 bg-surface p-8 text-center shadow-sm">
+          <p className="text-sm font-bold text-primary">{error}</p>
+          <button
+            type="button"
+            onClick={() => void loadProjects()}
+            className="mt-4 rounded-lg bg-primary px-5 py-2.5 text-xs font-bold text-white transition-colors hover:bg-secondary"
+          >
+            Coba Lagi
+          </button>
+        </div>
+      ) : projects.length === 0 ? (
+        <div className="rounded-lg border border-outline/60 bg-surface p-8 text-center shadow-sm">
+          <p className="text-sm font-medium text-primary/70">Belum ada data project.</p>
+        </div>
+      ) : (
+        <ProjectTable
+          projects={projects}
+          deletingId={deletingId}
+          onDelete={(id) => void handleDelete(id)}
+        />
+      )}
     </div>
   );
 }

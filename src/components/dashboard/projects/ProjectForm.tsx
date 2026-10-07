@@ -2,37 +2,51 @@
 
 import { useRef, useState } from "react";
 import Link from "next/link";
-import { CATEGORY_OPTIONS, type ProjectItem } from "@/lib/demo/projects";
+import { CATEGORY_OPTIONS } from "@/lib/demo/projects";
 
 export type ProjectFormValues = {
-  name: string;
+  title: string;
   category: string;
   location: string;
   progress: number;
   description: string;
-  image: string | null;
+  imageUrl: string;
+  imageAlt: string;
+  status: "Active" | "Draft";
 };
+
+export type ProjectFormData = ProjectFormValues;
 
 type ProjectFormProps = {
   mode: "add" | "edit";
-  initialData?: ProjectItem;
+  initialData?: ProjectFormData;
   submitLabel: string;
-  onSubmit: (values: ProjectFormValues) => void;
+  onSubmit: (values: ProjectFormValues) => void | Promise<void>;
 };
 
+const STATUS_OPTIONS = [
+  { value: "Active", label: "Active" },
+  { value: "Draft", label: "Draft" },
+] as const;
+
 export default function ProjectForm({ mode, initialData, submitLabel, onSubmit }: ProjectFormProps) {
-  const [formName, setFormName] = useState(initialData?.formName ?? "");
+  const [formTitle, setFormTitle] = useState(initialData?.title ?? "");
   const [formCategory, setFormCategory] = useState(
     initialData && CATEGORY_OPTIONS.includes(initialData.category)
       ? initialData.category
       : CATEGORY_OPTIONS[0],
   );
-  const [formLocation, setFormLocation] = useState(initialData?.formLocation ?? "");
+  const [formLocation, setFormLocation] = useState(initialData?.location ?? "");
   const [formProgress, setFormProgress] = useState(initialData?.progress ?? 0);
   const [formDescription, setFormDescription] = useState(initialData?.description ?? "");
-  const [formImage, setFormImage] = useState<string | null>(
-    initialData?.mediaImage ?? initialData?.image ?? null,
+  const [formImageUrl, setFormImageUrl] = useState(initialData?.imageUrl ?? "");
+  const [formImageAlt, setFormImageAlt] = useState(initialData?.imageAlt ?? "");
+  const [formStatus, setFormStatus] = useState<"Active" | "Draft">(
+    initialData?.status ?? "Active",
   );
+  const [previewFile, setPreviewFile] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   function handleFileChange(event: React.ChangeEvent<HTMLInputElement>): void {
@@ -40,23 +54,54 @@ export default function ProjectForm({ mode, initialData, submitLabel, onSubmit }
     if (!file) {
       return;
     }
-    setFormImage(URL.createObjectURL(file));
+    if (previewFile?.startsWith("blob:")) {
+      URL.revokeObjectURL(previewFile);
+    }
+    // Preview-only: object URLs are never sent to the API (see handleSubmit).
+    setPreviewFile(URL.createObjectURL(file));
   }
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>): void {
-    event.preventDefault();
-    onSubmit({
-      name: formName,
-      category: formCategory,
-      location: formLocation,
-      progress: formProgress,
-      description: formDescription,
-      image: formImage,
-    });
+  function handleRemovePreview(): void {
+    if (previewFile?.startsWith("blob:")) {
+      URL.revokeObjectURL(previewFile);
+    }
+    setPreviewFile(null);
   }
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    if (!formTitle.trim() || !formCategory.trim() || !formLocation.trim() || !formImageUrl.trim()) {
+      setFormError("Lengkapi title, category, location, dan URL gambar project.");
+      return;
+    }
+    if (formImageUrl.trim().startsWith("blob:")) {
+      setFormError("Upload file permanen belum tersedia. Gunakan URL/path gambar.");
+      return;
+    }
+    setFormError(null);
+    setSubmitting(true);
+    try {
+      await onSubmit({
+        title: formTitle.trim(),
+        category: formCategory,
+        location: formLocation.trim(),
+        progress: Number.isFinite(formProgress) ? formProgress : 0,
+        description: formDescription.trim(),
+        imageUrl: formImageUrl.trim(),
+        imageAlt: formImageAlt.trim(),
+        status: formStatus,
+      });
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : "Gagal menyimpan project.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  const canvasSrc = previewFile ?? (formImageUrl.startsWith("blob:") ? "" : formImageUrl);
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={(e) => void handleSubmit(e)} className="space-y-6">
       <div className="overflow-hidden rounded-lg border border-outline/60 bg-surface shadow-sm">
         <div className="flex items-center gap-2 border-b border-outline/60 bg-background px-4 py-3">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="text-secondary">
@@ -75,8 +120,8 @@ export default function ProjectForm({ mode, initialData, submitLabel, onSubmit }
               <input
                 id="projectName"
                 type="text"
-                value={formName}
-                onChange={(e) => setFormName(e.target.value)}
+                value={formTitle}
+                onChange={(e) => setFormTitle(e.target.value)}
                 className="h-10 w-full rounded-lg border border-outline/60 bg-white px-3.5 text-sm font-semibold text-primary focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
               />
               <span className="mt-1 block text-[11px] text-primary/50">
@@ -124,6 +169,26 @@ export default function ProjectForm({ mode, initialData, submitLabel, onSubmit }
                 />
               </div>
             </div>
+            <div>
+              <label htmlFor="projectStatus" className="mb-1.5 block text-xs font-bold text-primary">
+                Status <span className="text-red-700">*</span>
+              </label>
+              <select
+                id="projectStatus"
+                value={formStatus}
+                onChange={(e) => setFormStatus(e.target.value as "Active" | "Draft")}
+                className="h-10 w-full rounded-lg border border-outline/60 bg-white px-3 text-sm text-primary focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
+              >
+                {STATUS_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <span className="mt-1 block text-[11px] text-primary/50">
+                Hanya Active yang tampil di landing page.
+              </span>
+            </div>
           </div>
 
           <div className="space-y-3 rounded-lg border border-outline bg-background/40 p-4">
@@ -148,7 +213,7 @@ export default function ProjectForm({ mode, initialData, submitLabel, onSubmit }
               min={0}
               max={100}
               value={formProgress}
-              onChange={(e) => setFormProgress(Number(e.target.value))}
+              onChange={(e) => setFormProgress(Number(e.target.value) || 0)}
               className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-slate-200 accent-secondary"
             />
             <div className="flex justify-between text-[11px] text-primary/50">
@@ -217,7 +282,7 @@ export default function ProjectForm({ mode, initialData, submitLabel, onSubmit }
                   accept=".jpg,.jpeg,.png,.webp"
                   onChange={handleFileChange}
                   className="hidden"
-                  aria-label={mode === "add" ? "Unggah foto proyek" : "Ganti foto proyek"}
+                  aria-label={mode === "add" ? "Pratinjau foto proyek" : "Ganti pratinjau foto"}
                 />
                 <button
                   type="button"
@@ -229,14 +294,23 @@ export default function ProjectForm({ mode, initialData, submitLabel, onSubmit }
                     <polyline points="17 8 12 3 7 8" />
                     <line x1="12" x2="12" y1="3" y2="15" />
                   </svg>
-                  <span>{mode === "add" ? "Unggah Foto" : "Ganti Foto"}</span>
+                  <span>Pratinjau Foto</span>
                 </button>
+                {previewFile ? (
+                  <button
+                    type="button"
+                    onClick={handleRemovePreview}
+                    className="rounded-lg border border-outline/70 bg-white px-3 py-1.5 text-xs font-semibold text-slate-500 transition-colors hover:bg-slate-50"
+                  >
+                    Hapus Pratinjau
+                  </button>
+                ) : null}
               </div>
             </div>
             <div className="group relative aspect-[16/9] max-h-72 overflow-hidden rounded-lg border border-outline bg-slate-900">
-              {formImage ? (
+              {canvasSrc ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={formImage} alt={`Pratinjau media ${formName || "proyek"}`} className="h-full w-full object-cover" />
+                <img src={canvasSrc} alt={`Pratinjau media ${formTitle || "proyek"}`} className="h-full w-full object-cover" />
               ) : (
                 <div className="flex h-full w-full items-center justify-center text-slate-500">
                   <span className="text-xs">Belum ada media.</span>
@@ -249,27 +323,47 @@ export default function ProjectForm({ mode, initialData, submitLabel, onSubmit }
                       Foto Utama Aktif
                     </span>
                   </div>
-                  <div className="flex shrink-0 items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setFormImage(null)}
-                      className="rounded-lg bg-red-600/80 p-2 text-white backdrop-blur transition-colors hover:bg-red-700"
-                      title="Hapus Gambar"
-                      aria-label="Hapus gambar"
-                    >
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                        <path d="M3 6h18" />
-                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-                        <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                      </svg>
-                    </button>
-                  </div>
                 </div>
               </div>
+            </div>
+            <div className="mt-3">
+              <label htmlFor="projectImageUrl" className="mb-1.5 block text-xs font-bold text-primary">
+                URL Gambar Project <span className="text-red-700">*</span>
+              </label>
+              <input
+                id="projectImageUrl"
+                type="text"
+                placeholder="misal: /asset/hero/7.jpg atau https://..."
+                value={formImageUrl}
+                onChange={(e) => setFormImageUrl(e.target.value)}
+                className="h-10 w-full rounded-lg border border-outline/60 bg-white px-3.5 text-sm font-semibold text-primary focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
+              />
+              <p className="mt-1 text-[11px] text-primary/50">
+                Nilai inilah yang tersimpan. Pratinjau file lokal di atas tidak tersimpan.
+              </p>
+            </div>
+            <div className="mt-3">
+              <label htmlFor="projectImageAlt" className="mb-1.5 block text-xs font-bold text-primary">
+                Alt Text Gambar
+              </label>
+              <input
+                id="projectImageAlt"
+                type="text"
+                placeholder="Deskripsi gambar untuk aksesibilitas."
+                value={formImageAlt}
+                onChange={(e) => setFormImageAlt(e.target.value)}
+                className="h-10 w-full rounded-lg border border-outline/60 bg-white px-3.5 text-sm font-semibold text-primary focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
+              />
             </div>
           </div>
         </div>
       </div>
+
+      {formError ? (
+        <p role="alert" className="rounded-lg border border-red-300 bg-red-50 px-4 py-2.5 text-xs font-semibold text-red-700">
+          {formError}
+        </p>
+      ) : null}
 
       <div className="flex flex-wrap items-center justify-end gap-3">
         <Link
@@ -280,13 +374,14 @@ export default function ProjectForm({ mode, initialData, submitLabel, onSubmit }
         </Link>
         <button
           type="submit"
-          className="flex items-center gap-2 rounded-lg bg-primary px-6 py-2.5 text-xs font-bold text-white shadow transition-all hover:bg-secondary"
+          disabled={submitting}
+          className="flex items-center gap-2 rounded-lg bg-primary px-6 py-2.5 text-xs font-bold text-white shadow transition-all hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-60"
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
             <polyline points="22 4 12 14.01 9 11.01" />
           </svg>
-          <span>{submitLabel}</span>
+          <span>{submitting ? "Menyimpan..." : submitLabel}</span>
         </button>
       </div>
     </form>

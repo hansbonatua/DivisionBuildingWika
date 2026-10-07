@@ -1,16 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import type { ProjectItem } from "@/lib/demo/projects";
+import type { PortfolioProjectApiItem } from "@/components/dashboard/projects/portfolio-project-api.types";
 import ProjectStatusBadge from "@/components/dashboard/projects/ProjectStatusBadge";
 import ProjectThumbIcon from "@/components/dashboard/projects/ProjectThumbIcon";
 
 type ProjectTableProps = {
-  projects: ProjectItem[];
-  onDelete: (id: number) => void;
+  projects: PortfolioProjectApiItem[];
+  deletingId: string | null;
+  onDelete: (id: string) => void;
 };
 
-export default function ProjectTable({ projects, onDelete }: ProjectTableProps) {
+export default function ProjectTable({ projects, deletingId, onDelete }: ProjectTableProps) {
+  const rows = [...projects].sort((a, b) => a.sortOrder - b.sortOrder);
   return (
     <div className="overflow-hidden rounded-lg border border-outline/60 bg-surface shadow-sm">
       <div className="flex items-center justify-between border-b border-outline/60 bg-background px-4 py-3">
@@ -38,19 +40,20 @@ export default function ProjectTable({ projects, onDelete }: ProjectTableProps) 
             </tr>
           </thead>
           <tbody>
-            {projects.map((project) => (
-              <tr key={project.id} className="border-t border-outline/40 hover:bg-background/50">
+            {rows.map((project) => (
+              <tr key={project._id} className="border-t border-outline/40 hover:bg-background/50">
                 <td className="px-3 py-2">
-                  {project.image ? (
+                  {project.imageUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
-                      src={project.image}
+                      src={project.imageUrl}
                       alt={project.imageAlt || project.title}
+                      loading="lazy"
                       className="h-10 w-14 rounded border border-outline/40 object-cover"
                     />
                   ) : (
                     <div className="flex h-10 w-14 items-center justify-center rounded border border-outline/40 bg-background text-primary/50">
-                      {project.icon ? <ProjectThumbIcon icon={project.icon} /> : null}
+                      <ProjectThumbIcon icon="building" />
                     </div>
                   )}
                 </td>
@@ -70,15 +73,16 @@ export default function ProjectTable({ projects, onDelete }: ProjectTableProps) 
                 </td>
                 <td className="whitespace-nowrap px-3 py-2 text-right">
                   <Link
-                    href={`/dashboard/projects/${project.id}/edit`}
+                    href={`/dashboard/projects/${project._id}/edit`}
                     className="rounded px-2.5 py-1 text-xs font-bold text-secondary hover:bg-blue-50"
                   >
                     Edit
                   </Link>
                   <button
                     type="button"
-                    onClick={() => onDelete(project.id)}
-                    className="rounded px-2.5 py-1 text-xs font-bold text-red-700 hover:bg-red-50"
+                    disabled={deletingId === project._id}
+                    onClick={() => onDelete(project._id)}
+                    className="rounded px-2.5 py-1 text-xs font-bold text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     Delete
                   </button>

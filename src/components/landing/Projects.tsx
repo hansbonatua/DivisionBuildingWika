@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 
 type Project = {
@@ -14,7 +14,7 @@ type Project = {
   alt: string;
 };
 
-const projects: Project[] = [
+const FALLBACK_PROJECTS: Project[] = [
   {
     title: "Lorem Ipsum Construction Project",
     category: "Building",
@@ -63,8 +63,76 @@ const projects: Project[] = [
 
 const SLIDER_GAP_PX = 24;
 
+// Generic display copy for API-fed cards (API carries no phase/kind/description).
+// Deterministic by design — no business facts are derived from record fields.
+const API_CARD_DESCRIPTION =
+  "Strategic national project delivered to sovereign engineering benchmarks.";
+const API_CARD_PHASE = "Completed";
+const API_CARD_KIND = "Turnkey";
+
+type PortfolioPublicPayload = {
+  title?: unknown;
+  category?: unknown;
+  location?: unknown;
+  imageUrl?: unknown;
+  imageAlt?: unknown;
+};
+
+function toLandingProject(item: PortfolioPublicPayload): Project | null {
+  if (typeof item.title !== "string" || item.title.length === 0) {
+    return null;
+  }
+  if (typeof item.imageUrl !== "string" || item.imageUrl.length === 0) {
+    return null;
+  }
+  const category = typeof item.category === "string" && item.category.length > 0 ? item.category : "Project";
+  const location = typeof item.location === "string" ? item.location : "";
+  const imageAlt = typeof item.imageAlt === "string" && item.imageAlt.length > 0 ? item.imageAlt : item.title;
+  return {
+    title: item.title,
+    category,
+    meta: location,
+    description: API_CARD_DESCRIPTION,
+    phase: API_CARD_PHASE,
+    kind: API_CARD_KIND,
+    image: item.imageUrl,
+    alt: imageAlt,
+  };
+}
+
 export default function Projects() {
+  // Fallback-first render keeps SSR/hydration deterministic; API swaps in when valid.
+  const [projects, setProjects] = useState<Project[]>(FALLBACK_PROJECTS);
   const sliderRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/portfolio-projects/public")
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        return response.json() as Promise<{ data?: unknown }>;
+      })
+      .then((body) => {
+        if (cancelled || !Array.isArray(body.data)) {
+          return;
+        }
+        const mapped = body.data
+          .map((item) => toLandingProject(item as PortfolioPublicPayload))
+          .filter((project): project is Project => project !== null);
+        if (mapped.length > 0) {
+          setProjects(mapped);
+        }
+      })
+      .catch(() => {
+        // Silent fallback: static projects remain. No user-facing error on landing.
+        console.warn("Landing projects use static fallback (public API unavailable).");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   function slideProject(direction: 1 | -1): void {
     const slider = sliderRef.current;
@@ -164,19 +232,30 @@ export default function Projects() {
           ref={sliderRef}
           className="flex snap-x snap-mandatory gap-6 overflow-x-auto scroll-smooth pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
-          {projects.map((project) => (
+          {projects.map((project, index) => (
             <article
-              key={project.title}
+              key={`${project.image}-${project.title}-${index}`}
               className="group flex w-full max-w-full shrink-0 snap-start flex-col overflow-hidden rounded-xl border border-outline/40 bg-surface shadow-sm transition-all duration-300 hover:shadow-lg md:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)]"
             >
               <div className="relative aspect-video overflow-hidden bg-background">
-                <Image
-                  src={project.image}
-                  alt={project.alt}
-                  fill
-                  sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                  className="object-cover transition-transform duration-500 ease-out group-hover:scale-105"
-                />
+                {project.image.startsWith("/") ? (
+                  <Image
+                    src={project.image}
+                    alt={project.alt}
+                    fill
+                    sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                    className="object-cover transition-transform duration-500 ease-out group-hover:scale-105"
+                  />
+                ) : (
+                  // Remote CMS URLs bypass next/image so no remotePatterns config is needed.
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={project.image}
+                    alt={project.alt}
+                    loading="lazy"
+                    className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
+                  />
+                )}
                 <div className="absolute left-3 top-3">
                   <span className="rounded-md border border-outline/30 bg-surface/90 px-2.5 py-1 text-[11px] font-bold text-secondary backdrop-blur-sm">
                     {project.category}
