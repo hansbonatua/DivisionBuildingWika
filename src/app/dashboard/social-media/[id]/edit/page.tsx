@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { use, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import SocialPostForm, { type SocialPostFormValues } from "@/components/dashboard/social-media/SocialPostForm";
@@ -16,6 +16,11 @@ export default function EditSocialPostPage({ params }: { params: Promise<{ id: s
   const [error, setError] = useState<string | null>(null);
   const [liveValues, setLiveValues] = useState<SocialPostFormValues | null>(null);
   const [livePreview, setLivePreview] = useState<string | null>(null);
+
+  const handleValuesChange = useCallback((values: SocialPostFormValues, preview: string | null) => {
+    setLiveValues(values);
+    setLivePreview(preview);
+  }, []);
 
   async function loadPost(): Promise<void> {
     setLoading(true);
@@ -180,10 +185,7 @@ export default function EditSocialPostPage({ params }: { params: Promise<{ id: s
             }}
             submitLabel="Simpan Postingan"
             onSubmit={handlePatch}
-            onValuesChange={(values, preview) => {
-              setLiveValues(values);
-              setLivePreview(preview);
-            }}
+            onValuesChange={handleValuesChange}
           />
         </div>
         <div className="overflow-hidden rounded-lg border border-outline bg-surface shadow-sm lg:sticky lg:top-4">

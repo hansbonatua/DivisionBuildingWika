@@ -28,8 +28,12 @@ export default function SocialPostPreview({
           <span className="truncate text-sm font-bold text-primary">{account || "-"}</span>
         </div>
         <div className="relative aspect-[16/10] w-full bg-slate-100">
-          {image ? (
+          {image.trim().startsWith("/") ? (
             <Image src={image} alt="Preview postingan" fill sizes="(max-width: 1024px) 100vw, 33vw" className="object-cover" />
+          ) : image.trim().startsWith("http://") || image.trim().startsWith("https://") ? (
+            // Remote URLs bypass next/image so no remotePatterns config is needed.
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={image} alt="Preview postingan" className="h-full w-full object-cover" />
           ) : null}
         </div>
         <div className="p-4">

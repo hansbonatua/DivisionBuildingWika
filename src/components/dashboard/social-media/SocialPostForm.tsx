@@ -67,7 +67,8 @@ export default function SocialPostForm({
       },
       previewFile,
     );
-  }, [formAccount, formCaption, formUrl, formType, formImageUrl, formImageAlt, formStatus, previewFile, onValuesChange]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formAccount, formCaption, formUrl, formType, formImageUrl, formImageAlt, formStatus, previewFile]);
 
   function handleFileChange(event: React.ChangeEvent<HTMLInputElement>): void {
     const file = event.target.files?.[0];
