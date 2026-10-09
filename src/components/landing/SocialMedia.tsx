@@ -1,8 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 
 type SocialPost = {
+  platform: string;
+  account: string;
+  caption: string;
+  url: string;
+  type: string;
+  imageUrl: string;
   permalink: string;
 };
 
@@ -19,9 +26,33 @@ const FALLBACK_SOCIAL_POSTS: SocialAccount[] = [
     description: "Project Execution & Engineering Field Highlights",
     profileUrl: "https://www.instagram.com/wika.building/",
     posts: [
-      { permalink: "https://www.instagram.com/p/Ddsj3YCkb7r/" },
-      { permalink: "https://www.instagram.com/p/DdoAuNlKuS6/" },
-      { permalink: "https://www.instagram.com/p/Ddl9xInIygJ/" },
+      {
+        platform: "instagram",
+        account: "@wika.building",
+        caption: "",
+        url: "https://www.instagram.com/p/Ddsj3YCkb7r/",
+        type: "Image",
+        imageUrl: "",
+        permalink: "https://www.instagram.com/p/Ddsj3YCkb7r/",
+      },
+      {
+        platform: "instagram",
+        account: "@wika.building",
+        caption: "",
+        url: "https://www.instagram.com/p/DdoAuNlKuS6/",
+        type: "Image",
+        imageUrl: "",
+        permalink: "https://www.instagram.com/p/DdoAuNlKuS6/",
+      },
+      {
+        platform: "instagram",
+        account: "@wika.building",
+        caption: "",
+        url: "https://www.instagram.com/p/Ddl9xInIygJ/",
+        type: "Image",
+        imageUrl: "",
+        permalink: "https://www.instagram.com/p/Ddl9xInIygJ/",
+      },
     ],
   },
   {
@@ -29,9 +60,33 @@ const FALLBACK_SOCIAL_POSTS: SocialAccount[] = [
     description: "Corporate Governance & Stakeholder Relations",
     profileUrl: "https://www.instagram.com/ptwijayakarya/",
     posts: [
-      { permalink: "https://www.instagram.com/p/DcNyStaEZjr/" },
-      { permalink: "https://www.instagram.com/p/DdquoBqB2ac/" },
-      { permalink: "https://www.instagram.com/p/DdoJwbGTdgS/" },
+      {
+        platform: "instagram",
+        account: "@ptwijayakarya",
+        caption: "",
+        url: "https://www.instagram.com/p/DcNyStaEZjr/",
+        type: "Image",
+        imageUrl: "",
+        permalink: "https://www.instagram.com/p/DcNyStaEZjr/",
+      },
+      {
+        platform: "instagram",
+        account: "@ptwijayakarya",
+        caption: "",
+        url: "https://www.instagram.com/p/DdquoBqB2ac/",
+        type: "Image",
+        imageUrl: "",
+        permalink: "https://www.instagram.com/p/DdquoBqB2ac/",
+      },
+      {
+        platform: "instagram",
+        account: "@ptwijayakarya",
+        caption: "",
+        url: "https://www.instagram.com/p/DdoJwbGTdgS/",
+        type: "Image",
+        imageUrl: "",
+        permalink: "https://www.instagram.com/p/DdoJwbGTdgS/",
+      },
     ],
   },
 ];
@@ -98,10 +153,13 @@ function ExternalLinkIcon() {
 type SocialPublicPayload = {
   platform?: unknown;
   account?: unknown;
+  caption?: unknown;
   url?: unknown;
+  type?: unknown;
+  imageUrl?: unknown;
 };
 
-function toPermalink(item: SocialPublicPayload): { account: string; permalink: string } | null {
+function toLandingPost(item: SocialPublicPayload): SocialPost | null {
   if (item.platform !== "instagram") {
     return null;
   }
@@ -111,7 +169,18 @@ function toPermalink(item: SocialPublicPayload): { account: string; permalink: s
   if (typeof item.url !== "string" || item.url.length === 0) {
     return null;
   }
-  return { account: item.account, permalink: item.url };
+  const caption = typeof item.caption === "string" ? item.caption : "";
+  const type = typeof item.type === "string" && item.type.length > 0 ? item.type : "Image";
+  const imageUrl = typeof item.imageUrl === "string" ? item.imageUrl : "";
+  return {
+    platform: "instagram",
+    account: item.account,
+    caption,
+    url: item.url,
+    type,
+    imageUrl,
+    permalink: item.url,
+  };
 }
 
 export default function SocialMedia() {
@@ -131,14 +200,14 @@ export default function SocialMedia() {
         if (cancelled || !Array.isArray(body.data)) {
           return;
         }
-        const byAccount = new Map<string, string[]>();
+        const byAccount = new Map<string, SocialPost[]>();
         for (const item of body.data) {
-          const parsed = toPermalink(item as SocialPublicPayload);
+          const parsed = toLandingPost(item as SocialPublicPayload);
           if (!parsed) {
             continue;
           }
           const list = byAccount.get(parsed.account) ?? [];
-          list.push(parsed.permalink);
+          list.push(parsed);
           byAccount.set(parsed.account, list);
         }
         if (byAccount.size === 0) {
@@ -146,11 +215,11 @@ export default function SocialMedia() {
         }
         setAccounts((prev) =>
           prev.map((account) => {
-            const permalinks = byAccount.get(account.handle);
-            if (!permalinks || permalinks.length === 0) {
+            const apiPosts = byAccount.get(account.handle);
+            if (!apiPosts || apiPosts.length === 0) {
               return account;
             }
-            return { ...account, posts: permalinks.map((permalink) => ({ permalink })) };
+            return { ...account, posts: apiPosts };
           }),
         );
       })
@@ -208,24 +277,76 @@ export default function SocialMedia() {
                 </a>
               </div>
               <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                {account.posts.map((post, index) => (
-                  <div
-                    key={`${account.handle}-${post.permalink}-${index}`}
-                    className="flex flex-col items-center gap-4 overflow-hidden rounded-2xl border border-outline/40 bg-white p-6 text-center shadow-[0_4px_12px_rgba(0,0,0,0.06)]"
-                  >
+                {account.posts.map((post, index) => {
+                  const imageSrc = post.imageUrl.trim();
+                  const hasImage =
+                    imageSrc.length > 0 &&
+                    (imageSrc.startsWith("/") ||
+                      imageSrc.startsWith("http://") ||
+                      imageSrc.startsWith("https://"));
+                  const altText = post.caption || post.account || "Social media post";
+                  const linkHref = post.url || post.permalink;
+                  const imageNode = hasImage ? (
+                    imageSrc.startsWith("/") ? (
+                      <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-slate-100">
+                        <Image
+                          src={imageSrc}
+                          alt={altText}
+                          fill
+                          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                          loading="lazy"
+                          className="object-cover"
+                        />
+                      </div>
+                    ) : (
+                      <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-slate-100">
+                        {/* Remote CMS URLs bypass next/image so no remotePatterns config is needed. */}
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={imageSrc}
+                          alt={altText}
+                          loading="lazy"
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
+                    )
+                  ) : (
                     <InstagramGlyph />
-                    <p className="text-sm font-semibold text-primary">{account.handle}</p>
-                    <a
-                      href={post.permalink}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 rounded-lg border border-outline/50 px-4 py-2 text-xs font-semibold text-secondary transition-colors hover:bg-secondary hover:text-white"
+                  );
+                  return (
+                    <div
+                      key={`${account.handle}-${post.permalink}-${index}`}
+                      className="flex flex-col items-center gap-4 overflow-hidden rounded-2xl border border-outline/40 bg-white p-6 text-center shadow-[0_4px_12px_rgba(0,0,0,0.06)]"
                     >
-                      <span>View this post on Instagram</span>
-                      <ExternalLinkIcon />
-                    </a>
-                  </div>
-                ))}
+                      {hasImage && linkHref ? (
+                        <a
+                          href={linkHref}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block w-full"
+                          aria-label={altText}
+                        >
+                          {imageNode}
+                        </a>
+                      ) : (
+                        imageNode
+                      )}
+                      <p className="text-sm font-semibold text-primary">{account.handle}</p>
+                      {post.caption ? (
+                        <p className="line-clamp-2 text-xs text-primary/70">{post.caption}</p>
+                      ) : null}
+                      <a
+                        href={linkHref}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 rounded-lg border border-outline/50 px-4 py-2 text-xs font-semibold text-secondary transition-colors hover:bg-secondary hover:text-white"
+                      >
+                        <span>View this post on Instagram</span>
+                        <ExternalLinkIcon />
+                      </a>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           ))}
