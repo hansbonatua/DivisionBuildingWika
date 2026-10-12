@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { POSITION_OPTIONS, ROLE_OPTIONS, type CmsUser } from "@/lib/demo/users";
+import { POSITION_OPTIONS, ROLE_OPTIONS } from "@/lib/demo/users";
 
 export type UserFormValues = {
   photo: string;
@@ -16,9 +16,23 @@ export type UserFormValues = {
   password: string;
 };
 
+// Initial form data: SafeUser rows (real edit) or legacy CmsUser rows (mock
+// callers pending migration). Password hashes are never passed in.
+export type UserFormInitialData = {
+  photo?: string | null;
+  photoUrl?: string | null;
+  name?: string;
+  phone?: string | null;
+  nip?: string | null;
+  email?: string;
+  position?: string;
+  role?: string;
+  status?: string;
+};
+
 type UserFormProps = {
   mode: "add" | "edit";
-  initialData?: CmsUser;
+  initialData?: UserFormInitialData;
   submitLabel: string;
   onSubmit: (values: UserFormValues) => void | Promise<void>;
   formTitle?: string;
@@ -41,16 +55,22 @@ export default function UserForm({
   const [formName, setFormName] = useState(initialData?.name ?? "");
   const [formPhone, setFormPhone] = useState(initialData?.phone ?? "");
   const [formNip, setFormNip] = useState(initialData?.nip ?? "");
-  const [formEmail, setFormEmail] = useState("");
+  const [formEmail, setFormEmail] = useState(initialData?.email ?? "");
   const [formPosition, setFormPosition] = useState(initialData?.position ?? POSITION_OPTIONS[0]);
   const [formRole, setFormRole] = useState(initialData?.role ?? "Project");
-  const [formStatus, setFormStatus] = useState<"active" | "suspended">("active");
-  const [formPassword, setFormPassword] = useState(initialData?.password ?? "");
-  const [formPhotoUrl, setFormPhotoUrl] = useState(
-    initialData?.photo && !initialData.photo.startsWith("blob:") ? initialData.photo : "",
+  const [formStatus, setFormStatus] = useState<"active" | "suspended">(
+    initialData?.status === "suspended" ? "suspended" : "active",
   );
+  const [formPassword, setFormPassword] = useState("");
+  const initialPhotoUrl =
+    initialData?.photoUrl && !initialData.photoUrl.startsWith("blob:")
+      ? initialData.photoUrl
+      : initialData?.photo && !initialData.photo.startsWith("blob:")
+        ? initialData.photo
+        : "";
+  const [formPhotoUrl, setFormPhotoUrl] = useState(initialPhotoUrl);
   const [showPassword, setShowPassword] = useState(false);
-  const [photoPreview, setPhotoPreview] = useState(initialData?.photo ?? "");
+  const [photoPreview, setPhotoPreview] = useState(initialPhotoUrl);
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -70,7 +90,11 @@ export default function UserForm({
     if (submitting) {
       return;
     }
-    if (!formName.trim() || !formNip.trim() || !formEmail.trim() || !formPassword) {
+    if (!formName.trim() || !formNip.trim() || !formEmail.trim()) {
+      setFormError("Lengkapi nama, NIP, dan email.");
+      return;
+    }
+    if (mode === "add" && !formPassword) {
       setFormError("Lengkapi nama, NIP, email, dan password.");
       return;
     }
@@ -266,7 +290,7 @@ export default function UserForm({
         </div>
         <div>
           <label htmlFor="u_password" className="mb-1.5 block text-xs font-semibold text-slate-700">
-            Password <span className="text-red-700">*</span>
+            Password {mode === "add" ? <span className="text-red-700">*</span> : null}
           </label>
           <div className="relative">
             <input
@@ -298,7 +322,11 @@ export default function UserForm({
               )}
             </button>
           </div>
-          <p className="mt-1 text-[11px] text-slate-400">Minimal 8 karakter.</p>
+          <p className="mt-1 text-[11px] text-slate-400">
+            {mode === "add"
+              ? "Minimal 8 karakter."
+              : "Kosongkan jika tidak ingin mengubah password."}
+          </p>
         </div>
         <div>
           <label htmlFor="u_status" className="mb-1.5 block text-xs font-semibold text-slate-700">

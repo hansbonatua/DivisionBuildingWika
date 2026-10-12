@@ -4,10 +4,13 @@ import {
   findUserById as findUserRowById,
   findUserByNip as findUserRowByNip,
   listUsers as listUserRows,
+  updateUser as updateUserRow,
+  type NewPgUser,
   type PgUser,
 } from "@/lib/users/repository";
 import { hashPassword } from "@/lib/auth/password";
-import type { CreateUserInput } from "@/lib/users/schema";
+import { deleteUserSessions } from "@/lib/auth/session";
+import type { CreateUserInput, UpdateUserInput } from "@/lib/users/schema";
 
 // Server-only: user lookups (auth + User Control read-path) with a safe projection.
 // password_hash is available internally for login verification but is never
@@ -52,6 +55,13 @@ export class DuplicateEmailError extends Error {
   }
 }
 
+export class UserNotFoundError extends Error {
+  constructor() {
+    super("User tidak ditemukan");
+    this.name = "UserNotFoundError";
+  }
+}
+
 function isUniqueViolation(error: unknown, constraint: string): boolean {
   return (
     typeof error === "object" &&
@@ -86,6 +96,65 @@ export async function createSafeUser(input: CreateUserInput): Promise<SafeUser> 
     return toSafeUser(created);
   } catch (error) {
     // Unique-constraint backstop for check-then-insert races.
+    if (isUniqueViolation(error, "users_nip_unique")) {
+      throw new DuplicateNipError();
+    }
+    if (isUniqueViolation(error, "users_email_unique")) {
+      throw new DuplicateEmailError();
+    }
+    throw error;
+  }
+}
+
+export async function updateSafeUser(id: string, input: UpdateUserInput): Promise<SafeUser> {
+  const existing = await findUserRowById(id);
+  if (!existing) {
+    throw new UserNotFoundError();
+  }
+  if (input.nip !== undefined && input.nip !== existing.nip) {
+    const clash = await findUserRowByNip(input.nip);
+    if (clash && clash.id !== id) {
+      throw new DuplicateNipError();
+    }
+  }
+  if (input.email !== undefined && input.email !== existing.email) {
+    const clash = await findUserRowByEmail(input.email);
+    if (clash && clash.id !== id) {
+      throw new DuplicateEmailError();
+    }
+  }
+  const patch: Partial<NewPgUser> = {};
+  if (input.name !== undefined) patch.name = input.name;
+  if (input.nip !== undefined) patch.nip = input.nip;
+  if (input.email !== undefined) patch.email = input.email;
+  if (input.phone !== undefined) patch.phone = input.phone;
+  if (input.position !== undefined) patch.position = input.position;
+  if (input.role !== undefined) patch.role = input.role;
+  if (input.status !== undefined) patch.status = input.status;
+  if (input.photoUrl !== undefined) patch.photoUrl = input.photoUrl;
+  const newPassword = input.password;
+  if (newPassword !== undefined) {
+    patch.passwordHash = await hashPassword(newPassword);
+  }
+  if (Object.keys(patch).length === 0) {
+    // No effective changes (e.g. body contained only an empty password,
+    // which means "do not change"). Return current state without touching
+    // updated_at or issuing an empty UPDATE.
+    return toSafeUser(existing);
+  }
+  try {
+    const updated = await updateUserRow(id, patch);
+    if (!updated) {
+      throw new UserNotFoundError();
+    }
+    if (newPassword !== undefined) {
+      await deleteUserSessions(id);
+    }
+    return toSafeUser(updated);
+  } catch (error) {
+    if (error instanceof UserNotFoundError) {
+      throw error;
+    }
     if (isUniqueViolation(error, "users_nip_unique")) {
       throw new DuplicateNipError();
     }

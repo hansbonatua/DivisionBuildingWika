@@ -25,3 +25,40 @@ export const createUserSchema = z.object({
 });
 
 export type CreateUserInput = z.infer<typeof createUserSchema>;
+
+// Update-user input validation. Every field optional; empty password means
+// "do not change password". Completely empty bodies are rejected.
+export const updateUserSchema = z
+  .object({
+    name: z.string().trim().min(1, "Nama wajib diisi").max(200).optional(),
+    nip: z.string().trim().min(1, "NIP wajib diisi").max(50).optional(),
+    email: z.string().trim().toLowerCase().email("Email tidak valid").max(200).optional(),
+    phone: z
+      .string()
+      .trim()
+      .max(50)
+      .optional()
+      .transform((value) => (value && value.length > 0 ? value : null)),
+    position: z.string().trim().min(1, "Jabatan wajib diisi").max(100).optional(),
+    role: z.enum(["Admin", "Head Office", "Project", "Management"]).optional(),
+    status: z.enum(["active", "suspended"]).optional(),
+    password: z
+      .string()
+      .max(200)
+      .optional()
+      .transform((value) => (value && value.length > 0 ? value : undefined))
+      .refine((value) => value === undefined || value.length >= 8, {
+        message: "Password minimal 8 karakter",
+      }),
+    photoUrl: z
+      .string()
+      .trim()
+      .max(500)
+      .optional()
+      .transform((value) => (value && value.length > 0 ? value : null)),
+  })
+  .refine((value) => Object.keys(value).length > 0, {
+    message: "Body update tidak boleh kosong",
+  });
+
+export type UpdateUserInput = z.infer<typeof updateUserSchema>;

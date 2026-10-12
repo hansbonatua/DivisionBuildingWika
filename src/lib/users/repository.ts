@@ -59,3 +59,9 @@ export async function createUser(data: NewPgUser): Promise<PgUser> {
   }
   return created;
 }
+
+export async function updateUser(id: string, data: Partial<NewPgUser>): Promise<PgUser | null> {
+  const db = getPgDb();
+  const rows = await db.update(users).set(data).where(eq(users.id, id)).returning();
+  return rows[0] ?? null;
+}
