@@ -1,16 +1,35 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { initialUsers } from "@/lib/demo/users";
+import type { SafeUser } from "@/lib/users/service";
 import UserTable from "@/components/dashboard/users/UserTable";
 
 export default function UsersIndexPage() {
-  const [users, setUsers] = useState(initialUsers);
+  const [users, setUsers] = useState<SafeUser[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  function handleDelete(id: number): void {
-    setUsers((prev) => prev.filter((user) => user.id !== id));
+  async function loadUsers(): Promise<void> {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch("/api/users");
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      const body = (await response.json()) as { data?: SafeUser[] };
+      setUsers(Array.isArray(body.data) ? body.data : []);
+    } catch {
+      setError("Gagal memuat data user.");
+    } finally {
+      setLoading(false);
+    }
   }
+
+  useEffect(() => {
+    void loadUsers();
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -52,7 +71,28 @@ export default function UsersIndexPage() {
         </div>
       </div>
 
-      <UserTable users={users} onDelete={handleDelete} />
+      {loading ? (
+        <div className="rounded-lg border border-outline bg-surface p-8 text-center shadow-sm">
+          <p className="text-sm font-medium text-primary/70">Memuat data user...</p>
+        </div>
+      ) : error ? (
+        <div className="rounded-lg border border-outline bg-surface p-8 text-center shadow-sm">
+          <p className="text-sm font-bold text-primary">{error}</p>
+          <button
+            type="button"
+            onClick={() => void loadUsers()}
+            className="mt-4 rounded-lg bg-primary px-5 py-2.5 text-xs font-bold text-white transition-colors hover:bg-secondary"
+          >
+            Coba Lagi
+          </button>
+        </div>
+      ) : users.length === 0 ? (
+        <div className="rounded-lg border border-outline bg-surface p-8 text-center shadow-sm">
+          <p className="text-sm font-medium text-primary/70">Belum ada data user.</p>
+        </div>
+      ) : (
+        <UserTable users={users} />
+      )}
     </div>
   );
 }

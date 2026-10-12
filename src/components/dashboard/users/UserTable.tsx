@@ -1,16 +1,15 @@
 "use client";
 
-import Link from "next/link";
-import type { CmsUser } from "@/lib/demo/users";
+import type { SafeUser } from "@/lib/users/service";
 import UserAvatar from "@/components/dashboard/users/UserAvatar";
 import UserRoleBadge from "@/components/dashboard/users/UserRoleBadge";
+import UserStatusBadge from "@/components/dashboard/users/UserStatusBadge";
 
 type UserTableProps = {
-  users: CmsUser[];
-  onDelete: (id: number) => void;
+  users: SafeUser[];
 };
 
-export default function UserTable({ users, onDelete }: UserTableProps) {
+export default function UserTable({ users }: UserTableProps) {
   return (
     <div className="overflow-hidden rounded-lg border border-outline bg-surface shadow-sm">
       <div className="flex items-center justify-between border-b border-outline p-4">
@@ -37,7 +36,7 @@ export default function UserTable({ users, onDelete }: UserTableProps) {
         <span className="text-xs font-semibold text-primary/70">{users.length} user</span>
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[760px] text-xs">
+        <table className="w-full min-w-[860px] text-xs">
           <thead>
             <tr className="bg-background text-[11px] uppercase tracking-wide text-slate-600">
               <th className="px-4 py-3 text-left font-bold">Foto</th>
@@ -45,6 +44,7 @@ export default function UserTable({ users, onDelete }: UserTableProps) {
               <th className="px-4 py-3 text-left font-bold">NIP</th>
               <th className="px-4 py-3 text-left font-bold">Role</th>
               <th className="px-4 py-3 text-left font-bold">Jabatan</th>
+              <th className="px-4 py-3 text-left font-bold">Status</th>
               <th className="px-4 py-3 text-right font-bold">Action</th>
             </tr>
           </thead>
@@ -56,27 +56,27 @@ export default function UserTable({ users, onDelete }: UserTableProps) {
                 </td>
                 <td className="px-4 py-2.5 font-bold text-primary">
                   {user.name}
-                  <div className="text-[11px] font-medium text-slate-400">{user.phone}</div>
+                  <div className="text-[11px] font-medium text-slate-400">{user.email}</div>
+                  {user.phone ? (
+                    <div className="text-[11px] font-medium text-slate-400">{user.phone}</div>
+                  ) : null}
                 </td>
-                <td className="px-4 py-2.5 font-mono text-[11px] text-primary/70">{user.nip}</td>
+                <td className="px-4 py-2.5 font-mono text-[11px] text-primary/70">{user.nip || "-"}</td>
                 <td className="px-4 py-2.5">
                   <UserRoleBadge role={user.role} />
                 </td>
                 <td className="px-4 py-2.5 text-primary/70">{user.position}</td>
+                <td className="px-4 py-2.5">
+                  <UserStatusBadge status={user.status} />
+                </td>
                 <td className="whitespace-nowrap px-4 py-2.5 text-right">
-                  <Link
-                    href={`/dashboard/users/${user.id}/edit`}
-                    className="rounded px-2.5 py-1 text-xs font-bold text-secondary hover:bg-blue-50"
+                  <span
+                    title="Edit user segera hadir"
+                    aria-disabled="true"
+                    className="cursor-not-allowed rounded px-2.5 py-1 text-xs font-bold text-slate-300"
                   >
                     Edit
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={() => onDelete(user.id)}
-                    className="rounded px-2.5 py-1 text-xs font-bold text-red-700 hover:bg-red-50"
-                  >
-                    Delete
-                  </button>
+                  </span>
                 </td>
               </tr>
             ))}
