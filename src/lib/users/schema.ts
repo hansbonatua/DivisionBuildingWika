@@ -62,3 +62,26 @@ export const updateUserSchema = z
   });
 
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;
+
+// Self-profile update validation. Only name/phone/photoUrl are accepted —
+// administrative fields (nip/email/position/role/status) are rejected by
+// shape (stripped) and must never be applied from this input.
+export const profileUpdateSchema = z.object({
+  name: z.string().trim().min(1, "Nama wajib diisi").max(200).optional(),
+  phone: z
+    .string()
+    .trim()
+    .max(50)
+    .nullable()
+    .optional()
+    .transform((value) => (value && value.length > 0 ? value : null)),
+  photoUrl: z
+    .string()
+    .trim()
+    .max(500)
+    .nullable()
+    .optional()
+    .transform((value) => (value && value.length > 0 ? value : null)),
+});
+
+export type ProfileUpdateInput = z.infer<typeof profileUpdateSchema>;

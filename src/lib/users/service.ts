@@ -12,7 +12,11 @@ import {
 } from "@/lib/users/repository";
 import { hashPassword } from "@/lib/auth/password";
 import { deleteUserSessions } from "@/lib/auth/session";
-import type { CreateUserInput, UpdateUserInput } from "@/lib/users/schema";
+import type {
+  CreateUserInput,
+  ProfileUpdateInput,
+  UpdateUserInput,
+} from "@/lib/users/schema";
 
 // Server-only: user lookups (auth + User Control read-path) with a safe projection.
 // password_hash is available internally for login verification but is never
@@ -274,4 +278,28 @@ export async function deleteUserSafely(
     throw new UserNotFoundError();
   }
   return { deleted: true, id: targetUserId };
+}
+
+export async function updateOwnProfile(
+  userId: string,
+  input: ProfileUpdateInput,
+): Promise<SafeUser> {
+  const existing = await findUserRowById(userId);
+  if (!existing) {
+    throw new UserNotFoundError();
+  }
+  // Only self-editable fields are ever written; role/status/nip/email/
+  // position cannot reach the database through this path by construction.
+  const patch: Partial<NewPgUser> = {};
+  if (input.name !== undefined) patch.name = input.name;
+  if (input.phone !== undefined) patch.phone = input.phone;
+  if (input.photoUrl !== undefined) patch.photoUrl = input.photoUrl;
+  if (Object.keys(patch).length === 0) {
+    return toSafeUser(existing);
+  }
+  const updated = await updateUserRow(userId, patch);
+  if (!updated) {
+    throw new UserNotFoundError();
+  }
+  return toSafeUser(updated);
 }
