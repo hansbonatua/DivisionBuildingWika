@@ -3,10 +3,12 @@ import { createHeroSchema } from "@/lib/heroes/hero.schema";
 import * as heroService from "@/lib/heroes/hero.service";
 import { serializeHeroDocument } from "@/lib/heroes/hero.types";
 
-// NOTE: temporarily unauthenticated (dev stage). Add auth checks here later.
+import { apiAuthGuard } from "@/lib/auth/current-user";
 
 export async function GET() {
   try {
+    const denied = await apiAuthGuard();
+    if (denied) return denied;
     const heroes = await heroService.listHeroes();
     return NextResponse.json({ data: heroes.map(serializeHeroDocument) });
   } catch (error) {
@@ -17,6 +19,8 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    const denied = await apiAuthGuard();
+    if (denied) return denied;
     let body: unknown;
     try {
       body = await request.json();

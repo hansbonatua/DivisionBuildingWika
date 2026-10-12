@@ -3,10 +3,12 @@ import { createSocialPostSchema } from "@/lib/social-posts/social-post.schema";
 import * as socialPostService from "@/lib/social-posts/social-post.service";
 import { serializeSocialPostDocument } from "@/lib/social-posts/social-post.types";
 
-// NOTE: temporarily unauthenticated (dev stage). Add auth checks here later.
+import { apiAuthGuard } from "@/lib/auth/current-user";
 
 export async function GET() {
   try {
+    const denied = await apiAuthGuard();
+    if (denied) return denied;
     const posts = await socialPostService.listSocialPosts();
     return NextResponse.json({ data: posts.map(serializeSocialPostDocument) });
   } catch (error) {
@@ -17,6 +19,8 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    const denied = await apiAuthGuard();
+    if (denied) return denied;
     let body: unknown;
     try {
       body = await request.json();

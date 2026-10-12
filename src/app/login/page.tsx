@@ -72,10 +72,53 @@ const features = [
 export default function LoginPage() {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
+  const [nip, setNip] = useState("");
+  const [password, setPassword] = useState("");
+  const [remember, setRemember] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>): void {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
-    router.push("/dashboard");
+    if (submitting) {
+      return;
+    }
+    const trimmedNip = nip.trim();
+    if (!trimmedNip || !password) {
+      setFormError("Lengkapi NIP dan password.");
+      return;
+    }
+    setFormError(null);
+    setSubmitting(true);
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nip: trimmedNip, password, remember }),
+      });
+      if (response.status === 401) {
+        setFormError("NIP atau password salah");
+        return;
+      }
+      if (response.status === 403) {
+        setFormError("Akun Anda sedang dinonaktifkan");
+        return;
+      }
+      if (response.status === 400) {
+        setFormError("Permintaan tidak valid. Periksa kembali isian.");
+        return;
+      }
+      if (!response.ok) {
+        setFormError("Terjadi kesalahan. Silakan coba lagi.");
+        return;
+      }
+      router.replace("/dashboard");
+      router.refresh();
+    } catch {
+      setFormError("Terjadi kesalahan. Silakan coba lagi.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -176,13 +219,13 @@ export default function LoginPage() {
               <p className="mb-6 mt-2.5 text-center text-sm text-slate-500">
                 Akses autentikasi terpusat Building Division
               </p>
-              <form onSubmit={handleSubmit} className="mt-2 space-y-4">
+              <form onSubmit={(e) => void handleSubmit(e)} className="mt-2 space-y-4">
                 <div>
                   <label
-                    htmlFor="loginEmail"
+                    htmlFor="loginNip"
                     className="mb-1 block text-xs font-semibold tracking-wider text-slate-600"
                   >
-                    Email
+                    NIP
                   </label>
                   <div className="relative">
                     <svg
@@ -201,11 +244,13 @@ export default function LoginPage() {
                       <circle cx="12" cy="7" r="4" />
                     </svg>
                     <input
-                      id="loginEmail"
-                      name="email"
+                      id="loginNip"
+                      name="nip"
                       type="text"
                       autoComplete="username"
-                      placeholder="nama@wika.co.id"
+                      placeholder="Nomor Induk Pegawai"
+                      value={nip}
+                      onChange={(e) => setNip(e.target.value)}
                       className="h-11 w-full rounded-lg border border-outline bg-white pl-10 pr-10 text-sm font-medium text-primary placeholder:text-slate-400 focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
                     />
                   </div>
@@ -239,6 +284,8 @@ export default function LoginPage() {
                       type={showPassword ? "text" : "password"}
                       autoComplete="current-password"
                       placeholder="••••••••"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
                       className="h-11 w-full rounded-lg border border-outline bg-white pl-10 pr-10 text-sm font-medium text-primary placeholder:text-slate-400 focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
                     />
                     <button
@@ -292,16 +339,27 @@ export default function LoginPage() {
                       type="checkbox"
                       id="rememberWorkstation"
                       name="remember"
+                      checked={remember}
+                      onChange={(e) => setRemember(e.target.checked)}
                       className="h-4 w-4 shrink-0 rounded border-slate-300"
                     />
                     Ingat Sesi Kerja
                   </label>
                 </div>
+                {formError ? (
+                  <p
+                    role="alert"
+                    className="rounded-lg border border-red-300 bg-red-50 px-3.5 py-2.5 text-xs font-semibold text-red-700"
+                  >
+                    {formError}
+                  </p>
+                ) : null}
                 <button
                   type="submit"
-                  className="mt-1 inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-primary text-sm font-bold tracking-wide text-white shadow-sm transition-colors duration-150 hover:bg-secondary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
+                  disabled={submitting}
+                  className="mt-1 inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-primary text-sm font-bold tracking-wide text-white shadow-sm transition-colors duration-150 hover:bg-secondary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  MASUK KE SISTEM
+                  {submitting ? "MEMERIKSA..." : "MASUK KE SISTEM"}
                   <svg
                     width="18"
                     height="18"

@@ -3,10 +3,12 @@ import { createPortfolioProjectSchema } from "@/lib/portfolio-projects/portfolio
 import * as portfolioProjectService from "@/lib/portfolio-projects/portfolio-project.service";
 import { serializePortfolioProjectDocument } from "@/lib/portfolio-projects/portfolio-project.types";
 
-// NOTE: temporarily unauthenticated (dev stage). Add auth checks here later.
+import { apiAuthGuard } from "@/lib/auth/current-user";
 
 export async function GET() {
   try {
+    const denied = await apiAuthGuard();
+    if (denied) return denied;
     const projects = await portfolioProjectService.listPortfolioProjects();
     return NextResponse.json({ data: projects.map(serializePortfolioProjectDocument) });
   } catch (error) {
@@ -17,6 +19,8 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    const denied = await apiAuthGuard();
+    if (denied) return denied;
     let body: unknown;
     try {
       body = await request.json();

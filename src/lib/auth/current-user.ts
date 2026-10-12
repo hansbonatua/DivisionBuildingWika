@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { NextResponse } from "next/server";
 import { findSessionByToken, SESSION_COOKIE_NAME } from "@/lib/auth/session";
 import { toSafeUser, type SafeUser } from "@/lib/users/service";
 import { findUserById as findUserRowById } from "@/lib/users/repository";
@@ -42,4 +43,20 @@ export async function requireUser(): Promise<SafeUser> {
     throw new UnauthenticatedError();
   }
   return user;
+}
+
+// API guard: returns a 401 JSON response when unauthenticated, else null.
+// Usage at the top of a route handler's try block:
+//   const denied = await apiAuthGuard();
+//   if (denied) return denied;
+export async function apiAuthGuard(): Promise<NextResponse | null> {
+  try {
+    await requireUser();
+    return null;
+  } catch (error) {
+    if (error instanceof UnauthenticatedError) {
+      return NextResponse.json({ error: { message: "Unauthenticated" } }, { status: 401 });
+    }
+    throw error;
+  }
 }

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 type SidebarItem = {
   label: string;
@@ -110,6 +110,8 @@ const adminMenu: SidebarItem[] = [
 
 export default function DashboardSidebar({ open, onClose }: DashboardSidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
+  const [loggingOut, setLoggingOut] = useState(false);
   const landingRoutes = landingSubMenu.map((item) => item.href);
   const isLandingRoute = landingRoutes.some(
     (route) => pathname === route || pathname.startsWith(`${route}/`),
@@ -124,6 +126,25 @@ export default function DashboardSidebar({ open, onClose }: DashboardSidebarProp
 
   function isActivePath(href: string): boolean {
     return pathname === href || pathname.startsWith(`${href}/`);
+  }
+
+  async function handleLogout(): Promise<void> {
+    if (loggingOut) {
+      return;
+    }
+    setLoggingOut(true);
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch {
+      // Logout endpoint is idempotent; navigation below still clears the
+      // session client-side only if the server cleared the cookie. On network
+      // failure the dashboard guard will redirect back to /login anyway.
+    } finally {
+      setLoggingOut(false);
+    }
+    onClose();
+    router.replace("/login");
+    router.refresh();
   }
 
   function renderItem(item: SidebarItem) {
@@ -246,10 +267,11 @@ export default function DashboardSidebar({ open, onClose }: DashboardSidebarProp
           </div>
         </div>
       </div>
-      <Link
-        href="/"
-        onClick={onClose}
-        className="flex w-full shrink-0 items-center justify-center gap-2 border-t border-slate-200 px-5 py-3 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-50 hover:text-primary"
+      <button
+        type="button"
+        onClick={() => void handleLogout()}
+        disabled={loggingOut}
+        className="flex w-full shrink-0 items-center justify-center gap-2 border-t border-slate-200 px-5 py-3 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-50 hover:text-primary disabled:cursor-not-allowed disabled:opacity-60"
       >
         <svg
           width="16"
@@ -266,8 +288,8 @@ export default function DashboardSidebar({ open, onClose }: DashboardSidebarProp
           <polyline points="16 17 21 12 16 7" />
           <line x1="21" x2="9" y1="12" y2="12" />
         </svg>
-        <span>Logout</span>
-      </Link>
+        <span>{loggingOut ? "Keluar..." : "Logout"}</span>
+      </button>
     </aside>
   );
 }

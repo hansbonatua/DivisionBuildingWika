@@ -3,12 +3,14 @@ import { updateGreenBuildingSchema } from "@/lib/green-buildings/green-building.
 import * as greenBuildingService from "@/lib/green-buildings/green-building.service";
 import { serializeGreenBuildingCertificateDocument } from "@/lib/green-buildings/green-building.types";
 
-// NOTE: temporarily unauthenticated (dev stage). Add auth checks here later.
+import { apiAuthGuard } from "@/lib/auth/current-user";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
 export async function GET(_request: Request, context: RouteContext) {
   try {
+    const denied = await apiAuthGuard();
+    if (denied) return denied;
     const { id } = await context.params;
     if (!greenBuildingService.isValidGreenBuildingId(id)) {
       return NextResponse.json({ error: { message: "ID sertifikat tidak valid" } }, { status: 400 });
@@ -26,6 +28,8 @@ export async function GET(_request: Request, context: RouteContext) {
 
 export async function PATCH(request: Request, context: RouteContext) {
   try {
+    const denied = await apiAuthGuard();
+    if (denied) return denied;
     const { id } = await context.params;
     if (!greenBuildingService.isValidGreenBuildingId(id)) {
       return NextResponse.json({ error: { message: "ID sertifikat tidak valid" } }, { status: 400 });
@@ -70,6 +74,8 @@ export async function PATCH(request: Request, context: RouteContext) {
 
 export async function DELETE(_request: Request, context: RouteContext) {
   try {
+    const denied = await apiAuthGuard();
+    if (denied) return denied;
     const { id } = await context.params;
     if (!greenBuildingService.isValidGreenBuildingId(id)) {
       return NextResponse.json({ error: { message: "ID sertifikat tidak valid" } }, { status: 400 });

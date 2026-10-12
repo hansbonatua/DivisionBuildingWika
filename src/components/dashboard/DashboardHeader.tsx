@@ -7,9 +7,22 @@ import Link from "next/link";
 type DashboardHeaderProps = {
   sidebarOpen: boolean;
   onToggleSidebar: () => void;
+  user?: { name: string; role: string };
 };
 
-export default function DashboardHeader({ sidebarOpen, onToggleSidebar }: DashboardHeaderProps) {
+function displayInitials(name: string): string {
+  return name
+    .trim()
+    .split(/\s+/)
+    .map((word) => word[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+}
+
+export default function DashboardHeader({ sidebarOpen, onToggleSidebar, user }: DashboardHeaderProps) {
+  const displayName = user?.name ?? "R. Triyanto S.T.";
+  const displayRole = user?.role ?? "Superadmin CMS";
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement | null>(null);
 
@@ -82,11 +95,11 @@ export default function DashboardHeader({ sidebarOpen, onToggleSidebar }: Dashbo
           className="flex cursor-pointer items-center gap-3 rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
         >
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-blue-200 bg-blue-100 text-xs font-bold text-secondary">
-            RT
+            {displayInitials(displayName) || "WB"}
           </div>
           <div className="hidden flex-col text-left sm:flex">
-            <span className="text-xs font-bold leading-tight text-slate-900">R. Triyanto S.T.</span>
-            <span className="mt-0.5 text-[11px] font-medium leading-tight text-slate-500">Superadmin CMS</span>
+            <span className="text-xs font-bold leading-tight text-slate-900">{displayName}</span>
+            <span className="mt-0.5 text-[11px] font-medium leading-tight text-slate-500">{displayRole}</span>
           </div>
           <svg
             width="18"
@@ -110,8 +123,8 @@ export default function DashboardHeader({ sidebarOpen, onToggleSidebar }: Dashbo
             className="absolute right-0 top-full z-50 mt-2 w-52 overflow-hidden rounded-xl border border-outline/60 bg-white py-2 shadow-lg"
           >
             <div className="px-4 py-2">
-              <p className="truncate text-xs font-bold text-slate-900">R. Triyanto S.T.</p>
-              <p className="mt-0.5 text-[11px] font-medium text-slate-500">Superadmin CMS</p>
+              <p className="truncate text-xs font-bold text-slate-900">{displayName}</p>
+              <p className="mt-0.5 text-[11px] font-medium text-slate-500">{displayRole}</p>
             </div>
             <div className="my-1 border-t border-outline/40" />
             <Link

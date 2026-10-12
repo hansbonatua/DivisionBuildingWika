@@ -4,12 +4,18 @@ import { useState } from "react";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
 
-export default function DashboardShell({ children }: { children: React.ReactNode }) {
+export default function DashboardShell({
+  children,
+  user,
+}: {
+  children: React.ReactNode;
+  user?: { name: string; role: string };
+}) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
     <div className="flex min-h-screen w-full max-w-full flex-col overflow-x-clip bg-surface text-primary antialiased">
-      <DashboardHeader sidebarOpen={sidebarOpen} onToggleSidebar={() => setSidebarOpen((prev) => !prev)} />
+      <DashboardHeader sidebarOpen={sidebarOpen} onToggleSidebar={() => setSidebarOpen((prev) => !prev)} user={user} />
       <div className="flex min-h-0 flex-1">
         <DashboardSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
         {sidebarOpen ? (

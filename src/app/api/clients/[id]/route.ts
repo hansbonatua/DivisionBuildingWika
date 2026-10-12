@@ -3,12 +3,14 @@ import { updateClientSchema } from "@/lib/clients/client.schema";
 import * as clientService from "@/lib/clients/client.service";
 import { serializeClientDocument } from "@/lib/clients/client.types";
 
-// NOTE: temporarily unauthenticated (dev stage). Add auth checks here later.
+import { apiAuthGuard } from "@/lib/auth/current-user";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
 export async function GET(_request: Request, context: RouteContext) {
   try {
+    const denied = await apiAuthGuard();
+    if (denied) return denied;
     const { id } = await context.params;
     if (!clientService.isValidClientId(id)) {
       return NextResponse.json({ error: { message: "ID client tidak valid" } }, { status: 400 });
@@ -26,6 +28,8 @@ export async function GET(_request: Request, context: RouteContext) {
 
 export async function PATCH(request: Request, context: RouteContext) {
   try {
+    const denied = await apiAuthGuard();
+    if (denied) return denied;
     const { id } = await context.params;
     if (!clientService.isValidClientId(id)) {
       return NextResponse.json({ error: { message: "ID client tidak valid" } }, { status: 400 });
@@ -70,6 +74,8 @@ export async function PATCH(request: Request, context: RouteContext) {
 
 export async function DELETE(_request: Request, context: RouteContext) {
   try {
+    const denied = await apiAuthGuard();
+    if (denied) return denied;
     const { id } = await context.params;
     if (!clientService.isValidClientId(id)) {
       return NextResponse.json({ error: { message: "ID client tidak valid" } }, { status: 400 });

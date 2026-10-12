@@ -3,10 +3,12 @@ import { createClientSchema } from "@/lib/clients/client.schema";
 import * as clientService from "@/lib/clients/client.service";
 import { serializeClientDocument } from "@/lib/clients/client.types";
 
-// NOTE: temporarily unauthenticated (dev stage). Add auth checks here later.
+import { apiAuthGuard } from "@/lib/auth/current-user";
 
 export async function GET() {
   try {
+    const denied = await apiAuthGuard();
+    if (denied) return denied;
     const clients = await clientService.listClients();
     return NextResponse.json({ data: clients.map(serializeClientDocument) });
   } catch (error) {
@@ -17,6 +19,8 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    const denied = await apiAuthGuard();
+    if (denied) return denied;
     let body: unknown;
     try {
       body = await request.json();
