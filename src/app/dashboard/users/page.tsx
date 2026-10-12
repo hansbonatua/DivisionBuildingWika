@@ -7,8 +7,10 @@ import UserTable from "@/components/dashboard/users/UserTable";
 
 export default function UsersIndexPage() {
   const [users, setUsers] = useState<SafeUser[]>([]);
+  const [currentUserId, setCurrentUserId] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   async function loadUsers(): Promise<void> {
     setLoading(true);
@@ -29,7 +31,58 @@ export default function UsersIndexPage() {
 
   useEffect(() => {
     void loadUsers();
+    void loadCurrentUser();
   }, []);
+
+  async function loadCurrentUser(): Promise<void> {
+    try {
+      const response = await fetch("/api/auth/me");
+      if (!response.ok) {
+        return;
+      }
+      const body = (await response.json()) as { user?: { id?: string } };
+      if (body.user?.id) {
+        setCurrentUserId(body.user.id);
+      }
+    } catch {
+      /* self-suspend UI hint is best-effort; server rules stay authoritative */
+    }
+  }
+
+  async function handleStatusChange(id: string, nextStatus: "active" | "suspended"): Promise<void> {
+    setActionError(null);
+    const response = await fetch(`/api/users/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: nextStatus }),
+    });
+    if (response.status === 403) {
+      let message = "Perubahan status tidak diizinkan.";
+      try {
+        const body = (await response.json()) as { error?: { message?: string } };
+        if (body.error?.message) {
+          message = body.error.message;
+        }
+      } catch {
+        /* keep default message */
+      }
+      setActionError(message);
+      throw new Error(message);
+    }
+    if (response.status === 404) {
+      setActionError("User tidak ditemukan.");
+      throw new Error("User tidak ditemukan.");
+    }
+    if (!response.ok) {
+      setActionError("Gagal memperbarui status user.");
+      throw new Error("Gagal memperbarui status user.");
+    }
+    const body = (await response.json()) as { data?: SafeUser };
+    if (!body.data) {
+      throw new Error("Empty response");
+    }
+    setUsers((prev) => prev.map((user) => (user.id === id ? body.data as SafeUser : user)));
+  }
 
   return (
     <div className="space-y-6">
@@ -91,7 +144,17 @@ export default function UsersIndexPage() {
           <p className="text-sm font-medium text-primary/70">Belum ada data user.</p>
         </div>
       ) : (
-        <UserTable users={users} />
+        <>
+          {actionError ? (
+            <p
+              role="alert"
+              className="rounded-lg border border-red-300 bg-red-50 px-3.5 py-2.5 text-xs font-semibold text-red-700"
+            >
+              {actionError}
+            </p>
+          ) : null}
+          <UserTable users={users} currentUserId={currentUserId} onStatusChange={handleStatusChange} />
+        </>
       )}
     </div>
   );

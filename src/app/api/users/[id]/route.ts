@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
-import { apiAuthGuard } from "@/lib/auth/current-user";
+import { apiAuthGuard, requireUser, UnauthenticatedError } from "@/lib/auth/current-user";
 import {
+  CannotSuspendLastAdminError,
+  CannotSuspendSelfError,
   DuplicateEmailError,
   DuplicateNipError,
   getSafeUserById,
@@ -32,8 +34,15 @@ export async function GET(_request: Request, context: RouteContext) {
 
 export async function PATCH(request: Request, context: RouteContext) {
   try {
-    const denied = await apiAuthGuard();
-    if (denied) return denied;
+    let actorId: string;
+    try {
+      actorId = (await requireUser()).id;
+    } catch (error) {
+      if (error instanceof UnauthenticatedError) {
+        return NextResponse.json({ error: { message: "Unauthenticated" } }, { status: 401 });
+      }
+      throw error;
+    }
     const { id } = await context.params;
     if (!id || id.trim().length === 0) {
       return NextResponse.json({ error: { message: "ID user tidak valid" } }, { status: 400 });
@@ -69,7 +78,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       );
     }
     try {
-      const updated = await updateSafeUser(id, parsed.data);
+      const updated = await updateSafeUser(id, parsed.data, actorId);
       return NextResponse.json({ data: updated }, { status: 200 });
     } catch (error) {
       if (error instanceof UserNotFoundError) {
@@ -80,6 +89,18 @@ export async function PATCH(request: Request, context: RouteContext) {
       }
       if (error instanceof DuplicateEmailError) {
         return NextResponse.json({ error: { message: "Email already exists" } }, { status: 409 });
+      }
+      if (error instanceof CannotSuspendSelfError) {
+        return NextResponse.json(
+          { error: { message: "Anda tidak dapat menonaktifkan akun sendiri" } },
+          { status: 403 },
+        );
+      }
+      if (error instanceof CannotSuspendLastAdminError) {
+        return NextResponse.json(
+          { error: { message: "Admin aktif terakhir tidak dapat dinonaktifkan" } },
+          { status: 403 },
+        );
       }
       throw error;
     }

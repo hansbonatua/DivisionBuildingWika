@@ -1,4 +1,5 @@
 import {
+  countActiveAdmins as countActiveAdminRows,
   createUser as insertUserRow,
   findUserByEmail as findUserRowByEmail,
   findUserById as findUserRowById,
@@ -62,6 +63,20 @@ export class UserNotFoundError extends Error {
   }
 }
 
+export class CannotSuspendSelfError extends Error {
+  constructor() {
+    super("Anda tidak dapat menonaktifkan akun sendiri");
+    this.name = "CannotSuspendSelfError";
+  }
+}
+
+export class CannotSuspendLastAdminError extends Error {
+  constructor() {
+    super("Admin aktif terakhir tidak dapat dinonaktifkan");
+    this.name = "CannotSuspendLastAdminError";
+  }
+}
+
 function isUniqueViolation(error: unknown, constraint: string): boolean {
   return (
     typeof error === "object" &&
@@ -106,7 +121,47 @@ export async function createSafeUser(input: CreateUserInput): Promise<SafeUser> 
   }
 }
 
-export async function updateSafeUser(id: string, input: UpdateUserInput): Promise<SafeUser> {
+export async function setUserStatus(
+  targetUserId: string,
+  nextStatus: "active" | "suspended",
+  actorUserId: string,
+): Promise<SafeUser> {
+  const target = await findUserRowById(targetUserId);
+  if (!target) {
+    throw new UserNotFoundError();
+  }
+  if (target.status === nextStatus) {
+    return toSafeUser(target);
+  }
+  if (nextStatus === "suspended") {
+    if (targetUserId === actorUserId) {
+      throw new CannotSuspendSelfError();
+    }
+    if (target.role === "Admin") {
+      const activeAdmins = await countActiveAdminRows();
+      if (activeAdmins <= 1) {
+        throw new CannotSuspendLastAdminError();
+      }
+    }
+    const updated = await updateUserRow(targetUserId, { status: "suspended" });
+    if (!updated) {
+      throw new UserNotFoundError();
+    }
+    await deleteUserSessions(targetUserId);
+    return toSafeUser(updated);
+  }
+  const updated = await updateUserRow(targetUserId, { status: "active" });
+  if (!updated) {
+    throw new UserNotFoundError();
+  }
+  return toSafeUser(updated);
+}
+
+export async function updateSafeUser(
+  id: string,
+  input: UpdateUserInput,
+  actorUserId: string,
+): Promise<SafeUser> {
   const existing = await findUserRowById(id);
   if (!existing) {
     throw new UserNotFoundError();
@@ -130,29 +185,43 @@ export async function updateSafeUser(id: string, input: UpdateUserInput): Promis
   if (input.phone !== undefined) patch.phone = input.phone;
   if (input.position !== undefined) patch.position = input.position;
   if (input.role !== undefined) patch.role = input.role;
-  if (input.status !== undefined) patch.status = input.status;
   if (input.photoUrl !== undefined) patch.photoUrl = input.photoUrl;
   const newPassword = input.password;
   if (newPassword !== undefined) {
     patch.passwordHash = await hashPassword(newPassword);
   }
-  if (Object.keys(patch).length === 0) {
-    // No effective changes (e.g. body contained only an empty password,
-    // which means "do not change"). Return current state without touching
-    // updated_at or issuing an empty UPDATE.
-    return toSafeUser(existing);
-  }
+  const statusChanged = input.status !== undefined && input.status !== existing.status;
   try {
-    const updated = await updateUserRow(id, patch);
-    if (!updated) {
-      throw new UserNotFoundError();
+    let current = existing;
+    if (Object.keys(patch).length > 0) {
+      const updated = await updateUserRow(id, patch);
+      if (!updated) {
+        throw new UserNotFoundError();
+      }
+      current = updated;
     }
     if (newPassword !== undefined) {
       await deleteUserSessions(id);
     }
-    return toSafeUser(updated);
+    // Status transitions always flow through the safety-aware path so
+    // generic PATCH can never bypass self/last-admin protection or
+    // session revocation — including mixed field+status payloads.
+    if (statusChanged && input.status !== undefined) {
+      return setUserStatus(id, input.status, actorUserId);
+    }
+    if (Object.keys(patch).length === 0) {
+      // No effective changes (e.g. body contained only an empty password,
+      // which means "do not change"). Return current state without touching
+      // updated_at or issuing an empty UPDATE.
+      return toSafeUser(current);
+    }
+    return toSafeUser(current);
   } catch (error) {
-    if (error instanceof UserNotFoundError) {
+    if (
+      error instanceof UserNotFoundError ||
+      error instanceof CannotSuspendSelfError ||
+      error instanceof CannotSuspendLastAdminError
+    ) {
       throw error;
     }
     if (isUniqueViolation(error, "users_nip_unique")) {

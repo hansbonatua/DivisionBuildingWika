@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+import Link from "next/link";
 import type { SafeUser } from "@/lib/users/service";
 import UserAvatar from "@/components/dashboard/users/UserAvatar";
 import UserRoleBadge from "@/components/dashboard/users/UserRoleBadge";
@@ -7,9 +9,33 @@ import UserStatusBadge from "@/components/dashboard/users/UserStatusBadge";
 
 type UserTableProps = {
   users: SafeUser[];
+  currentUserId?: string;
+  onStatusChange: (id: string, nextStatus: "active" | "suspended") => Promise<void>;
 };
 
-export default function UserTable({ users }: UserTableProps) {
+export default function UserTable({ users, currentUserId, onStatusChange }: UserTableProps) {
+  const [pendingId, setPendingId] = useState<string | null>(null);
+
+  async function handleStatusClick(user: SafeUser): Promise<void> {
+    if (pendingId !== null) {
+      return;
+    }
+    const nextStatus = user.status === "active" ? "suspended" : "active";
+    if (nextStatus === "suspended") {
+      const confirmed = window.confirm(
+        `Nonaktifkan akun "${user.name}"? Akun tidak dapat login sampai diaktifkan kembali.`,
+      );
+      if (!confirmed) {
+        return;
+      }
+    }
+    setPendingId(user.id);
+    try {
+      await onStatusChange(user.id, nextStatus);
+    } finally {
+      setPendingId(null);
+    }
+  }
   return (
     <div className="overflow-hidden rounded-lg border border-outline bg-surface shadow-sm">
       <div className="flex items-center justify-between border-b border-outline p-4">
@@ -70,13 +96,34 @@ export default function UserTable({ users }: UserTableProps) {
                   <UserStatusBadge status={user.status} />
                 </td>
                 <td className="whitespace-nowrap px-4 py-2.5 text-right">
-                  <span
-                    title="Edit user segera hadir"
-                    aria-disabled="true"
-                    className="cursor-not-allowed rounded px-2.5 py-1 text-xs font-bold text-slate-300"
+                  <Link
+                    href={`/dashboard/users/${user.id}/edit`}
+                    className="rounded px-2.5 py-1 text-xs font-bold text-secondary hover:bg-blue-50"
                   >
                     Edit
-                  </span>
+                  </Link>
+                  {user.id === currentUserId && user.status === "active" ? (
+                    <span
+                      title="Akun sendiri tidak dapat dinonaktifkan"
+                      aria-disabled="true"
+                      className="cursor-not-allowed rounded px-2.5 py-1 text-xs font-bold text-slate-300"
+                    >
+                      Nonaktifkan
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={pendingId !== null}
+                      onClick={() => void handleStatusClick(user)}
+                      className="rounded px-2.5 py-1 text-xs font-bold text-secondary hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {pendingId === user.id
+                        ? "Memproses..."
+                        : user.status === "active"
+                          ? "Nonaktifkan"
+                          : "Aktifkan"}
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}

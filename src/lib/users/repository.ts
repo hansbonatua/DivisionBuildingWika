@@ -1,9 +1,8 @@
-import { asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import { getPgDb } from "@/lib/pg/client";
 import { users, type NewPgUser, type PgUser } from "@/lib/pg/schema";
 
-// Server-only: PostgreSQL Users read-path (auth + User Control list/detail).
-// No writes here yet (create/update/delete/suspend belong to a later phase).
+// Server-only: PostgreSQL Users persistence (auth read-path + User Control).
 // No MongoDB. No mock users.
 
 export type { PgUser, NewPgUser };
@@ -64,4 +63,13 @@ export async function updateUser(id: string, data: Partial<NewPgUser>): Promise<
   const db = getPgDb();
   const rows = await db.update(users).set(data).where(eq(users.id, id)).returning();
   return rows[0] ?? null;
+}
+
+export async function countActiveAdmins(): Promise<number> {
+  const db = getPgDb();
+  const rows = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(and(eq(users.role, "Admin"), eq(users.status, "active")));
+  return rows.length;
 }
