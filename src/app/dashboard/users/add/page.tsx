@@ -2,10 +2,48 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import UserForm from "@/components/dashboard/users/UserForm";
+import UserForm, { type UserFormValues } from "@/components/dashboard/users/UserForm";
 
 export default function AddUserPage() {
   const router = useRouter();
+
+  async function handleCreate(values: UserFormValues): Promise<void> {
+    const response = await fetch("/api/users", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: values.name,
+        nip: values.nip,
+        email: values.email,
+        phone: values.phone,
+        position: values.position,
+        role: values.role,
+        status: values.status,
+        password: values.password,
+        photoUrl: values.photo,
+      }),
+    });
+    if (response.status === 409) {
+      let message = "NIP atau email sudah terdaftar.";
+      try {
+        const body = (await response.json()) as { error?: { message?: string } };
+        if (body.error?.message) {
+          message = body.error.message;
+        }
+      } catch {
+        /* keep default message */
+      }
+      throw new Error(message);
+    }
+    if (response.status === 400) {
+      throw new Error("Validasi gagal. Periksa kembali isian form.");
+    }
+    if (!response.ok) {
+      throw new Error("Gagal menambahkan user.");
+    }
+    router.replace("/dashboard/users");
+    router.refresh();
+  }
 
   return (
     <div className="space-y-6">
@@ -21,7 +59,7 @@ export default function AddUserPage() {
         </nav>
         <h1 className="text-2xl font-bold tracking-tight text-primary">Tambah User</h1>
         <p className="mt-1 max-w-3xl text-base text-primary/70">
-          Buat akun CMS baru. Data demo tidak disimpan permanen.
+          Buat akun CMS baru dengan NIP dan password.
         </p>
       </div>
 
@@ -32,7 +70,7 @@ export default function AddUserPage() {
         <UserForm
           mode="add"
           submitLabel="Simpan User"
-          onSubmit={() => router.push("/dashboard/users")}
+          onSubmit={handleCreate}
         />
       </div>
     </div>

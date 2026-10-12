@@ -9,8 +9,10 @@ export type UserFormValues = {
   name: string;
   phone: string;
   nip: string;
+  email: string;
   position: string;
   role: string;
+  status: "active" | "suspended";
   password: string;
 };
 
@@ -18,7 +20,7 @@ type UserFormProps = {
   mode: "add" | "edit";
   initialData?: CmsUser;
   submitLabel: string;
-  onSubmit: (values: UserFormValues) => void;
+  onSubmit: (values: UserFormValues) => void | Promise<void>;
   formTitle?: string;
   cancelHref?: string;
   roleReadOnly?: boolean;
@@ -39,11 +41,18 @@ export default function UserForm({
   const [formName, setFormName] = useState(initialData?.name ?? "");
   const [formPhone, setFormPhone] = useState(initialData?.phone ?? "");
   const [formNip, setFormNip] = useState(initialData?.nip ?? "");
+  const [formEmail, setFormEmail] = useState("");
   const [formPosition, setFormPosition] = useState(initialData?.position ?? POSITION_OPTIONS[0]);
   const [formRole, setFormRole] = useState(initialData?.role ?? "Project");
-  const [formPassword, setFormPassword] = useState(initialData?.password ?? "******");
+  const [formStatus, setFormStatus] = useState<"active" | "suspended">("active");
+  const [formPassword, setFormPassword] = useState(initialData?.password ?? "");
+  const [formPhotoUrl, setFormPhotoUrl] = useState(
+    initialData?.photo && !initialData.photo.startsWith("blob:") ? initialData.photo : "",
+  );
   const [showPassword, setShowPassword] = useState(false);
   const [photoPreview, setPhotoPreview] = useState(initialData?.photo ?? "");
+  const [formError, setFormError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   function handleFileChange(event: React.ChangeEvent<HTMLInputElement>): void {
     const file = event.target.files?.[0];
@@ -56,21 +65,42 @@ export default function UserForm({
     setPhotoPreview(URL.createObjectURL(file));
   }
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>): void {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
-    onSubmit({
-      photo: photoPreview,
-      name: formName,
-      phone: formPhone,
-      nip: formNip,
-      position: formPosition,
-      role: formRole,
-      password: formPassword,
-    });
+    if (submitting) {
+      return;
+    }
+    if (!formName.trim() || !formNip.trim() || !formEmail.trim() || !formPassword) {
+      setFormError("Lengkapi nama, NIP, email, dan password.");
+      return;
+    }
+    // Blob previews are local-only and can never be persisted.
+    const persistentPhoto = formPhotoUrl.trim().startsWith("blob:")
+      ? ""
+      : formPhotoUrl.trim();
+    setFormError(null);
+    setSubmitting(true);
+    try {
+      await onSubmit({
+        photo: persistentPhoto,
+        name: formName.trim(),
+        phone: formPhone.trim(),
+        nip: formNip.trim(),
+        email: formEmail.trim(),
+        position: formPosition,
+        role: formRole,
+        status: formStatus,
+        password: formPassword,
+      });
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : "Gagal menyimpan user.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="p-5">
+    <form onSubmit={(e) => void handleSubmit(e)} className="p-5">
       <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-500">
         {formTitle ?? (mode === "add" ? "User Information Form" : "Edit User Information")}
       </h3>
@@ -115,6 +145,27 @@ export default function UserForm({
               </p>
             </div>
           </div>
+          <div className="mt-3">
+            <label htmlFor="u_photoUrl" className="mb-1.5 block text-xs font-semibold text-slate-700">
+              URL Foto
+            </label>
+            <input
+              id="u_photoUrl"
+              type="text"
+              placeholder="misal: /asset/profil/nama.jpg atau https://..."
+              value={formPhotoUrl}
+              onChange={(e) => {
+                setFormPhotoUrl(e.target.value);
+                if (!e.target.value.startsWith("blob:")) {
+                  setPhotoPreview(e.target.value);
+                }
+              }}
+              className={inputClass}
+            />
+            <p className="mt-1 text-[11px] text-slate-400">
+              Yang tersimpan hanya URL di atas; pratinjau file bersifat lokal.
+            </p>
+          </div>
         </div>
         <div>
           <label htmlFor="u_name" className="mb-1.5 block text-xs font-semibold text-slate-700">
@@ -144,7 +195,7 @@ export default function UserForm({
         </div>
         <div>
           <label htmlFor="u_nip" className="mb-1.5 block text-xs font-semibold text-slate-700">
-            NIP
+            NIP <span className="text-red-700">*</span>
           </label>
           <input
             id="u_nip"
@@ -152,6 +203,20 @@ export default function UserForm({
             placeholder="123456"
             value={formNip}
             onChange={(e) => setFormNip(e.target.value)}
+            className={inputClass}
+          />
+        </div>
+        <div>
+          <label htmlFor="u_email" className="mb-1.5 block text-xs font-semibold text-slate-700">
+            Email <span className="text-red-700">*</span>
+          </label>
+          <input
+            id="u_email"
+            type="email"
+            placeholder="nama@wika.co.id"
+            value={formEmail}
+            onChange={(e) => setFormEmail(e.target.value)}
+            autoComplete="email"
             className={inputClass}
           />
         </div>
@@ -201,7 +266,7 @@ export default function UserForm({
         </div>
         <div>
           <label htmlFor="u_password" className="mb-1.5 block text-xs font-semibold text-slate-700">
-            Password
+            Password <span className="text-red-700">*</span>
           </label>
           <div className="relative">
             <input
@@ -233,9 +298,28 @@ export default function UserForm({
               )}
             </button>
           </div>
-          <p className="mt-1 text-[11px] text-slate-400">Demo: nilai tidak disimpan aman.</p>
+          <p className="mt-1 text-[11px] text-slate-400">Minimal 8 karakter.</p>
+        </div>
+        <div>
+          <label htmlFor="u_status" className="mb-1.5 block text-xs font-semibold text-slate-700">
+            Status
+          </label>
+          <select
+            id="u_status"
+            value={formStatus}
+            onChange={(e) => setFormStatus(e.target.value as "active" | "suspended")}
+            className={inputClass}
+          >
+            <option value="active">active</option>
+            <option value="suspended">suspended</option>
+          </select>
         </div>
       </div>
+      {formError ? (
+        <p role="alert" className="mt-4 rounded-lg border border-red-300 bg-red-50 px-3.5 py-2.5 text-xs font-semibold text-red-700">
+          {formError}
+        </p>
+      ) : null}
       <div className="mt-4 flex items-center justify-end gap-3 border-t border-outline pt-4">
         <Link
           href={cancelHref}
@@ -245,9 +329,10 @@ export default function UserForm({
         </Link>
         <button
           type="submit"
-          className="rounded-lg bg-secondary px-5 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-primary"
+          disabled={submitting}
+          className="rounded-lg bg-secondary px-5 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-primary disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {submitLabel}
+          {submitting ? "Menyimpan..." : submitLabel}
         </button>
       </div>
     </form>

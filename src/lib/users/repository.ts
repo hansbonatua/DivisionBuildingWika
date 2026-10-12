@@ -49,3 +49,13 @@ export async function findUserById(id: string): Promise<PgUser | null> {
   const rows = await db.select().from(users).where(eq(users.id, id)).limit(1);
   return rows[0] ?? null;
 }
+
+export async function createUser(data: NewPgUser): Promise<PgUser> {
+  const db = getPgDb();
+  const rows = await db.insert(users).values(data).returning();
+  const created = rows[0];
+  if (!created) {
+    throw new Error("Failed to create user");
+  }
+  return created;
+}
