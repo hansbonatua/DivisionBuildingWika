@@ -26,6 +26,7 @@ export type PortfolioProjectPublic = {
   location: string;
   imageUrl: string;
   imageAlt: string;
+  description: string;
 };
 
 // JSON-safe serialization (ObjectId/Date are not plain JSON).

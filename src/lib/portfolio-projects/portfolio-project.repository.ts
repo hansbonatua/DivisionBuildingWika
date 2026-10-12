@@ -90,6 +90,7 @@ export async function findActivePublic(): Promise<PortfolioProjectPublic[]> {
       location: 1,
       imageUrl: 1,
       imageAlt: 1,
+      description: 1,
     })
     .toArray();
 }

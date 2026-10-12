@@ -125,12 +125,12 @@ export default function ProjectForm({ mode, initialData, submitLabel, onSubmit }
                 className="h-10 w-full rounded-lg border border-outline/60 bg-white px-3.5 text-sm font-semibold text-primary focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
               />
               <span className="mt-1 block text-[11px] text-primary/50">
-                Maksimal 60 karakter untuk headline optimal.
+                Maksimal 160 karakter untuk headline optimal.
               </span>
             </div>
             <div>
               <label htmlFor="projectCategory" className="mb-1.5 block text-xs font-bold text-primary">
-                Kategori / Sektor Konstruksi *
+                Kategori Konstruksi *
               </label>
               <select
                 id="projectCategory"
@@ -198,7 +198,7 @@ export default function ProjectForm({ mode, initialData, submitLabel, onSubmit }
                   Status Konstruksi &amp; Milestone Penyelesaian
                 </label>
                 <p className="text-[11px] text-primary/70">
-                  Menampilkan progress bar pada detail modal proyek.
+                  Menunjukkan persentase progres penyelesaian proyek.
                 </p>
               </div>
               <div className="text-right">
@@ -242,7 +242,7 @@ export default function ProjectForm({ mode, initialData, submitLabel, onSubmit }
               <label htmlFor="projectDescription" className="text-xs font-bold text-primary">
                 Deskripsi Ringkas Landing Page (Bahasa Indonesia) *
               </label>
-              <span className="text-[11px] text-primary/50">{formDescription.length} / 250 karakter</span>
+              <span className="text-[11px] text-primary/50">{formDescription.length} / 1000 karakter</span>
             </div>
             <textarea
               id="projectDescription"
@@ -269,7 +269,7 @@ export default function ProjectForm({ mode, initialData, submitLabel, onSubmit }
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
               <div>
                 <span className="text-xs font-bold text-primary">
-                  Media Visual Utama Proyek (Thumbnail &amp; Hero Modal)
+                  Media Visual Utama Proyek (Thumbnail)
                 </span>
                 <p className="text-[11px] text-primary/50">
                   Rekomendasi rasio 16:9, resolusi minimal 2400x1350px (WebP / Ultra-HD JPG maks 5MB).

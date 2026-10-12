@@ -8,8 +8,6 @@ type Project = {
   category: string;
   meta: string;
   description: string;
-  phase: string;
-  kind: string;
   image: string;
   alt: string;
 };
@@ -21,8 +19,6 @@ const FALLBACK_PROJECTS: Project[] = [
     meta: "Lorem Ipsum • Dolor Sit Amet",
     description:
       "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer nec odio praesent libero sed cursus ante dapibus diam.",
-    phase: "Completed",
-    kind: "Turnkey",
     image: "/asset/hero/7.jpg",
     alt: "Lorem Ipsum Project 1",
   },
@@ -32,8 +28,6 @@ const FALLBACK_PROJECTS: Project[] = [
     meta: "Consectetur • Adipiscing Elit",
     description:
       "Sed nisi nulla quis sem at nibh elementum imperdiet duis sagittis ipsum. Praesent mauris fusce nec tellus sed augue.",
-    phase: "Completed",
-    kind: "Design-Build",
     image: "/asset/hero/14.jpg",
     alt: "Lorem Ipsum Project 2",
   },
@@ -43,8 +37,6 @@ const FALLBACK_PROJECTS: Project[] = [
     meta: "Sed Do • Eiusmod Tempor",
     description:
       "Sed dignissim lacinia nunc curabitur tortor pellentesque nibh. Aenean quam in scelerisque sem at dolor maecenas.",
-    phase: "Ongoing",
-    kind: "EPC",
     image: "/asset/hero/10.jpg",
     alt: "Lorem Ipsum Project 3",
   },
@@ -54,8 +46,6 @@ const FALLBACK_PROJECTS: Project[] = [
     meta: "Ut Labore • Et Dolore",
     description:
       "Maecenas mattis sed convallis tristique sem proin. Nulla quis lorem ut libero malesuada feugiat donec sodales.",
-    phase: "Completed",
-    kind: "Greenfield",
     image: "/asset/hero/8.jpg",
     alt: "Lorem Ipsum Project 4",
   },
@@ -63,12 +53,10 @@ const FALLBACK_PROJECTS: Project[] = [
 
 const SLIDER_GAP_PX = 24;
 
-// Generic display copy for API-fed cards (API carries no phase/kind/description).
+// Generic display copy for API-fed cards with an empty description.
 // Deterministic by design — no business facts are derived from record fields.
 const API_CARD_DESCRIPTION =
   "Strategic national project delivered to sovereign engineering benchmarks.";
-const API_CARD_PHASE = "Completed";
-const API_CARD_KIND = "Turnkey";
 
 type PortfolioPublicPayload = {
   title?: unknown;
@@ -76,6 +64,7 @@ type PortfolioPublicPayload = {
   location?: unknown;
   imageUrl?: unknown;
   imageAlt?: unknown;
+  description?: unknown;
 };
 
 function toLandingProject(item: PortfolioPublicPayload): Project | null {
@@ -88,13 +77,15 @@ function toLandingProject(item: PortfolioPublicPayload): Project | null {
   const category = typeof item.category === "string" && item.category.length > 0 ? item.category : "Project";
   const location = typeof item.location === "string" ? item.location : "";
   const imageAlt = typeof item.imageAlt === "string" && item.imageAlt.length > 0 ? item.imageAlt : item.title;
+  const description =
+    typeof item.description === "string" && item.description.trim().length > 0
+      ? item.description
+      : API_CARD_DESCRIPTION;
   return {
     title: item.title,
     category,
     meta: location,
-    description: API_CARD_DESCRIPTION,
-    phase: API_CARD_PHASE,
-    kind: API_CARD_KIND,
+    description,
     image: item.imageUrl,
     alt: imageAlt,
   };
@@ -148,7 +139,7 @@ export default function Projects() {
   return (
     <section id="projects" className="relative w-full max-w-full overflow-hidden bg-surface py-20 lg:py-28">
       <div className="mx-auto w-full max-w-7xl px-6 lg:px-8">
-        <div className="mb-14 flex flex-col justify-between md:flex-row md:items-end">
+        <div className="mb-14">
           <div>
             <div className="mb-3 inline-flex items-center gap-2">
               <span className="h-0.5 w-6 bg-secondary" />
@@ -159,29 +150,6 @@ export default function Projects() {
               Pioneering monumental national infrastructure and architectural landmarks built to sovereign engineering
               benchmarks.
             </p>
-          </div>
-          <div className="mt-6 flex items-center space-x-3 md:mt-0">
-            <span className="text-xs font-semibold uppercase text-primary/50">Filter:</span>
-            <div className="inline-flex rounded-lg border border-outline/50 bg-background p-1">
-              <button
-                type="button"
-                className="rounded bg-surface px-3 py-1 text-xs font-bold text-primary shadow-sm"
-              >
-                All Sectors
-              </button>
-              <button
-                type="button"
-                className="rounded px-3 py-1 text-xs text-primary/70 hover:text-primary"
-              >
-                Civic
-              </button>
-              <button
-                type="button"
-                className="rounded px-3 py-1 text-xs text-primary/70 hover:text-primary"
-              >
-                Transit
-              </button>
-            </div>
           </div>
         </div>
 
@@ -288,10 +256,6 @@ export default function Projects() {
                     {project.title}
                   </h3>
                   <p className="line-clamp-2 text-sm text-primary/70">{project.description}</p>
-                </div>
-                <div className="mt-4 flex items-center justify-between border-t border-outline/20 pt-4 text-xs">
-                  <span className="text-primary/50">Phase: {project.phase}</span>
-                  <span className="font-semibold text-secondary">Type: {project.kind}</span>
                 </div>
               </div>
             </article>
