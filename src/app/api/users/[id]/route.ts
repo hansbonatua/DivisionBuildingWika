@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
 import { apiAuthGuard, requireUser, UnauthenticatedError } from "@/lib/auth/current-user";
 import {
+  CannotDeleteLastAdminError,
+  CannotDeleteSelfError,
   CannotSuspendLastAdminError,
   CannotSuspendSelfError,
   DuplicateEmailError,
   DuplicateNipError,
+  deleteUserSafely,
   getSafeUserById,
   updateSafeUser,
   UserNotFoundError,
@@ -106,6 +109,48 @@ export async function PATCH(request: Request, context: RouteContext) {
     }
   } catch (error) {
     console.error("PATCH /api/users/[id] failed", error);
+    return NextResponse.json({ error: { message: "Internal server error" } }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: Request, context: RouteContext) {
+  try {
+    let actorId: string;
+    try {
+      actorId = (await requireUser()).id;
+    } catch (error) {
+      if (error instanceof UnauthenticatedError) {
+        return NextResponse.json({ error: { message: "Unauthenticated" } }, { status: 401 });
+      }
+      throw error;
+    }
+    const { id } = await context.params;
+    if (!id || id.trim().length === 0) {
+      return NextResponse.json({ error: { message: "ID user tidak valid" } }, { status: 400 });
+    }
+    try {
+      const result = await deleteUserSafely(id, actorId);
+      return NextResponse.json({ data: result }, { status: 200 });
+    } catch (error) {
+      if (error instanceof UserNotFoundError) {
+        return NextResponse.json({ error: { message: "User tidak ditemukan" } }, { status: 404 });
+      }
+      if (error instanceof CannotDeleteSelfError) {
+        return NextResponse.json(
+          { error: { message: "Anda tidak dapat menghapus akun sendiri" } },
+          { status: 403 },
+        );
+      }
+      if (error instanceof CannotDeleteLastAdminError) {
+        return NextResponse.json(
+          { error: { message: "Admin aktif terakhir tidak dapat dihapus" } },
+          { status: 403 },
+        );
+      }
+      throw error;
+    }
+  } catch (error) {
+    console.error("DELETE /api/users/[id] failed", error);
     return NextResponse.json({ error: { message: "Internal server error" } }, { status: 500 });
   }
 }

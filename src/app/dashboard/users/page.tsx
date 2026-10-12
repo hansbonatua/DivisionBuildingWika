@@ -84,6 +84,33 @@ export default function UsersIndexPage() {
     setUsers((prev) => prev.map((user) => (user.id === id ? body.data as SafeUser : user)));
   }
 
+  async function handleDelete(id: string): Promise<void> {
+    setActionError(null);
+    const response = await fetch(`/api/users/${id}`, { method: "DELETE" });
+    if (response.status === 403) {
+      let message = "Penghapusan user tidak diizinkan.";
+      try {
+        const body = (await response.json()) as { error?: { message?: string } };
+        if (body.error?.message) {
+          message = body.error.message;
+        }
+      } catch {
+        /* keep default message */
+      }
+      setActionError(message);
+      throw new Error(message);
+    }
+    if (response.status === 404) {
+      setActionError("User tidak ditemukan.");
+      throw new Error("User tidak ditemukan.");
+    }
+    if (!response.ok) {
+      setActionError("Gagal menghapus user.");
+      throw new Error("Gagal menghapus user.");
+    }
+    setUsers((prev) => prev.filter((user) => user.id !== id));
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col justify-between gap-4 border-b border-outline pb-4 lg:flex-row lg:items-center">
@@ -153,7 +180,7 @@ export default function UsersIndexPage() {
               {actionError}
             </p>
           ) : null}
-          <UserTable users={users} currentUserId={currentUserId} onStatusChange={handleStatusChange} />
+          <UserTable users={users} currentUserId={currentUserId} onStatusChange={handleStatusChange} onDelete={handleDelete} />
         </>
       )}
     </div>

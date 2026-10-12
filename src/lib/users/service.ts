@@ -1,6 +1,7 @@
 import {
   countActiveAdmins as countActiveAdminRows,
   createUser as insertUserRow,
+  deleteUser as deleteUserRow,
   findUserByEmail as findUserRowByEmail,
   findUserById as findUserRowById,
   findUserByNip as findUserRowByNip,
@@ -74,6 +75,20 @@ export class CannotSuspendLastAdminError extends Error {
   constructor() {
     super("Admin aktif terakhir tidak dapat dinonaktifkan");
     this.name = "CannotSuspendLastAdminError";
+  }
+}
+
+export class CannotDeleteSelfError extends Error {
+  constructor() {
+    super("Anda tidak dapat menghapus akun sendiri");
+    this.name = "CannotDeleteSelfError";
+  }
+}
+
+export class CannotDeleteLastAdminError extends Error {
+  constructor() {
+    super("Admin aktif terakhir tidak dapat dihapus");
+    this.name = "CannotDeleteLastAdminError";
   }
 }
 
@@ -232,4 +247,31 @@ export async function updateSafeUser(
     }
     throw error;
   }
+}
+
+export async function deleteUserSafely(
+  targetUserId: string,
+  actorUserId: string,
+): Promise<{ deleted: true; id: string }> {
+  const target = await findUserRowById(targetUserId);
+  if (!target) {
+    throw new UserNotFoundError();
+  }
+  if (targetUserId === actorUserId) {
+    throw new CannotDeleteSelfError();
+  }
+  if (target.role === "Admin" && target.status === "active") {
+    const activeAdmins = await countActiveAdminRows();
+    if (activeAdmins <= 1) {
+      throw new CannotDeleteLastAdminError();
+    }
+  }
+  // Explicit revocation first for immediate effect; the FK cascade
+  // (sessions.user_id ON DELETE CASCADE) is the final backstop.
+  await deleteUserSessions(targetUserId);
+  const deleted = await deleteUserRow(targetUserId);
+  if (!deleted) {
+    throw new UserNotFoundError();
+  }
+  return { deleted: true, id: targetUserId };
 }

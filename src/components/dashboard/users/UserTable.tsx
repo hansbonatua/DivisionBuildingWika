@@ -11,9 +11,10 @@ type UserTableProps = {
   users: SafeUser[];
   currentUserId?: string;
   onStatusChange: (id: string, nextStatus: "active" | "suspended") => Promise<void>;
+  onDelete: (id: string) => Promise<void>;
 };
 
-export default function UserTable({ users, currentUserId, onStatusChange }: UserTableProps) {
+export default function UserTable({ users, currentUserId, onStatusChange, onDelete }: UserTableProps) {
   const [pendingId, setPendingId] = useState<string | null>(null);
 
   async function handleStatusClick(user: SafeUser): Promise<void> {
@@ -32,6 +33,24 @@ export default function UserTable({ users, currentUserId, onStatusChange }: User
     setPendingId(user.id);
     try {
       await onStatusChange(user.id, nextStatus);
+    } finally {
+      setPendingId(null);
+    }
+  }
+
+  async function handleDeleteClick(user: SafeUser): Promise<void> {
+    if (pendingId !== null) {
+      return;
+    }
+    const confirmed = window.confirm(
+      `Hapus user "${user.name}" secara permanen? Tindakan ini tidak dapat dibatalkan. Nonaktifkan akun jika hanya perlu menonaktifkan akses sementara.`,
+    );
+    if (!confirmed) {
+      return;
+    }
+    setPendingId(user.id);
+    try {
+      await onDelete(user.id);
     } finally {
       setPendingId(null);
     }
@@ -122,6 +141,24 @@ export default function UserTable({ users, currentUserId, onStatusChange }: User
                         : user.status === "active"
                           ? "Nonaktifkan"
                           : "Aktifkan"}
+                    </button>
+                  )}
+                  {user.id === currentUserId ? (
+                    <span
+                      title="Akun sendiri tidak dapat dihapus"
+                      aria-disabled="true"
+                      className="cursor-not-allowed rounded px-2.5 py-1 text-xs font-bold text-slate-300"
+                    >
+                      Hapus
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={pendingId !== null}
+                      onClick={() => void handleDeleteClick(user)}
+                      className="rounded px-2.5 py-1 text-xs font-bold text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {pendingId === user.id ? "Memproses..." : "Hapus"}
                     </button>
                   )}
                 </td>

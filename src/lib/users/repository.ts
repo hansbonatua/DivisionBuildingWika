@@ -73,3 +73,9 @@ export async function countActiveAdmins(): Promise<number> {
     .where(and(eq(users.role, "Admin"), eq(users.status, "active")));
   return rows.length;
 }
+
+export async function deleteUser(id: string): Promise<PgUser | null> {
+  const db = getPgDb();
+  const rows = await db.delete(users).where(eq(users.id, id)).returning();
+  return rows[0] ?? null;
+}
