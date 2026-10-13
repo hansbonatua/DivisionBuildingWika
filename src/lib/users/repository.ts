@@ -1,6 +1,7 @@
 import { and, asc, eq, sql } from "drizzle-orm";
 import { getPgDb } from "@/lib/pg/client";
 import { users, type NewPgUser, type PgUser } from "@/lib/pg/schema";
+import { ADMIN_ROLE } from "@/lib/users/roles";
 
 // Server-only: PostgreSQL Users persistence (auth read-path + User Control).
 // No MongoDB. No mock users.
@@ -70,7 +71,7 @@ export async function countActiveAdmins(): Promise<number> {
   const rows = await db
     .select({ id: users.id })
     .from(users)
-    .where(and(eq(users.role, "Admin"), eq(users.status, "active")));
+    .where(and(eq(users.role, ADMIN_ROLE), eq(users.status, "active")));
   return rows.length;
 }
 

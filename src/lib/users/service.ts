@@ -12,6 +12,7 @@ import {
 } from "@/lib/users/repository";
 import { hashPassword } from "@/lib/auth/password";
 import { deleteUserSessions } from "@/lib/auth/session";
+import { ADMIN_ROLE } from "@/lib/users/roles";
 import type {
   CreateUserInput,
   ProfileUpdateInput,
@@ -156,7 +157,7 @@ export async function setUserStatus(
     if (targetUserId === actorUserId) {
       throw new CannotSuspendSelfError();
     }
-    if (target.role === "Admin") {
+    if (target.role === ADMIN_ROLE) {
       const activeAdmins = await countActiveAdminRows();
       if (activeAdmins <= 1) {
         throw new CannotSuspendLastAdminError();
@@ -264,7 +265,7 @@ export async function deleteUserSafely(
   if (targetUserId === actorUserId) {
     throw new CannotDeleteSelfError();
   }
-  if (target.role === "Admin" && target.status === "active") {
+  if (target.role === ADMIN_ROLE && target.status === "active") {
     const activeAdmins = await countActiveAdminRows();
     if (activeAdmins <= 1) {
       throw new CannotDeleteLastAdminError();

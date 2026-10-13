@@ -22,7 +22,7 @@ function displayInitials(name: string): string {
 
 export default function DashboardHeader({ sidebarOpen, onToggleSidebar, user }: DashboardHeaderProps) {
   const displayName = user?.name ?? "R. Triyanto S.T.";
-  const displayRole = user?.role ?? "Superadmin CMS";
+  const displayRole = user?.role ?? "CMS";
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement | null>(null);
 

@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { POSITION_OPTIONS, ROLE_OPTIONS } from "@/lib/demo/users";
+import { POSITION_OPTIONS } from "@/lib/users/options";
+import { ROLE_OPTIONS, isUserRole, type UserRole } from "@/lib/users/roles";
 
 export type UserFormValues = {
   photo: string;
@@ -11,7 +12,7 @@ export type UserFormValues = {
   nip: string;
   email: string;
   position: string;
-  role: string;
+  role: UserRole;
   status: "active" | "suspended";
   password: string;
 };
@@ -57,7 +58,9 @@ export default function UserForm({
   const [formNip, setFormNip] = useState(initialData?.nip ?? "");
   const [formEmail, setFormEmail] = useState(initialData?.email ?? "");
   const [formPosition, setFormPosition] = useState(initialData?.position ?? POSITION_OPTIONS[0]);
-  const [formRole, setFormRole] = useState(initialData?.role ?? "Project");
+  const [formRole, setFormRole] = useState<UserRole>(
+    initialData?.role && isUserRole(initialData.role) ? initialData.role : "Project",
+  );
   const [formStatus, setFormStatus] = useState<"active" | "suspended">(
     initialData?.status === "suspended" ? "suspended" : "active",
   );
@@ -279,7 +282,11 @@ export default function UserForm({
             <select
               id="u_role"
               value={formRole}
-              onChange={(e) => setFormRole(e.target.value)}
+              onChange={(e) => {
+                if (isUserRole(e.target.value)) {
+                  setFormRole(e.target.value);
+                }
+              }}
               className={inputClass}
             >
               {ROLE_OPTIONS.map((option) => (

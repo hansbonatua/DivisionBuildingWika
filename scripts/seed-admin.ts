@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { hashPassword } from "@/lib/auth/password";
 import { getPgDb } from "@/lib/pg/client";
 import { users } from "@/lib/pg/schema";
+import { ADMIN_ROLE } from "@/lib/users/roles";
 
 // First-admin seed: NIP + password credential.
 // Usage (credentials never committed, never printed):
@@ -40,7 +41,7 @@ async function main(): Promise<void> {
         email,
         passwordHash,
         position,
-        role: "Admin",
+        role: ADMIN_ROLE,
         status: "active",
         updatedAt: new Date(),
       })
@@ -53,7 +54,7 @@ async function main(): Promise<void> {
       passwordHash,
       nip,
       position,
-      role: "Admin",
+      role: ADMIN_ROLE,
       status: "active",
     });
     console.log(`Admin upserted (created) for NIP ending ...${nip.slice(-4)}`);

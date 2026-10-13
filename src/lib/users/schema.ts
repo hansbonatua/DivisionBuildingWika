@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { USER_ROLES } from "@/lib/users/roles";
 
 // Create-user input validation. NIP stays a string: trim, never numeric.
 // Password values never appear in errors/logs.
@@ -13,7 +14,7 @@ export const createUserSchema = z.object({
     .optional()
     .transform((value) => (value && value.length > 0 ? value : null)),
   position: z.string().trim().min(1, "Jabatan wajib diisi").max(100),
-  role: z.enum(["Admin", "Head Office", "Project", "Management"]),
+  role: z.enum(USER_ROLES),
   status: z.enum(["active", "suspended"]).optional().default("active"),
   password: z.string().min(8, "Password minimal 8 karakter").max(200),
   photoUrl: z
@@ -40,7 +41,7 @@ export const updateUserSchema = z
       .optional()
       .transform((value) => (value && value.length > 0 ? value : null)),
     position: z.string().trim().min(1, "Jabatan wajib diisi").max(100).optional(),
-    role: z.enum(["Admin", "Head Office", "Project", "Management"]).optional(),
+    role: z.enum(USER_ROLES).optional(),
     status: z.enum(["active", "suspended"]).optional(),
     password: z
       .string()
