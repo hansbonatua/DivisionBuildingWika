@@ -41,7 +41,7 @@ export type ProgramKerjaTableUser = {
   role: string;
 };
 
-const MONTH_SHORT = [
+export const MONTH_SHORT = [
   "Jan",
   "Feb",
   "Mar",
@@ -85,7 +85,7 @@ function isOutsidePeriod(month: number, startMonth: number, endMonth: number): b
   return month < startMonth || month > endMonth;
 }
 
-function formatPeriod(startMonth: number, endMonth: number, year: number): string {
+export function formatPeriod(startMonth: number, endMonth: number, year: number): string {
   const start = MONTH_LONG[startMonth - 1] ?? `Bulan ${startMonth}`;
   const end = MONTH_LONG[endMonth - 1] ?? `Bulan ${endMonth}`;
   return `${start} – ${end} ${year}`;
@@ -98,7 +98,7 @@ function monthValue(
   return monthly.find((row) => row.month === month);
 }
 
-function totalsFor(unit: string, monthly: ProgramKerjaTableMonth[]): { ra: string; ri: string } {
+export function totalsFor(unit: string, monthly: ProgramKerjaTableMonth[]): { ra: string; ri: string } {
   if (unit === "Persentase") {
     const ra = monthly.length > 0 ? `${monthly[0].raValue}%` : "—";
     const filled = monthly.filter((row) => row.riValue !== null);
@@ -116,7 +116,7 @@ function totalsFor(unit: string, monthly: ProgramKerjaTableMonth[]): { ra: strin
   return { ra: String(raSum), ri: filled.length === 0 ? "—" : String(filled.reduce((sum, row) => sum + (row.riValue ?? 0), 0)) };
 }
 
-function achievementFor(unit: string, monthly: ProgramKerjaTableMonth[]): string {
+export function achievementFor(unit: string, monthly: ProgramKerjaTableMonth[]): string {
   const filled = monthly.filter((row) => row.riValue !== null);
   if (monthly.length === 0 || filled.length === 0) {
     return "—";

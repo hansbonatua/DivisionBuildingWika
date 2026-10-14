@@ -28,6 +28,7 @@ const inputClass =
 export default function ProgramKerjaManagePage() {
   const [programs, setPrograms] = useState<ProgramKerjaListItem[]>([]);
   const [currentUser, setCurrentUser] = useState<{ id: string; role: string } | null>(null);
+  const [exporting, setExporting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -148,6 +149,21 @@ export default function ProgramKerjaManagePage() {
     await refreshPrograms();
   }
 
+  async function handleExport(): Promise<void> {
+    if (exporting || rows.length === 0) {
+      return;
+    }
+    setExporting(true);
+    try {
+      const { downloadProgramKerjaExcel } = await import(
+        "@/components/dashboard/program-kerja/programKerjaExport"
+      );
+      await downloadProgramKerjaExcel(rows, yearFilter);
+    } finally {
+      setExporting(false);
+    }
+  }
+
   const availableGroups = useMemo(() => {
     const byId = new Map<string, string>();
     for (const program of programs) {
@@ -234,9 +250,10 @@ export default function ProgramKerjaManagePage() {
         <div className="flex shrink-0 flex-wrap items-center gap-3">
           <button
             type="button"
-            disabled
-            title="Export Excel segera hadir"
-            className="inline-flex cursor-not-allowed items-center gap-2 rounded-lg border border-outline bg-white px-5 py-2.5 text-xs font-bold text-slate-400 shadow-sm"
+            disabled={exporting || rows.length === 0}
+            title={rows.length === 0 ? "Tidak ada data untuk diekspor" : "Export Excel"}
+            onClick={() => void handleExport()}
+            className="inline-flex items-center gap-2 rounded-lg border border-outline bg-white px-5 py-2.5 text-xs font-bold text-slate-600 shadow-sm transition-colors hover:bg-slate-50 hover:text-primary disabled:cursor-not-allowed disabled:opacity-60"
           >
             <svg
               width="16"
@@ -253,7 +270,7 @@ export default function ProgramKerjaManagePage() {
               <polyline points="7 10 12 15 17 10" />
               <line x1="12" x2="12" y1="15" y2="3" />
             </svg>
-            <span>Export Excel</span>
+            <span>{exporting ? "Mengekspor..." : "Export Excel"}</span>
           </button>
           <Link
             href="/dashboard/program-kerja/manage/new"
