@@ -60,6 +60,64 @@ export async function listPrograms(db: ProgramKerjaDb = dbOrDefault()): Promise<
     .orderBy(desc(programKerja.year), asc(programKerja.name));
 }
 
+// Enriched list fetch for the Kelola table: constant query count
+// regardless of program count (no N+1). Groups are a small reference
+// table fetched wholesale; monthly and PIC rows are batched by program id.
+export type ProgramKerjaListRow = {
+  program: PgProgramKerja;
+  group: { id: string; name: string } | null;
+  monthly: ProgramKerjaMonthlyDto[];
+  pics: Array<{ id: string; name: string }>;
+};
+
+export async function listProgramRows(
+  db: ProgramKerjaDb = dbOrDefault(),
+): Promise<ProgramKerjaListRow[]> {
+  const programs = await listPrograms(db);
+  if (programs.length === 0) {
+    return [];
+  }
+  const ids = programs.map((program) => program.id);
+  const [monthlyRows, picRows, groups] = await Promise.all([
+    db
+      .select()
+      .from(programKerjaMonthly)
+      .where(inArray(programKerjaMonthly.programKerjaId, ids))
+      .orderBy(asc(programKerjaMonthly.month)),
+    db
+      .select({
+        programKerjaId: programKerjaPics.programKerjaId,
+        id: users.id,
+        name: users.name,
+      })
+      .from(programKerjaPics)
+      .innerJoin(users, eq(programKerjaPics.userId, users.id))
+      .where(inArray(programKerjaPics.programKerjaId, ids)),
+    db.select().from(programKerjaGroups),
+  ]);
+  const monthlyByProgram = new Map<string, ProgramKerjaMonthlyDto[]>();
+  for (const row of monthlyRows) {
+    const list = monthlyByProgram.get(row.programKerjaId) ?? [];
+    list.push(mapMonthlyRow(row));
+    monthlyByProgram.set(row.programKerjaId, list);
+  }
+  const picsByProgram = new Map<string, Array<{ id: string; name: string }>>();
+  for (const row of picRows) {
+    const list = picsByProgram.get(row.programKerjaId) ?? [];
+    list.push({ id: row.id, name: row.name });
+    picsByProgram.set(row.programKerjaId, list);
+  }
+  const groupsById = new Map(groups.map((group) => [group.id, { id: group.id, name: group.name }]));
+  return programs.map((program) => ({
+    program,
+    // group_id is a required FK so this is defensive-only; callers fall
+    // back to a generic label when null.
+    group: groupsById.get(program.groupId) ?? null,
+    monthly: monthlyByProgram.get(program.id) ?? [],
+    pics: picsByProgram.get(program.id) ?? [],
+  }));
+}
+
 export async function findProgramById(
   id: string,
   db: ProgramKerjaDb = dbOrDefault(),

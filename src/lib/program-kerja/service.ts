@@ -18,7 +18,7 @@ import {
   insertMonthlyRows,
   insertProgram,
   isUserAssignedPic,
-  listPrograms as listProgramRows,
+  listProgramRows,
   replacePics,
   updateMonthlyRa,
   updateMonthlyRi,
@@ -50,6 +50,31 @@ export type ProgramKerjaDetail = {
   program: PgProgramKerja;
   monthly: ProgramKerjaMonthlyDto[];
   picUserIds: string[];
+};
+
+// Enriched Kelola list item: master fields (unchanged, backward
+// compatible) plus group display data, monthly rows and PIC display data.
+// No password hashes, emails, roles, phones or sessions — PICs expose
+// id + name only.
+export type ProgramKerjaListItem = {
+  id: string;
+  groupId: string;
+  group: { id: string; name: string } | null;
+  year: number;
+  name: string;
+  description: string;
+  startMonth: number;
+  endMonth: number;
+  parameter: string;
+  unit: string;
+  monitor: string | null;
+  note: string | null;
+  evidenceUrl: string | null;
+  createdBy: string;
+  createdAt: Date;
+  updatedAt: Date;
+  monthly: Array<{ month: number; raValue: number; riValue: number | null }>;
+  pics: Array<{ id: string; name: string }>;
 };
 
 export class ProgramKerjaForbiddenError extends Error {
@@ -156,9 +181,33 @@ function buildCreateMonthlyRa(
   });
 }
 
-export async function listPrograms(actor: ProgramKerjaActor): Promise<PgProgramKerja[]> {
+export async function listPrograms(actor: ProgramKerjaActor): Promise<ProgramKerjaListItem[]> {
   assertManageAccess(actor);
-  return listProgramRows();
+  const rows = await listProgramRows();
+  return rows.map((row) => ({
+    id: row.program.id,
+    groupId: row.program.groupId,
+    group: row.group,
+    year: row.program.year,
+    name: row.program.name,
+    description: row.program.description,
+    startMonth: row.program.startMonth,
+    endMonth: row.program.endMonth,
+    parameter: row.program.parameter,
+    unit: row.program.unit,
+    monitor: row.program.monitor,
+    note: row.program.note,
+    evidenceUrl: row.program.evidenceUrl,
+    createdBy: row.program.createdBy,
+    createdAt: row.program.createdAt,
+    updatedAt: row.program.updatedAt,
+    monthly: row.monthly.map((month) => ({
+      month: month.month,
+      raValue: month.raValue,
+      riValue: month.riValue,
+    })),
+    pics: row.pics,
+  }));
 }
 
 export async function getProgramDetail(

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { canManageProgramKerja } from "@/lib/program-kerja/access";
 
 type SidebarItem = {
   label: string;
@@ -13,6 +14,7 @@ type SidebarItem = {
 type DashboardSidebarProps = {
   open: boolean;
   onClose: () => void;
+  userRole?: string;
 };
 
 function MenuIcon({ children }: { children: React.ReactNode }) {
@@ -93,8 +95,7 @@ const landingSubMenu: SidebarItem[] = [
   },
 ];
 
-const adminMenu: SidebarItem[] = [
-  {
+const adminMenu: SidebarItem[] = [  {
     label: "User Directory",
     href: "/dashboard/users",
     icon: (
@@ -108,10 +109,26 @@ const adminMenu: SidebarItem[] = [
   },
 ];
 
-export default function DashboardSidebar({ open, onClose }: DashboardSidebarProps) {
+const programKerjaMenu: SidebarItem[] = [
+  {
+    label: "Kelola Program Kerja",
+    href: "/dashboard/program-kerja/manage",
+    icon: (
+      <MenuIcon>
+        <rect width="8" height="8" x="3" y="3" rx="1" />
+        <rect width="8" height="8" x="13" y="3" rx="1" />
+        <rect width="8" height="8" x="3" y="13" rx="1" />
+        <rect width="8" height="8" x="13" y="13" rx="1" />
+      </MenuIcon>
+    ),
+  },
+];
+
+export default function DashboardSidebar({ open, onClose, userRole }: DashboardSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
+  const showProgramKerja = canManageProgramKerja(userRole ?? "");
   const landingRoutes = landingSubMenu.map((item) => item.href);
   const isLandingRoute = landingRoutes.some(
     (route) => pathname === route || pathname.startsWith(`${route}/`),
@@ -123,6 +140,18 @@ export default function DashboardSidebar({ open, onClose }: DashboardSidebarProp
       setLandingOpen(true);
     }
   }, [pathname, isLandingRoute]);
+
+  const programKerjaRoutes = programKerjaMenu.map((item) => item.href);
+  const isProgramKerjaRoute = programKerjaRoutes.some(
+    (route) => pathname === route || pathname.startsWith(`${route}/`),
+  );
+  const [programKerjaOpen, setProgramKerjaOpen] = useState(isProgramKerjaRoute);
+
+  useEffect(() => {
+    if (isProgramKerjaRoute) {
+      setProgramKerjaOpen(true);
+    }
+  }, [pathname, isProgramKerjaRoute]);
 
   function isActivePath(href: string): boolean {
     return pathname === href || pathname.startsWith(`${href}/`);
@@ -233,6 +262,56 @@ export default function DashboardSidebar({ open, onClose }: DashboardSidebarProp
               <nav className="ml-4 space-y-1 border-l-2 border-slate-100 pl-3" aria-label="Landing Page Manager">
                 {landingSubMenu.map(renderItem)}
               </nav>
+            </div>
+          ) : null}
+
+          {showProgramKerja ? (
+            <div>
+              <div className="mb-2 px-3 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                Core Enterprise
+              </div>
+              <div className="px-1">
+                <button
+                  type="button"
+                  aria-expanded={programKerjaOpen}
+                  aria-controls="program-kerja-menu"
+                  onClick={() => setProgramKerjaOpen((prev) => !prev)}
+                  className="flex w-full items-center justify-between rounded-lg border border-transparent px-2.5 py-2 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+                >
+                  <span className="flex items-center gap-2.5">
+                    <span className="text-secondary">
+                      <MenuIcon>
+                        <path d="M3 3v18h18" />
+                        <path d="M7 15v3" />
+                        <path d="M12 10v8" />
+                        <path d="M17 6v12" />
+                      </MenuIcon>
+                    </span>
+                    <span>Program Kerja</span>
+                  </span>
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                    className={`text-slate-400 transition-transform duration-200 ${programKerjaOpen ? "rotate-180" : "rotate-0"}`}
+                  >
+                    <path d="m6 9 6 6 6-6" />
+                  </svg>
+                </button>
+              </div>
+              {programKerjaOpen ? (
+                <div id="program-kerja-menu">
+                  <nav className="ml-4 space-y-1 border-l-2 border-slate-100 pl-3" aria-label="Program Kerja">
+                    {programKerjaMenu.map(renderItem)}
+                  </nav>
+                </div>
+              ) : null}
             </div>
           ) : null}
 
