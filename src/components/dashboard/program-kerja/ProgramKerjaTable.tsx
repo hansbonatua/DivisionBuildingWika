@@ -1,8 +1,10 @@
 "use client";
 
 import { Fragment } from "react";
+import Link from "next/link";
 
-// Read-only Kelola Program Kerja table (Phase 4A). No inputs, no mutations.
+// Kelola Program Kerja table. Mutations live on dedicated Add/Edit pages;
+// the table itself stays read-only (Delete remains disabled in Phase 4B).
 
 export type ProgramKerjaTableMonth = {
   month: number;
@@ -294,14 +296,12 @@ export default function ProgramKerjaTable({
                           )}
                         </td>
                         <td rowSpan={2} className={`${sharedCell} whitespace-nowrap text-right`}>
-                          <button
-                            type="button"
-                            disabled
-                            title="Edit Program segera hadir"
-                            className="cursor-not-allowed rounded px-2.5 py-1 text-xs font-bold text-slate-300"
+                          <Link
+                            href={`/dashboard/program-kerja/manage/${program.id}/edit`}
+                            className="rounded px-2.5 py-1 text-xs font-bold text-secondary hover:bg-blue-50"
                           >
                             Edit
-                          </button>
+                          </Link>
                           <button
                             type="button"
                             disabled

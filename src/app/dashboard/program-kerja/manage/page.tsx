@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import ProgramKerjaTable, { type ProgramKerjaTableRow } from "@/components/dashboard/program-kerja/ProgramKerjaTable";
 
 type ProgramKerjaListItem = {
@@ -163,11 +164,9 @@ export default function ProgramKerjaManagePage() {
             </svg>
             <span>Export Excel</span>
           </button>
-          <button
-            type="button"
-            disabled
-            title="Tambah Program segera hadir"
-            className="inline-flex cursor-not-allowed items-center gap-2 rounded-lg bg-primary/40 px-5 py-2.5 text-xs font-bold text-white shadow-md"
+          <Link
+            href="/dashboard/program-kerja/manage/new"
+            className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-xs font-bold text-white shadow-md transition-all duration-150 hover:bg-secondary"
           >
             <svg
               width="16"
@@ -184,7 +183,7 @@ export default function ProgramKerjaManagePage() {
               <path d="M12 5v14" />
             </svg>
             <span>Tambah Program</span>
-          </button>
+          </Link>
         </div>
       </div>
 

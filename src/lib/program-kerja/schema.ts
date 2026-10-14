@@ -1,13 +1,9 @@
 import { z } from "zod";
+import { PROGRAM_KERJA_UNITS } from "@/lib/program-kerja/access";
 
 // Program Kerja input contracts (Kelola phase). year is create-only and
 // never appears in the update contract (immutable after create). RI, note
 // and evidenceUrl travel through dedicated contracts, not master edit.
-
-// Single source of truth for units. Matches the DB CHECK constraint.
-export const PROGRAM_KERJA_UNITS = ["Jumlah", "Persentase"] as const;
-
-export type ProgramKerjaUnit = (typeof PROGRAM_KERJA_UNITS)[number];
 
 const programKerjaUnit = z.enum(PROGRAM_KERJA_UNITS);
 

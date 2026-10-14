@@ -1,6 +1,12 @@
 import type { UserRole } from "@/lib/users/roles";
 import { ADMIN_ROLE, HEAD_OFFICE_ROLE } from "@/lib/users/roles";
 
+// Canonical units — single source of truth (matches the DB CHECK
+// constraint). Dependency-free, safe to import in Client Components.
+export const PROGRAM_KERJA_UNITS = ["Jumlah", "Persentase"] as const;
+
+export type ProgramKerjaUnit = (typeof PROGRAM_KERJA_UNITS)[number];
+
 // Kelola Program Kerja access (Phase 2). Summary access is NOT defined here
 // (Summary Report comes in a later phase). Project has no access at all.
 

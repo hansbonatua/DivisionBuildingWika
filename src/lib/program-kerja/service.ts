@@ -9,6 +9,7 @@ import {
 import {
   deleteProgram as deleteProgramRow,
   findGroupById,
+  listGroups as listGroupRows,
   findMonthlyRows,
   findPicUserIds,
   findProgramById,
@@ -179,6 +180,19 @@ function buildCreateMonthlyRa(
     assertFiniteNumber(raValue, "RA");
     return { month, raValue };
   });
+}
+export type ProgramKerjaGroupItem = {
+  id: string;
+  name: string;
+  sortOrder: number | null;
+};
+
+export async function listProgramKerjaGroups(
+  actor: ProgramKerjaActor,
+): Promise<ProgramKerjaGroupItem[]> {
+  assertManageAccess(actor);
+  const rows = await listGroupRows();
+  return rows.map((row) => ({ id: row.id, name: row.name, sortOrder: row.sortOrder }));
 }
 
 export async function listPrograms(actor: ProgramKerjaActor): Promise<ProgramKerjaListItem[]> {
