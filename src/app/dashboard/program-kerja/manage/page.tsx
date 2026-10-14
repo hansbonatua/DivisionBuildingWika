@@ -27,8 +27,10 @@ const inputClass =
 
 export default function ProgramKerjaManagePage() {
   const [programs, setPrograms] = useState<ProgramKerjaListItem[]>([]);
+  const [currentUser, setCurrentUser] = useState<{ id: string; role: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [groupFilter, setGroupFilter] = useState("");
   const [yearFilter, setYearFilter] = useState("");
@@ -56,7 +58,95 @@ export default function ProgramKerjaManagePage() {
 
   useEffect(() => {
     void loadPrograms();
+    void loadCurrentUser();
   }, []);
+
+  async function loadCurrentUser(): Promise<void> {
+    try {
+      const response = await fetch("/api/auth/me");
+      if (!response.ok) {
+        return;
+      }
+      const body = (await response.json()) as { user?: { id?: string; role?: string } };
+      if (body.user?.id && body.user?.role) {
+        setCurrentUser({ id: body.user.id, role: body.user.role });
+      }
+    } catch {
+      /* table RI editing simply stays read-only; server rules stay authoritative */
+    }
+  }
+
+  async function refreshPrograms(): Promise<void> {
+    const response = await fetch("/api/program-kerja");
+    if (!response.ok) {
+      throw new Error("Gagal memuat ulang data.");
+    }
+    const body = (await response.json()) as { data?: ProgramKerjaListItem[] };
+    setPrograms(Array.isArray(body.data) ? body.data : []);
+  }
+
+  async function readErrorMessage(response: Response, fallback: string): Promise<string> {
+    try {
+      const body = (await response.json()) as { error?: { message?: string } };
+      if (body.error?.message) {
+        return body.error.message;
+      }
+    } catch {
+      /* keep fallback */
+    }
+    return fallback;
+  }
+
+  async function handleDelete(id: string): Promise<void> {
+    setActionError(null);
+    const response = await fetch(`/api/program-kerja/${id}`, { method: "DELETE" });
+    if (!response.ok) {
+      const message = await readErrorMessage(response, "Gagal menghapus Program Kerja.");
+      setActionError(message);
+      throw new Error(message);
+    }
+    try {
+      await refreshPrograms();
+    } catch {
+      setActionError("Program terhapus, tetapi gagal memuat ulang data.");
+    }
+  }
+
+  async function handleSaveRi(programId: string, month: number, ri: number): Promise<void> {
+    const response = await fetch(`/api/program-kerja/${programId}/ri`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ month, ri }),
+    });
+    if (!response.ok) {
+      throw new Error(await readErrorMessage(response, "Gagal menyimpan RI."));
+    }
+    await refreshPrograms();
+  }
+
+  async function handleSaveNote(programId: string, note: string): Promise<void> {
+    const response = await fetch(`/api/program-kerja/${programId}/note`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ note }),
+    });
+    if (!response.ok) {
+      throw new Error(await readErrorMessage(response, "Gagal menyimpan catatan."));
+    }
+    await refreshPrograms();
+  }
+
+  async function handleSaveEvidence(programId: string, url: string): Promise<void> {
+    const response = await fetch(`/api/program-kerja/${programId}/evidence`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ evidenceUrl: url }),
+    });
+    if (!response.ok) {
+      throw new Error(await readErrorMessage(response, "Gagal menyimpan evidence."));
+    }
+    await refreshPrograms();
+  }
 
   const availableGroups = useMemo(() => {
     const byId = new Map<string, string>();
@@ -118,6 +208,7 @@ export default function ProgramKerjaManagePage() {
           groupId: program.groupId,
         },
         monthly: program.monthly,
+        picIds: program.pics.map((pic) => pic.id),
         picNames: program.pics.map((pic) => pic.name),
         groupName: program.group?.name ?? null,
       })),
@@ -275,7 +366,25 @@ export default function ProgramKerjaManagePage() {
           <p className="text-sm font-medium text-primary/70">Belum ada data Program Kerja.</p>
         </div>
       ) : (
-        <ProgramKerjaTable rows={rows} activeYear={yearFilter} />
+        <>
+          {actionError ? (
+            <p
+              role="alert"
+              className="rounded-lg border border-red-300 bg-red-50 px-3.5 py-2.5 text-xs font-semibold text-red-700"
+            >
+              {actionError}
+            </p>
+          ) : null}
+          <ProgramKerjaTable
+            rows={rows}
+            activeYear={yearFilter}
+            currentUser={currentUser}
+            onDelete={handleDelete}
+            onSaveRi={handleSaveRi}
+            onSaveNote={handleSaveNote}
+            onSaveEvidence={handleSaveEvidence}
+          />
+        </>
       )}
     </div>
   );
