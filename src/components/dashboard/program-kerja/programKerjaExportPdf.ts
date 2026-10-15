@@ -1,5 +1,5 @@
 import { jsPDF } from "jspdf";
-import autoTable from "jspdf-autotable";
+import autoTable, { type CellInput } from "jspdf-autotable";
 import {
   MONTH_SHORT,
   achievementFor,
@@ -16,6 +16,15 @@ export type ProgramKerjaExportMeta = {
   unitFilter: string;
   search: string;
 };
+
+const QUARTERS = ["Quarter I", "Quarter II", "Quarter III", "Quarter IV"];
+const MONTHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+
+// Light green for RA outside-period cells (dashboard meaning preserved);
+// dark green text. RI cells are never highlighted.
+const OUTSIDE_FILL: [number, number, number] = [220, 252, 231];
+const OUTSIDE_TEXT: [number, number, number] = [22, 101, 52];
+const NAVY_FILL: [number, number, number] = [30, 58, 95];
 
 function riText(value: number | null): string {
   return value === null ? "-" : String(value);
@@ -43,7 +52,39 @@ export function exportFileName(yearFilter: string, now: Date = new Date()): stri
   return `Program-Kerja-${scope}-${exportStamp(now)}.pdf`;
 }
 
-// Pure builder (no DOM): landscape A3 split into readable sections.
+function isOutsidePeriod(month: number, startMonth: number, endMonth: number): boolean {
+  return month < startMonth || month > endMonth;
+}
+
+function yearHeading(rows: ProgramKerjaExportRow[], activeYear: string): string {
+  if (activeYear) {
+    return `Program Kerja Strategis ${activeYear}`;
+  }
+  const years = [...new Set(rows.map((row) => row.program.year))];
+  if (years.length === 1 && years[0] !== undefined) {
+    return `Program Kerja Strategis ${years[0]}`;
+  }
+  return "Program Kerja Strategis";
+}
+
+type GroupSection = { key: string; name: string | null; rows: ProgramKerjaExportRow[] };
+
+function groupSections(rows: ProgramKerjaExportRow[]): GroupSection[] {
+  const sections = new Map<string, GroupSection>();
+  for (const row of rows) {
+    const key = row.program.groupId;
+    const section = sections.get(key);
+    if (section) {
+      section.rows.push(row);
+    } else {
+      sections.set(key, { key, name: row.groupName, rows: [row] });
+    }
+  }
+  return [...sections.values()];
+}
+
+// Single main table mirroring the Kelola dashboard table: 3-level header,
+// full-span group separators, paired RA/RI rows with rowSpan master cells.
 export function buildProgramKerjaPdf(
   rows: ProgramKerjaExportRow[],
   meta: ProgramKerjaExportMeta,
@@ -66,92 +107,90 @@ export function buildProgramKerjaPdf(
   doc.text(stampLabel, pageWidth - 14 - doc.getTextWidth(stampLabel), 27);
   doc.setTextColor(0);
 
-  const tableOptions = {
-    styles: { fontSize: 7, cellPadding: 1.5 },
-    headStyles: { fillColor: [30, 58, 95] as [number, number, number], textColor: 255, fontStyle: "bold" as const },
-    margin: { left: 14, right: 14 },
-  };
+  const headRow1: CellInput[] = [
+    { content: "No", rowSpan: 3 },
+    { content: "Nama Program Kerja", rowSpan: 3 },
+    { content: "Deskripsi Program Kerja", rowSpan: 3 },
+    { content: "Rencana Waktu", rowSpan: 3 },
+    { content: "Parameter", rowSpan: 3 },
+    { content: "Total RA & RI Bulan Berjalan", rowSpan: 3 },
+    { content: "Unit", rowSpan: 3 },
+    { content: "Label", rowSpan: 3 },
+    { content: yearHeading(rows, meta.yearFilter), colSpan: 12, styles: { halign: "center" } },
+    { content: "Pencapaian Total", rowSpan: 3 },
+    { content: "PIC", rowSpan: 3 },
+    { content: "Monitor", rowSpan: 3 },
+    { content: "Catatan", rowSpan: 3 },
+    { content: "Evidence", rowSpan: 3 },
+  ];
+  const headRow2: CellInput[] = QUARTERS.map((label) => ({
+    content: label,
+    colSpan: 3,
+    styles: { halign: "center" },
+  }));
+  const headRow3: CellInput[] = MONTH_SHORT.map((label) => ({ content: label }));
+
+  // 8 fixed + Label + 12 months + 5 trailing = 26 columns.
+  const TOTAL_COLUMNS = 8 + 12 + 5;
+
+  const body: CellInput[][] = [];
+  const sections = groupSections(rows);
+  let counter = 0;
+  for (const section of sections) {
+    body.push([
+      {
+        content: section.name ?? "Kelompok Program",
+        colSpan: TOTAL_COLUMNS,
+        styles: { fillColor: NAVY_FILL, textColor: 255, fontStyle: "bold" },
+      },
+    ]);
+    for (const row of section.rows) {
+      counter += 1;
+      const { program } = row;
+      const totals = totalsFor(program.unit, row.monthly);
+      const shared = { rowSpan: 2, styles: { valign: "top" as const } };
+      const raCells: CellInput[] = MONTHS.map((month) => {
+        const cell = row.monthly.find((item) => item.month === month);
+        const outside = isOutsidePeriod(month, program.startMonth, program.endMonth);
+        return {
+          content: cell ? cell.raValue : "",
+          styles: outside
+            ? { fillColor: OUTSIDE_FILL, textColor: OUTSIDE_TEXT }
+            : undefined,
+        };
+      });
+      const riCells: CellInput[] = MONTHS.map((month) => {
+        const cell = row.monthly.find((item) => item.month === month);
+        return riText(cell ? cell.riValue ?? null : null);
+      });
+      body.push([
+        { content: counter, ...shared },
+        { content: program.name, ...shared },
+        { content: program.description, ...shared },
+        { content: formatPeriod(program.startMonth, program.endMonth, program.year), ...shared },
+        { content: program.parameter, ...shared },
+        { content: `RA ${totals.ra}\nRI ${totals.ri}`, ...shared },
+        { content: program.unit, ...shared },
+        "RA",
+        ...raCells,
+        { content: achievementFor(program.unit, row.monthly), ...shared },
+        { content: row.picNames.join(", "), ...shared },
+        { content: program.monitor ?? "", ...shared },
+        { content: program.note ?? "", ...shared },
+        { content: program.evidenceUrl ?? "", ...shared },
+      ]);
+      body.push(["RI", ...riCells]);
+    }
+  }
 
   autoTable(doc, {
-    ...tableOptions,
     startY: 32,
-    head: [
-      [
-        "No",
-        "Kelompok",
-        "Nama Program Kerja",
-        "Deskripsi",
-        "Tahun",
-        "Rencana Waktu",
-        "Parameter",
-        "Unit",
-        "Total RA",
-        "RI Berjalan",
-        "Pencapaian",
-        "PIC",
-        "Monitor",
-        "Catatan",
-        "Evidence",
-      ],
-    ],
-    body: rows.map((row, index) => {
-      const totals = totalsFor(row.program.unit, row.monthly);
-      return [
-        index + 1,
-        row.groupName ?? "",
-        row.program.name,
-        row.program.description,
-        row.program.year,
-        formatPeriod(row.program.startMonth, row.program.endMonth, row.program.year),
-        row.program.parameter,
-        row.program.unit,
-        totals.ra,
-        totals.ri,
-        achievementFor(row.program.unit, row.monthly),
-        row.picNames.join(", "),
-        row.program.monitor ?? "",
-        row.program.note ?? "",
-        row.program.evidenceUrl ?? "",
-      ];
-    }),
+    head: [headRow1, headRow2, headRow3],
+    body,
+    styles: { fontSize: 6.5, cellPadding: 1.5 },
+    headStyles: { fillColor: NAVY_FILL, textColor: 255, fontStyle: "bold" },
+    margin: { left: 10, right: 10 },
   });
-
-  for (const half of [0, 1] as const) {
-    const months = MONTH_SHORT.map((_, index) => index + 1).slice(half * 6, half * 6 + 6);
-    autoTable(doc, {
-      ...tableOptions,
-      head: [["No", "Nama", ...months.flatMap((m) => [`${MONTH_SHORT[m - 1]} RA`, `${MONTH_SHORT[m - 1]} RI`])]],
-      body: rows.map((row, index) => [
-        index + 1,
-        row.program.name,
-        ...months.flatMap((month) => {
-          const cell = row.monthly.find((item) => item.month === month);
-          return [cell ? cell.raValue : "", riText(cell ? cell.riValue ?? null : null)];
-        }),
-      ]),
-      // RA outside-period cells get a light green fill (same meaning as the
-      // dashboard table). RI cells are never highlighted.
-      didParseCell: (data) => {
-        if (data.section !== "body") {
-          return;
-        }
-        const offset = data.column.index - 2;
-        if (offset < 0 || offset % 2 !== 0) {
-          return;
-        }
-        const row = rows[data.row.index];
-        const month = months[offset / 2];
-        if (
-          row &&
-          month !== undefined &&
-          (month < row.program.startMonth || month > row.program.endMonth)
-        ) {
-          data.cell.styles.fillColor = [220, 252, 231];
-          data.cell.styles.textColor = [22, 101, 52];
-        }
-      },
-    });
-  }
 
   return doc;
 }
