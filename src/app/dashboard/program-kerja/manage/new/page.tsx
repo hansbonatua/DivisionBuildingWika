@@ -84,8 +84,8 @@ export default function AddProgramKerjaPage() {
     };
     const body =
       values.unit === "Persentase"
-        ? { ...base, year: new Date().getFullYear(), raPercentage: values.raPercentage }
-        : { ...base, year: new Date().getFullYear(), monthlyRa: values.monthlyRa };
+        ? { ...base, year: values.year, raPercentage: values.raPercentage }
+        : { ...base, year: values.year, monthlyRa: values.monthlyRa };
     const response = await fetch("/api/program-kerja", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

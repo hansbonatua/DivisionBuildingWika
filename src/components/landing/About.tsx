@@ -178,7 +178,7 @@ export default function About() {
 
             <div>
               <Link
-                href="#about-detailed"
+                href="https://www.wika.co.id/id/perusahaan/tentang-kami"
                 className="inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-3 text-sm font-semibold text-white transition-colors duration-200 hover:bg-secondary"
               >
                 <span>Learn More</span>

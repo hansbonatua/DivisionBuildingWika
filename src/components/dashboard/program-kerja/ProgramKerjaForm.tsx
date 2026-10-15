@@ -26,6 +26,7 @@ export type ProgramKerjaFormInitial = {
 
 export type ProgramKerjaFormValues = {
   groupId: string;
+  year: number;
   name: string;
   description: string;
   startMonth: number;
@@ -63,7 +64,6 @@ export const MONTH_OPTIONS = [
   { value: 11, label: "November" },
   { value: 12, label: "Desember" },
 ];
-
 export const MONTH_SHORT = [
   "Jan",
   "Feb",
@@ -78,6 +78,11 @@ export const MONTH_SHORT = [
   "Nov",
   "Des",
 ];
+
+export function getYearOptions(): number[] {
+  const currentYear = new Date().getFullYear();
+  return Array.from({ length: 11 }, (_, index) => currentYear + index);
+}
 
 const inputClass =
   "h-10 w-full rounded-lg border border-outline/60 bg-white px-3.5 text-xs font-semibold text-primary focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20";
@@ -115,6 +120,7 @@ export default function ProgramKerjaForm({
   onSubmit,
 }: ProgramKerjaFormProps) {
   const [formGroupId, setFormGroupId] = useState(initial.groupId);
+  const [formYear, setFormYear] = useState(year ?? new Date().getFullYear());
   const [formName, setFormName] = useState(initial.name);
   const [formDescription, setFormDescription] = useState(initial.description);
   const [formStartMonth, setFormStartMonth] = useState(initial.startMonth);
@@ -213,6 +219,7 @@ export default function ProgramKerjaForm({
     try {
       await onSubmit({
         groupId: formGroupId,
+        year: formYear,
         name: formName.trim(),
         description: formDescription.trim(),
         startMonth: formStartMonth,
@@ -254,17 +261,33 @@ export default function ProgramKerjaForm({
             </select>
           </div>
           <div>
-            <span className="mb-1.5 block text-xs font-semibold text-slate-700">Tahun</span>
+            <label htmlFor="pk_year" className="mb-1.5 block text-xs font-semibold text-slate-700">
+              Tahun {mode === "add" ? <span className="text-red-700">*</span> : null}
+            </label>
             {mode === "add" ? (
-              <div className={`${inputClass} flex cursor-not-allowed items-center bg-slate-50 text-slate-500`}>
-                {year ?? new Date().getFullYear()} (tahun berjalan)
-              </div>
+              <>
+                <select
+                  id="pk_year"
+                  value={formYear}
+                  onChange={(e) => setFormYear(Number(e.target.value))}
+                  className={inputClass}
+                >
+                  {getYearOptions().map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-[11px] text-slate-400">Pilih tahun pelaksanaan Program Kerja.</p>
+              </>
             ) : (
-              <div className={`${inputClass} flex cursor-not-allowed items-center bg-slate-50 text-slate-500`}>
-                {year}
-              </div>
+              <>
+                <div className={`${inputClass} flex cursor-not-allowed items-center bg-slate-50 text-slate-500`}>
+                  {year}
+                </div>
+                <p className="mt-1 text-[11px] text-slate-400">Tahun terkunci setelah Program Kerja dibuat.</p>
+              </>
             )}
-            <p className="mt-1 text-[11px] text-slate-400">Tahun terkunci setelah Program Kerja dibuat.</p>
           </div>
         </div>
         <div>
