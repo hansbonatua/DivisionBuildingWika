@@ -427,11 +427,11 @@ export default function ProgramKerjaForm({
                   <div
                     key={label}
                     className={`rounded-lg border px-2 py-2 text-center ${
-                      outside ? "border-blue-200 bg-blue-50/60" : "border-outline/60 bg-white"
+                      outside ? "border-green-200 bg-green-50/60" : "border-outline/60 bg-white"
                     }`}
                   >
                     <div className="text-[10px] font-bold uppercase text-slate-500">{label}</div>
-                    <div className={`text-sm font-bold ${outside ? "text-blue-800" : "text-primary"}`}>
+                    <div className={`text-sm font-bold ${outside ? "text-green-800" : "text-primary"}`}>
                       {formRaPercentage}
                     </div>
                   </div>
@@ -439,7 +439,7 @@ export default function ProgramKerjaForm({
               })}
             </div>
             <p className="mt-2 text-[11px] text-slate-400">
-              Berlaku untuk Jan–Des. Biru menandakan bulan di luar periode.
+              Berlaku untuk Jan–Des. Hijau menandakan bulan di luar periode.
             </p>
           </div>
         ) : (
@@ -460,7 +460,7 @@ export default function ProgramKerjaForm({
                   <div key={label}>
                     <div
                       className={`rounded-lg border px-2 py-2 text-center ${
-                        outside ? "border-blue-200 bg-blue-50/60" : "border-outline/60 bg-white"
+                        outside ? "border-green-200 bg-green-50/60" : "border-outline/60 bg-white"
                       }`}
                     >
                       <div className="text-[10px] font-bold uppercase text-slate-500">{label}</div>
@@ -472,7 +472,7 @@ export default function ProgramKerjaForm({
                         value={outside ? 0 : (formMonthlyRa[index] ?? 0)}
                         onChange={(e) => setMonthRa(month, Number(e.target.value))}
                         aria-label={`RA bulan ${label}`}
-                        className="mt-1 w-full bg-transparent text-center text-sm font-bold text-primary focus:outline-none disabled:cursor-not-allowed disabled:text-blue-800"
+                        className="mt-1 w-full bg-transparent text-center text-sm font-bold text-primary focus:outline-none disabled:cursor-not-allowed disabled:text-green-800"
                       />
                     </div>
                   </div>

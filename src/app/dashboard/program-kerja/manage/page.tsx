@@ -155,10 +155,17 @@ export default function ProgramKerjaManagePage() {
     }
     setExporting(true);
     try {
-      const { downloadProgramKerjaExcel } = await import(
-        "@/components/dashboard/program-kerja/programKerjaExport"
+      const { downloadProgramKerjaPdf } = await import(
+        "@/components/dashboard/program-kerja/programKerjaExportPdf"
       );
-      await downloadProgramKerjaExcel(rows, yearFilter);
+      const groupName =
+        availableGroups.find((group) => group.id === groupFilter)?.name ?? "";
+      downloadProgramKerjaPdf(rows, {
+        yearFilter,
+        groupFilterName: groupName,
+        unitFilter,
+        search,
+      });
     } finally {
       setExporting(false);
     }
@@ -251,7 +258,7 @@ export default function ProgramKerjaManagePage() {
           <button
             type="button"
             disabled={exporting || rows.length === 0}
-            title={rows.length === 0 ? "Tidak ada data untuk diekspor" : "Export Excel"}
+            title={rows.length === 0 ? "Tidak ada data untuk diekspor" : "Export PDF"}
             onClick={() => void handleExport()}
             className="inline-flex items-center gap-2 rounded-lg border border-outline bg-white px-5 py-2.5 text-xs font-bold text-slate-600 shadow-sm transition-colors hover:bg-slate-50 hover:text-primary disabled:cursor-not-allowed disabled:opacity-60"
           >
@@ -270,7 +277,7 @@ export default function ProgramKerjaManagePage() {
               <polyline points="7 10 12 15 17 10" />
               <line x1="12" x2="12" y1="15" y2="3" />
             </svg>
-            <span>{exporting ? "Mengekspor..." : "Export Excel"}</span>
+            <span>{exporting ? "Mengekspor..." : "Export PDF"}</span>
           </button>
           <Link
             href="/dashboard/program-kerja/manage/new"

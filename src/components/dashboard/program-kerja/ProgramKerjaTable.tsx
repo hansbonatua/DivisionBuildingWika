@@ -161,7 +161,7 @@ const monthHeaderCell =
   "border border-outline/40 bg-background px-1 py-2 text-center text-[11px] font-bold uppercase tracking-wide text-slate-600";
 const bodyCell = "border border-outline/40 px-3 py-2.5 align-top text-xs";
 const monthCell = "border border-outline/40 px-1 py-2 text-center font-mono text-[11px]";
-const outsideMonthCell = `${monthCell} bg-blue-50/70 text-blue-800`;
+const outsideMonthCell = `${monthCell} bg-green-50/70 text-green-800`;
 const emptyCell = `${monthCell} text-slate-300`;
 
 export default function ProgramKerjaTable({
