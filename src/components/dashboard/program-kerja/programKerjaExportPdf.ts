@@ -94,15 +94,15 @@ export function buildProgramKerjaPdf(
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a3" });
   const pageWidth = doc.internal.pageSize.getWidth();
 
-  // WIBEX logo top-left (1920x600 source, aspect preserved). Falls back to
-  // text-only header when the logo cannot be loaded.
-  let titleX = 14;
+  // WIBEX logo top-right (1920x600 source, aspect preserved). Falls back
+  // to a text-only header when the logo cannot be loaded. Title and filter
+  // lines always start at the left margin, so no overlap is possible.
   if (logoDataUrl) {
     try {
       const logoWidth = 48;
       const logoHeight = (logoWidth * 600) / 1920;
-      doc.addImage(logoDataUrl, "PNG", 14, 8, logoWidth, logoHeight);
-      titleX = 68;
+      const logoX = pageWidth - 14 - logoWidth;
+      doc.addImage(logoDataUrl, "PNG", logoX, 8, logoWidth, logoHeight);
     } catch {
       console.warn("WIBEX logo skipped in PDF export (unreadable image).");
     }
@@ -110,7 +110,7 @@ export function buildProgramKerjaPdf(
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(16);
-  doc.text("PROGRAM KERJA ENGINEERING", titleX, 14);
+  doc.text("PROGRAM KERJA ENGINEERING", 14, 14);
   doc.setFontSize(11);
   doc.setFont("helvetica", "normal");
   doc.text("Kelola Program Kerja", 14, 21);
