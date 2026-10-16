@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import ProgramKerjaTable, { type ProgramKerjaTableRow } from "@/components/dashboard/program-kerja/ProgramKerjaTable";
 
@@ -36,6 +36,30 @@ export default function ProgramKerjaManagePage() {
   const [groupFilter, setGroupFilter] = useState("");
   const [yearFilter, setYearFilter] = useState("");
   const [unitFilter, setUnitFilter] = useState("");
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!menuOpen) {
+      return;
+    }
+    function handlePointerDown(event: MouseEvent): void {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    function handleKeyDown(event: KeyboardEvent): void {
+      if (event.key === "Escape") {
+        setMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [menuOpen]);
 
   async function loadPrograms(): Promise<void> {
     setLoading(true);
@@ -149,23 +173,49 @@ export default function ProgramKerjaManagePage() {
     await refreshPrograms();
   }
 
-  async function handleExport(): Promise<void> {
+  async function buildPdfModule() {
+    const module = await import(
+      "@/components/dashboard/program-kerja/programKerjaExportPdf"
+    );
+    const groupName =
+      availableGroups.find((group) => group.id === groupFilter)?.name ?? "";
+    const meta = {
+      yearFilter,
+      groupFilterName: groupName,
+      unitFilter,
+      search,
+    };
+    const logoDataUrl = await module.loadWibexLogoDataUrl();
+    return { module, meta, logoDataUrl };
+  }
+
+  async function handleViewPdf(): Promise<void> {
     if (exporting || rows.length === 0) {
       return;
     }
     setExporting(true);
+    setMenuOpen(false);
     try {
-      const { downloadProgramKerjaPdf } = await import(
-        "@/components/dashboard/program-kerja/programKerjaExportPdf"
-      );
-      const groupName =
-        availableGroups.find((group) => group.id === groupFilter)?.name ?? "";
-      downloadProgramKerjaPdf(rows, {
-        yearFilter,
-        groupFilterName: groupName,
-        unitFilter,
-        search,
-      });
+      const { module, meta, logoDataUrl } = await buildPdfModule();
+      module.viewProgramKerjaPdf(rows, meta, logoDataUrl);
+    } catch {
+      setActionError("Gagal menyiapkan pratinjau PDF.");
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  async function handleDownloadPdf(): Promise<void> {
+    if (exporting || rows.length === 0) {
+      return;
+    }
+    setExporting(true);
+    setMenuOpen(false);
+    try {
+      const { module, meta, logoDataUrl } = await buildPdfModule();
+      module.downloadProgramKerjaPdf(rows, meta, logoDataUrl);
+    } catch {
+      setActionError("Gagal mengunduh PDF.");
     } finally {
       setExporting(false);
     }
@@ -255,30 +305,75 @@ export default function ProgramKerjaManagePage() {
           </p>
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-3">
-          <button
-            type="button"
-            disabled={exporting || rows.length === 0}
-            title={rows.length === 0 ? "Tidak ada data untuk diekspor" : "Export PDF"}
-            onClick={() => void handleExport()}
-            className="inline-flex items-center gap-2 rounded-lg border border-outline bg-white px-5 py-2.5 text-xs font-bold text-slate-600 shadow-sm transition-colors hover:bg-slate-50 hover:text-primary disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
+          <div ref={menuRef} className="relative">
+            <button
+              type="button"
+              disabled={exporting || rows.length === 0}
+              title={rows.length === 0 ? "Tidak ada data untuk diekspor" : "PDF"}
+              aria-expanded={menuOpen}
+              aria-haspopup="menu"
+              aria-label="Menu PDF"
+              onClick={() => setMenuOpen((prev) => !prev)}
+              className="inline-flex items-center gap-2 rounded-lg border border-outline bg-white px-5 py-2.5 text-xs font-bold text-slate-600 shadow-sm transition-colors hover:bg-slate-50 hover:text-primary disabled:cursor-not-allowed disabled:opacity-60"
             >
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-              <polyline points="7 10 12 15 17 10" />
-              <line x1="12" x2="12" y1="15" y2="3" />
-            </svg>
-            <span>{exporting ? "Mengekspor..." : "Export PDF"}</span>
-          </button>
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" x2="12" y1="15" y2="3" />
+              </svg>
+              <span>{exporting ? "Menyiapkan PDF..." : "PDF"}</span>
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+                className={`transition-transform duration-200 ${menuOpen ? "rotate-180" : ""}`}
+              >
+                <path d="m6 9 6 6 6-6" />
+              </svg>
+            </button>
+            {menuOpen ? (
+              <div
+                role="menu"
+                aria-label="Menu PDF"
+                className="absolute right-0 top-full z-50 mt-2 w-52 overflow-hidden rounded-xl border border-outline/60 bg-white py-2 shadow-lg"
+              >
+                <button
+                  type="button"
+                  role="menuitem"
+                  disabled={exporting}
+                  onClick={() => void handleViewPdf()}
+                  className="flex w-full items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 hover:text-primary disabled:opacity-60"
+                >
+                  <span>View as PDF</span>
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  disabled={exporting}
+                  onClick={() => void handleDownloadPdf()}
+                  className="flex w-full items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 hover:text-primary disabled:opacity-60"
+                >
+                  <span>Download PDF</span>
+                </button>
+              </div>
+            ) : null}
+          </div>
           <Link
             href="/dashboard/program-kerja/manage/new"
             className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-xs font-bold text-white shadow-md transition-all duration-150 hover:bg-secondary"

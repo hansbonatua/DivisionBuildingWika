@@ -89,13 +89,28 @@ export function buildProgramKerjaPdf(
   rows: ProgramKerjaExportRow[],
   meta: ProgramKerjaExportMeta,
   now: Date = new Date(),
+  logoDataUrl: string | null = null,
 ): jsPDF {
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a3" });
   const pageWidth = doc.internal.pageSize.getWidth();
 
+  // WIBEX logo top-left (1920x600 source, aspect preserved). Falls back to
+  // text-only header when the logo cannot be loaded.
+  let titleX = 14;
+  if (logoDataUrl) {
+    try {
+      const logoWidth = 48;
+      const logoHeight = (logoWidth * 600) / 1920;
+      doc.addImage(logoDataUrl, "PNG", 14, 8, logoWidth, logoHeight);
+      titleX = 68;
+    } catch {
+      console.warn("WIBEX logo skipped in PDF export (unreadable image).");
+    }
+  }
+
   doc.setFont("helvetica", "bold");
   doc.setFontSize(16);
-  doc.text("PROGRAM KERJA ENGINEERING", 14, 14);
+  doc.text("PROGRAM KERJA ENGINEERING", titleX, 14);
   doc.setFontSize(11);
   doc.setFont("helvetica", "normal");
   doc.text("Kelola Program Kerja", 14, 21);
@@ -198,7 +213,59 @@ export function buildProgramKerjaPdf(
 export function downloadProgramKerjaPdf(
   rows: ProgramKerjaExportRow[],
   meta: ProgramKerjaExportMeta,
+  logoDataUrl: string | null = null,
 ): void {
-  const doc = buildProgramKerjaPdf(rows, meta);
+  const doc = buildProgramKerjaPdf(rows, meta, new Date(), logoDataUrl);
   doc.save(exportFileName(meta.yearFilter));
+}
+
+let lastPreviewUrl: string | null = null;
+
+function revokeLastPreviewUrl(): void {
+  if (lastPreviewUrl !== null) {
+    URL.revokeObjectURL(lastPreviewUrl);
+    lastPreviewUrl = null;
+  }
+}
+
+export async function loadWibexLogoDataUrl(): Promise<string | null> {
+  try {
+    const response = await fetch("/asset/logo-top.png");
+    if (!response.ok) {
+      return null;
+    }
+    const blob = await response.blob();
+    const dataUrl = await new Promise<string | null>((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        resolve(typeof reader.result === "string" ? reader.result : null);
+      };
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+    return dataUrl;
+  } catch {
+    console.warn("WIBEX logo skipped in PDF export (unavailable).");
+    return null;
+  }
+}
+
+export function viewProgramKerjaPdf(
+  rows: ProgramKerjaExportRow[],
+  meta: ProgramKerjaExportMeta,
+  logoDataUrl: string | null = null,
+): void {
+  const doc = buildProgramKerjaPdf(rows, meta, new Date(), logoDataUrl);
+  const blob = doc.output("blob");
+  revokeLastPreviewUrl();
+  const url = URL.createObjectURL(blob);
+  lastPreviewUrl = url;
+  window.open(url, "_blank", "noopener,noreferrer");
+  // Bounded cleanup: revoke after 60s (long after the tab has loaded),
+  // plus immediate revoke when superseded by the next preview.
+  window.setTimeout(() => {
+    if (lastPreviewUrl === url) {
+      revokeLastPreviewUrl();
+    }
+  }, 60000);
 }

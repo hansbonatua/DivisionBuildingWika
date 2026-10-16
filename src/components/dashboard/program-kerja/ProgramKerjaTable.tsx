@@ -72,10 +72,10 @@ const MONTH_LONG = [
 ];
 
 const QUARTERS: Array<{ label: string; months: number[] }> = [
-  { label: "Quarter I", months: [1, 2, 3] },
-  { label: "Quarter II", months: [4, 5, 6] },
-  { label: "Quarter III", months: [7, 8, 9] },
-  { label: "Quarter IV", months: [10, 11, 12] },
+  { label: "Triwulan I", months: [1, 2, 3] },
+  { label: "Triwulan II", months: [4, 5, 6] },
+  { label: "Triwulan III", months: [7, 8, 9] },
+  { label: "Triwulan IV", months: [10, 11, 12] },
 ];
 
 // 7 fixed columns + Label + 12 months + 6 trailing columns.
