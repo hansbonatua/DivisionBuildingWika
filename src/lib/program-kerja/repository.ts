@@ -1,4 +1,5 @@
 import { and, asc, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
+import { HEAD_OFFICE_ROLE } from "@/lib/users/roles";
 import { getPgDb, type PgDatabase } from "@/lib/pg/client";
 import {
   programKerja,
@@ -116,6 +117,19 @@ export async function listProgramRows(
     monthly: monthlyByProgram.get(program.id) ?? [],
     pics: picsByProgram.get(program.id) ?? [],
   }));
+}
+
+// Summary filter options: only Head Office users who actually hold at least
+// one PIC assignment. Users without assignments are intentionally excluded.
+export async function listAssignedPicUsers(
+  db: ProgramKerjaDb = dbOrDefault(),
+): Promise<Array<{ id: string; name: string }>> {
+  return db
+    .selectDistinct({ id: users.id, name: users.name })
+    .from(programKerjaPics)
+    .innerJoin(users, eq(programKerjaPics.userId, users.id))
+    .where(eq(users.role, HEAD_OFFICE_ROLE))
+    .orderBy(asc(users.name), asc(users.id));
 }
 
 export async function findProgramById(

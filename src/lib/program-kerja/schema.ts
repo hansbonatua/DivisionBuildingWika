@@ -87,3 +87,14 @@ export const updateProgramEvidenceSchema = z.object({
 });
 
 export type UpdateProgramEvidenceInput = z.infer<typeof updateProgramEvidenceSchema>;
+
+// Summary Report query contract (read-only). All filters are optional; an
+// omitted unit means "both units", never a merged metric.
+export const programKerjaSummaryQuerySchema = z.object({
+  year: z.coerce.number().int().min(2000, "Tahun minimal 2000").optional(),
+  groupId: z.uuid("Group ID tidak valid").optional(),
+  unit: programKerjaUnit.optional(),
+  picId: z.uuid("PIC ID tidak valid").optional(),
+});
+
+export type ProgramKerjaSummaryQuery = z.infer<typeof programKerjaSummaryQuerySchema>;
