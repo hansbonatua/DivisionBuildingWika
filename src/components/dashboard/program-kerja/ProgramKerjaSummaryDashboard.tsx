@@ -5,6 +5,8 @@ import ProgramKerjaGroupChart from "@/components/dashboard/program-kerja/Program
 import ProgramKerjaMonthlyTrendChart from "@/components/dashboard/program-kerja/ProgramKerjaMonthlyTrendChart";
 import ProgramKerjaPicChart from "@/components/dashboard/program-kerja/ProgramKerjaPicChart";
 import ProgramKerjaStatusChart from "@/components/dashboard/program-kerja/ProgramKerjaStatusChart";
+import ProgramKerjaSummaryTable from "@/components/dashboard/program-kerja/ProgramKerjaSummaryTable";
+import type { ProgramKerjaSummaryPdfMeta } from "@/components/dashboard/program-kerja/programKerjaSummaryExportPdf";
 import type { ProgramKerjaSummaryResponse } from "@/lib/program-kerja/summaryService";
 
 type FilterKey = "year" | "groupId" | "unit" | "picId";
@@ -64,6 +66,25 @@ function formatShare(part: number, total: number): string {
   return `${shareFormatter.format(percent)}% dari total program`;
 }
 
+function filterLabel(
+  id: string | null,
+  options: ReadonlyArray<{ id: string; name: string }>,
+): string {
+  if (id === null) {
+    return "Semua";
+  }
+  return options.find((option) => option.id === id)?.name ?? "—";
+}
+
+function buildPdfMeta(summary: ProgramKerjaSummaryResponse): ProgramKerjaSummaryPdfMeta {
+  return {
+    year: String(summary.filters.year),
+    groupName: filterLabel(summary.filters.groupId, summary.options.groups),
+    unit: summary.filters.unit ?? "Semua",
+    picName: filterLabel(summary.filters.picId, summary.options.pics),
+  };
+}
+
 function readErrorMessage(body: unknown): string | null {
   if (typeof body !== "object" || body === null) {
     return null;
@@ -115,8 +136,12 @@ export default function ProgramKerjaSummaryDashboard() {
   const [summary, setSummary] = useState<ProgramKerjaSummaryResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [pdfMenuOpen, setPdfMenuOpen] = useState(false);
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const requestIdRef = useRef(0);
+  const pdfMenuRef = useRef<HTMLDivElement | null>(null);
 
   const loadSummary = useCallback(async (selection: FilterSelection): Promise<void> => {
     const requestId = requestIdRef.current + 1;
@@ -169,6 +194,28 @@ export default function ProgramKerjaSummaryDashboard() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!pdfMenuOpen) {
+      return;
+    }
+    function handlePointerDown(event: MouseEvent): void {
+      if (pdfMenuRef.current && !pdfMenuRef.current.contains(event.target as Node)) {
+        setPdfMenuOpen(false);
+      }
+    }
+    function handleKeyDown(event: KeyboardEvent): void {
+      if (event.key === "Escape") {
+        setPdfMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [pdfMenuOpen]);
+
   function refreshSummary(selection: FilterSelection): void {
     setLoading(true);
     setError(null);
@@ -178,12 +225,45 @@ export default function ProgramKerjaSummaryDashboard() {
   function handleFilterChange(key: FilterKey, value: string): void {
     const next = { ...filters, [key]: value };
     setFilters(next);
+    setPdfError(null);
     refreshSummary(next);
   }
 
   function handleReset(): void {
     setFilters(EMPTY_FILTERS);
+    setPdfError(null);
     refreshSummary(EMPTY_FILTERS);
+  }
+
+  async function handlePdf(action: "view" | "export"): Promise<void> {
+    if (pdfBusy || loading || error !== null || !summary) {
+      return;
+    }
+    if (summary.kpis.totalPrograms === 0) {
+      return;
+    }
+
+    const snapshot = summary;
+    setPdfBusy(true);
+    setPdfMenuOpen(false);
+    setPdfError(null);
+
+    try {
+      const pdfModule = await import(
+        "@/components/dashboard/program-kerja/programKerjaSummaryExportPdf"
+      );
+      const logoDataUrl = await pdfModule.loadWibexLogoDataUrl();
+      const meta = buildPdfMeta(snapshot);
+      if (action === "view") {
+        pdfModule.viewProgramKerjaSummaryPdf(snapshot, meta, logoDataUrl);
+      } else {
+        pdfModule.exportProgramKerjaSummaryPdf(snapshot, meta, logoDataUrl);
+      }
+    } catch {
+      setPdfError("PDF tidak dapat dibuat. Silakan coba lagi.");
+    } finally {
+      setPdfBusy(false);
+    }
   }
 
   const initialLoading = loading && summary === null;
@@ -198,6 +278,20 @@ export default function ProgramKerjaSummaryDashboard() {
     ]),
   ].sort((a, b) => b - a);
   const selectedYear = filters.year !== "" ? filters.year : resolvedYear !== null ? String(resolvedYear) : "";
+  const pdfDisabled =
+    pdfBusy ||
+    loading ||
+    error !== null ||
+    summary === null ||
+    summary.kpis.totalPrograms === 0;
+  const pdfTitle =
+    summary !== null && summary.kpis.totalPrograms === 0
+      ? "Tidak ada data untuk diekspor"
+      : loading
+        ? "Tunggu data selesai dimuat"
+        : error !== null
+          ? "Perbaiki error data sebelum membuat PDF"
+          : "PDF";
 
   return (
     <div className="space-y-6">
@@ -217,16 +311,101 @@ export default function ProgramKerjaSummaryDashboard() {
             Monitor pencapaian program kerja engineering berdasarkan rencana dan realisasi.
           </p>
         </div>
-        {loading && summary ? (
-          <span
-            role="status"
-            className="inline-flex items-center gap-2 self-start rounded-full border border-outline bg-white px-3 py-1.5 text-xs font-semibold text-primary/60 shadow-sm lg:self-center"
-          >
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-secondary" />
-            Memperbarui data...
-          </span>
-        ) : null}
+        <div className="flex shrink-0 flex-wrap items-center gap-2 self-start lg:self-center">
+          {loading && summary ? (
+            <span
+              role="status"
+              className="inline-flex items-center gap-2 rounded-full border border-outline bg-white px-3 py-1.5 text-xs font-semibold text-primary/60 shadow-sm"
+            >
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-secondary" />
+              Memperbarui data...
+            </span>
+          ) : null}
+
+          {summary ? (
+            <div ref={pdfMenuRef} className="relative">
+              <button
+                type="button"
+                disabled={pdfDisabled}
+                title={pdfTitle}
+                aria-expanded={pdfMenuOpen}
+                aria-haspopup="menu"
+                aria-label="Menu PDF Summary Report"
+                onClick={() => setPdfMenuOpen((prev) => !prev)}
+                className="inline-flex h-10 items-center gap-2 rounded-lg border border-outline bg-white px-4 text-xs font-bold text-slate-600 shadow-sm transition-colors hover:bg-slate-50 hover:text-primary disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <svg
+                  width="15"
+                  height="15"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <path d="M14 2v6h6" />
+                  <path d="M9 15h6" />
+                  <path d="M9 18h6" />
+                </svg>
+                <span>{pdfBusy ? "Menyiapkan PDF..." : "PDF"}</span>
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                  className={`transition-transform duration-200 ${pdfMenuOpen ? "rotate-180" : ""}`}
+                >
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
+              </button>
+
+              {pdfMenuOpen ? (
+                <div
+                  role="menu"
+                  aria-label="Menu PDF Summary Report"
+                  className="absolute right-0 top-full z-50 mt-2 w-52 overflow-hidden rounded-xl border border-outline/60 bg-white py-2 shadow-lg"
+                >
+                  <button
+                    type="button"
+                    role="menuitem"
+                    disabled={pdfBusy}
+                    onClick={() => void handlePdf("view")}
+                    className="flex w-full items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 hover:text-primary disabled:opacity-60"
+                  >
+                    <span>View as PDF</span>
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    disabled={pdfBusy}
+                    onClick={() => void handlePdf("export")}
+                    className="flex w-full items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 hover:text-primary disabled:opacity-60"
+                  >
+                    <span>Export as PDF</span>
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
       </div>
+
+      {pdfError ? (
+        <div
+          role="alert"
+          className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-xs font-semibold text-red-700"
+        >
+          {pdfError}
+        </div>
+      ) : null}
 
       <section
         aria-label="Filter Summary Report"
@@ -519,14 +698,6 @@ export default function ProgramKerjaSummaryDashboard() {
             </div>
           </div>
 
-          {summary.kpis.totalPrograms === 0 ? (
-            <div className="rounded-lg border border-outline bg-surface px-4 py-6 text-center shadow-sm">
-              <p className="text-sm font-medium text-primary/70">
-                Tidak ada Program Kerja untuk filter yang dipilih.
-              </p>
-            </div>
-          ) : null}
-
           <section
             className={`grid grid-cols-1 gap-4 transition-opacity xl:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] ${
               loading ? "opacity-60" : "opacity-100"
@@ -558,6 +729,13 @@ export default function ProgramKerjaSummaryDashboard() {
               totalPrograms={summary.kpis.totalPrograms}
             />
           </section>
+
+          <div
+            className={`transition-opacity ${loading ? "opacity-60" : "opacity-100"}`}
+            aria-busy={loading}
+          >
+            <ProgramKerjaSummaryTable programs={summary.programs} />
+          </div>
         </>
       ) : null}
     </div>
