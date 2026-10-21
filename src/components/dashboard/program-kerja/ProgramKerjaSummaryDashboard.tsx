@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import ProgramKerjaGroupChart from "@/components/dashboard/program-kerja/ProgramKerjaGroupChart";
+import ProgramKerjaMonthlyTrendChart from "@/components/dashboard/program-kerja/ProgramKerjaMonthlyTrendChart";
+import ProgramKerjaPicChart from "@/components/dashboard/program-kerja/ProgramKerjaPicChart";
 import ProgramKerjaStatusChart from "@/components/dashboard/program-kerja/ProgramKerjaStatusChart";
 import type { ProgramKerjaSummaryResponse } from "@/lib/program-kerja/summaryService";
 
@@ -409,6 +411,26 @@ export default function ProgramKerjaSummaryDashboard() {
               </div>
             </div>
           </div>
+          <div className="space-y-4" aria-hidden="true">
+            <div className="rounded-lg border border-outline bg-surface p-5 shadow-sm">
+              <div className="h-3 w-44 animate-pulse rounded bg-slate-200" />
+              <div className="mt-2 h-3 w-64 animate-pulse rounded bg-slate-100" />
+              <div className="mt-6 space-y-4">
+                {[0, 1, 2, 3].map((item) => (
+                  <div
+                    key={item}
+                    className="h-4 animate-pulse rounded bg-slate-100"
+                    style={{ width: `${68 + item * 7}%` }}
+                  />
+                ))}
+              </div>
+            </div>
+            <div className="rounded-lg border border-outline bg-surface p-5 shadow-sm">
+              <div className="h-3 w-40 animate-pulse rounded bg-slate-200" />
+              <div className="mt-2 h-3 w-72 animate-pulse rounded bg-slate-100" />
+              <div className="mt-6 h-64 animate-pulse rounded-lg bg-slate-50" />
+            </div>
+          </div>
         </>
       ) : error && !summary ? (
         <div
@@ -519,6 +541,21 @@ export default function ProgramKerjaSummaryDashboard() {
             <ProgramKerjaGroupChart
               groups={summary.groups}
               unit={summary.filters.unit}
+            />
+          </section>
+
+          <section
+            className={`space-y-4 transition-opacity ${
+              loading ? "opacity-60" : "opacity-100"
+            }`}
+            aria-label="Pencapaian PIC dan Tren Bulanan"
+            aria-busy={loading}
+          >
+            <ProgramKerjaPicChart pics={summary.pics} unit={summary.filters.unit} />
+            <ProgramKerjaMonthlyTrendChart
+              monthly={summary.monthly}
+              unit={summary.filters.unit}
+              totalPrograms={summary.kpis.totalPrograms}
             />
           </section>
         </>
