@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import ProgramKerjaGroupChart from "@/components/dashboard/program-kerja/ProgramKerjaGroupChart";
+import ProgramKerjaStatusChart from "@/components/dashboard/program-kerja/ProgramKerjaStatusChart";
 import type { ProgramKerjaSummaryResponse } from "@/lib/program-kerja/summaryService";
 
 type FilterKey = "year" | "groupId" | "unit" | "picId";
@@ -358,23 +360,56 @@ export default function ProgramKerjaSummaryDashboard() {
       ) : null}
 
       {initialLoading ? (
-        <div
-          className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4"
-          aria-busy="true"
-          aria-label="Memuat KPI Summary Report"
-        >
-          {[0, 1, 2, 3].map((item) => (
-            <div
-              key={item}
-              aria-hidden="true"
-              className="rounded-lg border border-outline bg-surface p-5 shadow-sm"
-            >
-              <div className="h-3 w-28 animate-pulse rounded bg-slate-200" />
-              <div className="mt-4 h-8 w-16 animate-pulse rounded bg-slate-200" />
-              <div className="mt-3 h-3 w-24 animate-pulse rounded bg-slate-100" />
+        <>
+          <div
+            className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4"
+            aria-busy="true"
+            aria-label="Memuat KPI Summary Report"
+          >
+            {[0, 1, 2, 3].map((item) => (
+              <div
+                key={item}
+                aria-hidden="true"
+                className="rounded-lg border border-outline bg-surface p-5 shadow-sm"
+              >
+                <div className="h-3 w-28 animate-pulse rounded bg-slate-200" />
+                <div className="mt-4 h-8 w-16 animate-pulse rounded bg-slate-200" />
+                <div className="mt-3 h-3 w-24 animate-pulse rounded bg-slate-100" />
+              </div>
+            ))}
+          </div>
+          <div
+            className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]"
+            aria-hidden="true"
+          >
+            <div className="rounded-lg border border-outline bg-surface p-5 shadow-sm">
+              <div className="h-3 w-36 animate-pulse rounded bg-slate-200" />
+              <div className="mt-2 h-3 w-52 animate-pulse rounded bg-slate-100" />
+              <div className="mx-auto mt-6 h-44 w-44 animate-pulse rounded-full border-[16px] border-slate-100 bg-slate-50" />
+              <div className="mt-6 grid grid-cols-2 gap-x-5 gap-y-2">
+                {[0, 1, 2, 3].map((item) => (
+                  <div
+                    key={item}
+                    className="h-3 animate-pulse rounded bg-slate-100"
+                  />
+                ))}
+              </div>
             </div>
-          ))}
-        </div>
+            <div className="rounded-lg border border-outline bg-surface p-5 shadow-sm">
+              <div className="h-3 w-28 animate-pulse rounded bg-slate-200" />
+              <div className="mt-2 h-3 w-60 animate-pulse rounded bg-slate-100" />
+              <div className="mt-6 space-y-4">
+                {[0, 1, 2, 3].map((item) => (
+                  <div
+                    key={item}
+                    className="h-4 animate-pulse rounded bg-slate-100"
+                    style={{ width: `${72 + item * 6}%` }}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        </>
       ) : error && !summary ? (
         <div
           role="alert"
@@ -469,6 +504,23 @@ export default function ProgramKerjaSummaryDashboard() {
               </p>
             </div>
           ) : null}
+
+          <section
+            className={`grid grid-cols-1 gap-4 transition-opacity xl:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] ${
+              loading ? "opacity-60" : "opacity-100"
+            }`}
+            aria-label="Visualisasi Summary Report"
+            aria-busy={loading}
+          >
+            <ProgramKerjaStatusChart
+              distribution={summary.statusDistribution}
+              totalPrograms={summary.kpis.totalPrograms}
+            />
+            <ProgramKerjaGroupChart
+              groups={summary.groups}
+              unit={summary.filters.unit}
+            />
+          </section>
         </>
       ) : null}
     </div>
