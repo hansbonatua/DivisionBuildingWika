@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { canManageProgramKerja } from "@/lib/program-kerja/access";
+import { canViewProgramKerja } from "@/lib/program-kerja/access";
 
 type SidebarItem = {
   label: string;
@@ -111,6 +111,15 @@ const adminMenu: SidebarItem[] = [  {
 
 const programKerjaMenu: SidebarItem[] = [
   {
+    label: "Summary Report",
+    href: "/dashboard/program-kerja/summary",
+    icon: (
+      <MenuIcon>
+        <path d="M9 17v-2a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v6a2 2 0 0 1-2 2h14a2 2 0 0 0 2-2V7a2 2 0 0 1 1-1h4a2 2 0 0 1 2 2v4a2 2 0 0 0 2 2h4" />
+      </MenuIcon>
+    ),
+  },
+  {
     label: "Kelola Program Kerja",
     href: "/dashboard/program-kerja/manage",
     icon: (
@@ -128,7 +137,7 @@ export default function DashboardSidebar({ open, onClose, userRole }: DashboardS
   const pathname = usePathname();
   const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
-  const showProgramKerja = canManageProgramKerja(userRole ?? "");
+  const showProgramKerja = canViewProgramKerja(userRole ?? "");
   const landingRoutes = landingSubMenu.map((item) => item.href);
   const isLandingRoute = landingRoutes.some(
     (route) => pathname === route || pathname.startsWith(`${route}/`),

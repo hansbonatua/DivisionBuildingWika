@@ -8,6 +8,8 @@ export type UserRole = (typeof USER_ROLES)[number];
 
 export const ADMIN_ROLE: UserRole = "Admin";
 export const HEAD_OFFICE_ROLE: UserRole = "Head Office";
+export const MANAGEMENT_ROLE: UserRole = "Management";
+export const PROJECT_ROLE: UserRole = "Project";
 
 // Plain string options for select inputs (derived, no duplication).
 export const ROLE_OPTIONS: UserRole[] = [...USER_ROLES];

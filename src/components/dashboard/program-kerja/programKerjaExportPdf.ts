@@ -2,11 +2,10 @@ import { jsPDF } from "jspdf";
 import autoTable, { type CellInput } from "jspdf-autotable";
 import {
   MONTH_SHORT,
-  achievementFor,
   formatPeriod,
-  totalsFor,
   type ProgramKerjaTableRow,
 } from "@/components/dashboard/program-kerja/ProgramKerjaTable";
+import { achievementFor, totalsFor } from "@/lib/program-kerja/summary";
 
 export type ProgramKerjaExportRow = ProgramKerjaTableRow;
 

@@ -5,6 +5,7 @@ import {
   canUpdateProgramEvidence,
   canUpdateProgramNote,
   canUpdateProgramRi,
+  canViewProgramKerja,
 } from "@/lib/program-kerja/access";
 import {
   deleteProgram as deleteProgramRow,
@@ -119,6 +120,15 @@ function assertManageAccess(actor: ProgramKerjaActor): void {
   }
 }
 
+// Read-only access (list, detail, groups). Mutations must keep using
+// assertManageAccess; never merge the two permissions into one helper.
+function assertViewAccess(actor: ProgramKerjaActor): void {
+  assertActive(actor);
+  if (!canViewProgramKerja(actor.role)) {
+    throw new ProgramKerjaForbiddenError();
+  }
+}
+
 function assertNoteAccess(actor: ProgramKerjaActor): void {
   assertActive(actor);
   if (!canUpdateProgramNote(actor.role)) {
@@ -190,13 +200,13 @@ export type ProgramKerjaGroupItem = {
 export async function listProgramKerjaGroups(
   actor: ProgramKerjaActor,
 ): Promise<ProgramKerjaGroupItem[]> {
-  assertManageAccess(actor);
+  assertViewAccess(actor);
   const rows = await listGroupRows();
   return rows.map((row) => ({ id: row.id, name: row.name, sortOrder: row.sortOrder }));
 }
 
 export async function listPrograms(actor: ProgramKerjaActor): Promise<ProgramKerjaListItem[]> {
-  assertManageAccess(actor);
+  assertViewAccess(actor);
   const rows = await listProgramRows();
   return rows.map((row) => ({
     id: row.program.id,
@@ -228,7 +238,7 @@ export async function getProgramDetail(
   actor: ProgramKerjaActor,
   id: string,
 ): Promise<ProgramKerjaDetail> {
-  assertManageAccess(actor);
+  assertViewAccess(actor);
   return getDetail(id);
 }
 

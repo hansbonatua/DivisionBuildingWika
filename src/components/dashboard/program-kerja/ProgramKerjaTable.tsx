@@ -3,17 +3,17 @@
 import { Fragment, useState } from "react";
 import Link from "next/link";
 import { HEAD_OFFICE_ROLE } from "@/lib/users/roles";
+import { canManageProgramKerja } from "@/lib/program-kerja/access";
+import {
+  achievementFor,
+  totalsFor,
+  type ProgramKerjaMonth,
+} from "@/lib/program-kerja/summary";
 
 // Kelola Program Kerja table with inline mutations (Delete, RI, note,
 // evidence) via page-provided callbacks. The table owns editing state keyed
 // by program/month; the page owns fetching and error banners. Backend is
 // the final authority — 403s surface inline and prior values are kept.
-
-export type ProgramKerjaTableMonth = {
-  month: number;
-  raValue: number;
-  riValue: number | null;
-};
 
 export type ProgramKerjaTableRow = {
   program: {
@@ -30,7 +30,7 @@ export type ProgramKerjaTableRow = {
     year: number;
     groupId: string;
   };
-  monthly: ProgramKerjaTableMonth[];
+  monthly: ProgramKerjaMonth[];
   picIds: string[];
   picNames: string[];
   groupName: string | null;
@@ -92,42 +92,10 @@ export function formatPeriod(startMonth: number, endMonth: number, year: number)
 }
 
 function monthValue(
-  monthly: ProgramKerjaTableMonth[],
+  monthly: ProgramKerjaMonth[],
   month: number,
-): ProgramKerjaTableMonth | undefined {
+): ProgramKerjaMonth | undefined {
   return monthly.find((row) => row.month === month);
-}
-
-export function totalsFor(unit: string, monthly: ProgramKerjaTableMonth[]): { ra: string; ri: string } {
-  if (unit === "Persentase") {
-    const ra = monthly.length > 0 ? `${monthly[0].raValue}%` : "—";
-    const filled = monthly.filter((row) => row.riValue !== null);
-    if (filled.length === 0) {
-      return { ra, ri: "—" };
-    }
-    const avg = filled.reduce((sum, row) => sum + (row.riValue ?? 0), 0) / filled.length;
-    return { ra, ri: `${Math.round(avg * 10) / 10}%` };
-  }
-  const raSum = monthly.reduce((sum, row) => sum + row.raValue, 0);
-  const filled = monthly.filter((row) => row.riValue !== null);
-  if (monthly.length === 0) {
-    return { ra: "—", ri: "—" };
-  }
-  return { ra: String(raSum), ri: filled.length === 0 ? "—" : String(filled.reduce((sum, row) => sum + (row.riValue ?? 0), 0)) };
-}
-
-export function achievementFor(unit: string, monthly: ProgramKerjaTableMonth[]): string {
-  const filled = monthly.filter((row) => row.riValue !== null);
-  if (monthly.length === 0 || filled.length === 0) {
-    return "—";
-  }
-  if (unit === "Persentase") {
-    const avg = filled.reduce((sum, row) => sum + (row.riValue ?? 0), 0) / filled.length;
-    return `${Math.round(avg * 10) / 10}%`;
-  }
-  const raSum = monthly.reduce((sum, row) => sum + row.raValue, 0);
-  const riSum = filled.reduce((sum, row) => sum + (row.riValue ?? 0), 0);
-  return `${riSum} / ${raSum}`;
 }
 
 function yearHeading(rows: ProgramKerjaTableRow[], activeYear: string): string {
@@ -188,6 +156,9 @@ export default function ProgramKerjaTable({
   const [noteError, setNoteError] = useState<string | null>(null);
   const [editingEvidence, setEditingEvidence] = useState<{ programId: string; draft: string } | null>(null);
   const [evidenceError, setEvidenceError] = useState<string | null>(null);
+  // Management (and any non-manager) is read-only: no add/edit/delete/note/
+  // evidence controls. RI already has its own HO+PIC rule below.
+  const canManage = currentUser !== null && canManageProgramKerja(currentUser.role);
 
   function canEditRi(picIds: string[]): boolean {
     return (
@@ -460,17 +431,19 @@ export default function ProgramKerjaTable({
                               <span className="line-clamp-2 block max-w-56 text-primary/70">
                                 {program.note || "—"}
                               </span>
-                              <button
-                                type="button"
-                                disabled={busyKey !== null}
-                                onClick={() => {
-                                  setNoteError(null);
-                                  setEditingNote({ programId: program.id, draft: program.note ?? "" });
-                                }}
-                                className="rounded border border-outline/50 px-2 py-0.5 text-[11px] font-bold text-secondary transition-colors hover:bg-secondary hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
-                              >
-                                {program.note ? "Ubah" : "Tambah"}
-                              </button>
+                              {canManage ? (
+                                <button
+                                  type="button"
+                                  disabled={busyKey !== null}
+                                  onClick={() => {
+                                    setNoteError(null);
+                                    setEditingNote({ programId: program.id, draft: program.note ?? "" });
+                                  }}
+                                  className="rounded border border-outline/50 px-2 py-0.5 text-[11px] font-bold text-secondary transition-colors hover:bg-secondary hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                  {program.note ? "Ubah" : "Tambah"}
+                                </button>
+                              ) : null}
                             </div>
                           )}
                         </td>
@@ -534,51 +507,61 @@ export default function ProgramKerjaTable({
                               >
                                 Buka Berkas
                               </a>
-                              <button
-                                type="button"
-                                disabled={busyKey !== null}
-                                onClick={() => {
-                                  setEvidenceError(null);
-                                  setEditingEvidence({ programId: program.id, draft: program.evidenceUrl ?? "" });
-                                }}
-                                className="rounded px-1 text-[11px] font-bold text-slate-500 hover:text-secondary disabled:cursor-not-allowed disabled:opacity-60"
-                              >
-                                Ubah
-                              </button>
+                              {canManage ? (
+                                <button
+                                  type="button"
+                                  disabled={busyKey !== null}
+                                  onClick={() => {
+                                    setEvidenceError(null);
+                                    setEditingEvidence({ programId: program.id, draft: program.evidenceUrl ?? "" });
+                                  }}
+                                  className="rounded px-1 text-[11px] font-bold text-slate-500 hover:text-secondary disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                  Ubah
+                                </button>
+                              ) : null}
                             </div>
                           ) : (
                             <div className="flex flex-col items-start gap-1.5">
                               <span className="text-slate-300">—</span>
-                              <button
-                                type="button"
-                                disabled={busyKey !== null}
-                                onClick={() => {
-                                  setEvidenceError(null);
-                                  setEditingEvidence({ programId: program.id, draft: "" });
-                                }}
-                                className="rounded border border-outline/50 px-2 py-0.5 text-[11px] font-bold text-secondary transition-colors hover:bg-secondary hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
-                              >
-                                Tambah Link
-                              </button>
+                              {canManage ? (
+                                <button
+                                  type="button"
+                                  disabled={busyKey !== null}
+                                  onClick={() => {
+                                    setEvidenceError(null);
+                                    setEditingEvidence({ programId: program.id, draft: "" });
+                                  }}
+                                  className="rounded border border-outline/50 px-2 py-0.5 text-[11px] font-bold text-secondary transition-colors hover:bg-secondary hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                  Tambah Link
+                                </button>
+                              ) : null}
                             </div>
                           )}
                         </td>
                         <td rowSpan={2} className={`${sharedCell} whitespace-nowrap text-right`}>
-                          <Link
-                            href={`/dashboard/program-kerja/manage/${program.id}/edit`}
-                            className="rounded px-2.5 py-1 text-xs font-bold text-secondary hover:bg-blue-50"
-                          >
-                            Edit
-                          </Link>
-                          <button
-                            type="button"
-                            disabled={busyKey !== null}
-                            onClick={() => void handleDeleteClick(row)}
-                            title="Hapus Program beserta RA, RI, PIC, catatan, dan evidence"
-                            className="rounded px-2.5 py-1 text-xs font-bold text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
-                          >
-                            {busyKey === `${program.id}:delete` ? "Menghapus..." : "Delete"}
-                          </button>
+                          {canManage ? (
+                            <>
+                              <Link
+                                href={`/dashboard/program-kerja/manage/${program.id}/edit`}
+                                className="rounded px-2.5 py-1 text-xs font-bold text-secondary hover:bg-blue-50"
+                              >
+                                Edit
+                              </Link>
+                              <button
+                                type="button"
+                                disabled={busyKey !== null}
+                                onClick={() => void handleDeleteClick(row)}
+                                title="Hapus Program beserta RA, RI, PIC, catatan, dan evidence"
+                                className="rounded px-2.5 py-1 text-xs font-bold text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                {busyKey === `${program.id}:delete` ? "Menghapus..." : "Delete"}
+                              </button>
+                            </>
+                          ) : (
+                            <span className="text-slate-300">—</span>
+                          )}
                         </td>
                       </tr>
                       <tr key={`${program.id}-ri`} className="hover:bg-background/50">

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import ProgramKerjaTable, { type ProgramKerjaTableRow } from "@/components/dashboard/program-kerja/ProgramKerjaTable";
+import { canManageProgramKerja } from "@/lib/program-kerja/access";
 
 type ProgramKerjaListItem = {
   id: string;
@@ -38,6 +39,7 @@ export default function ProgramKerjaManagePage() {
   const [unitFilter, setUnitFilter] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const canManage = currentUser !== null && canManageProgramKerja(currentUser.role);
 
   useEffect(() => {
     if (!menuOpen) {
@@ -374,26 +376,28 @@ export default function ProgramKerjaManagePage() {
               </div>
             ) : null}
           </div>
-          <Link
-            href="/dashboard/program-kerja/manage/new"
-            className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-xs font-bold text-white shadow-md transition-all duration-150 hover:bg-secondary"
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
+          {canManage ? (
+            <Link
+              href="/dashboard/program-kerja/manage/new"
+              className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-xs font-bold text-white shadow-md transition-all duration-150 hover:bg-secondary"
             >
-              <path d="M5 12h14" />
-              <path d="M12 5v14" />
-            </svg>
-            <span>Tambah Program</span>
-          </Link>
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M5 12h14" />
+                <path d="M12 5v14" />
+              </svg>
+              <span>Tambah Program</span>
+            </Link>
+          ) : null}
         </div>
       </div>
 
