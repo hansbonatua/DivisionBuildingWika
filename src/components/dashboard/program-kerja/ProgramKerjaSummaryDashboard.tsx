@@ -651,7 +651,7 @@ export default function ProgramKerjaSummaryDashboard() {
             </div>
 
             <div className="flex h-full flex-col rounded-lg border border-outline bg-surface p-5 shadow-sm">
-              <p className="text-xs font-semibold text-primary/60">Rata-Rata Pencapaian</p>
+              <p className="text-xs font-semibold text-primary/60">Progress Pencapaian</p>
               {summary.filters.unit === null ? (
                 <div className="mt-3 space-y-1.5">
                   <div className="flex items-baseline justify-between gap-2">
