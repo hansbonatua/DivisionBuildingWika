@@ -70,6 +70,8 @@ export default function TemplateFormTable({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const canManage = canManageTemplateForm(currentUserRole);
 
   useEffect(() => {
@@ -121,6 +123,50 @@ export default function TemplateFormTable({
     };
   }, [reloadToken]);
 
+  async function handleDelete(item: TemplateFormApiItem): Promise<void> {
+    if (deletingId !== null) {
+      return;
+    }
+    const confirmed = window.confirm(
+      `Hapus "${item.name}"? Tindakan ini tidak dapat dibatalkan.`,
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    setDeleteError(null);
+    setDeletingId(item.id);
+    try {
+      const response = await fetch(`/api/template-form/${item.id}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) {
+        let message = "Gagal menghapus Template & Form.";
+        if (response.status === 404) {
+          message = "Template & Form tidak ditemukan.";
+        } else if (response.status === 401 || response.status === 403) {
+          message =
+            "Anda tidak memiliki akses untuk menghapus Template & Form.";
+        } else if (response.status === 400 || response.status === 409) {
+          const body = (await response.json().catch(() => null)) as {
+            error?: { message?: string };
+          } | null;
+          if (body?.error?.message) {
+            message = body.error.message;
+          }
+        }
+        throw new Error(message);
+      }
+      setReloadToken((value) => value + 1);
+    } catch (err) {
+      setDeleteError(
+        err instanceof Error ? err.message : "Gagal menghapus Template & Form.",
+      );
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col justify-between gap-4 border-b border-outline pb-4 lg:flex-row lg:items-center">
@@ -138,12 +184,9 @@ export default function TemplateFormTable({
           </p>
         </div>
         {canManage ? (
-          <button
-            type="button"
-            disabled
-            aria-disabled="true"
-            title="Tambah Template/Form tersedia pada fase berikutnya"
-            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-xs font-bold text-white shadow-md transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-60"
+          <Link
+            href="/dashboard/template-form/new"
+            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-xs font-bold text-white shadow-md transition-all duration-150 hover:bg-secondary"
           >
             <svg
               width="16"
@@ -160,9 +203,18 @@ export default function TemplateFormTable({
               <path d="M12 5v14" />
             </svg>
             <span>Tambah Template/Form</span>
-          </button>
+          </Link>
         ) : null}
       </div>
+
+      {deleteError ? (
+        <div
+          role="alert"
+          className="rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-xs font-semibold text-red-700"
+        >
+          {deleteError}
+        </div>
+      ) : null}
 
       {error ? (
         <div
@@ -299,12 +351,14 @@ export default function TemplateFormTable({
                               </Link>
                               <button
                                 type="button"
-                                disabled
-                                aria-disabled="true"
-                                title="Hapus Template/Form tersedia pada fase berikutnya"
-                                className="cursor-not-allowed rounded px-2.5 py-1 text-xs font-bold text-slate-300"
+                                disabled={deletingId !== null}
+                                onClick={() => void handleDelete(item)}
+                                title={`Hapus ${item.name}`}
+                                className="rounded px-2.5 py-1 text-xs font-bold text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
                               >
-                                Hapus
+                                {deletingId === item.id
+                                  ? "Menghapus..."
+                                  : "Hapus"}
                               </button>
                             </>
                           ) : (
