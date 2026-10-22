@@ -190,3 +190,27 @@ export const programKerjaPics = pgTable(
 
 export type PgProgramKerjaPic = typeof programKerjaPics.$inferSelect;
 export type NewPgProgramKerjaPic = typeof programKerjaPics.$inferInsert;
+
+export const templateForms = pgTable(
+  "template_forms",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    fileUrl: text("file_url").notNull(),
+    uploaderPicUserId: uuid("uploader_pic_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "no action" }),
+    createdBy: uuid("created_by")
+      .notNull()
+      .references(() => users.id, { onDelete: "no action" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("template_forms_uploader_pic_user_id_idx").on(table.uploaderPicUserId),
+    index("template_forms_created_by_idx").on(table.createdBy),
+  ],
+);
+
+export type PgTemplateForm = typeof templateForms.$inferSelect;
+export type NewPgTemplateForm = typeof templateForms.$inferInsert;

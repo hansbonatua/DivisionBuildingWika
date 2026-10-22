@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { canViewProgramKerja } from "@/lib/program-kerja/access";
+import { canViewTemplateForm } from "@/lib/template-form/access";
 
 type SidebarItem = {
   label: string;
@@ -133,34 +134,47 @@ const programKerjaMenu: SidebarItem[] = [
   },
 ];
 
+const templateFormMenu: SidebarItem = {
+  label: "Template & Form",
+  href: "/dashboard/template-form",
+  icon: (
+    <MenuIcon>
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <polyline points="14 2 14 8 20 8" />
+      <line x1="16" x2="8" y1="13" y2="13" />
+      <line x1="16" x2="8" y1="17" y2="17" />
+    </MenuIcon>
+  ),
+};
+
 export default function DashboardSidebar({ open, onClose, userRole }: DashboardSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
   const showProgramKerja = canViewProgramKerja(userRole ?? "");
+  const showTemplateForm = canViewTemplateForm(userRole ?? "");
+  const showCoreEnterprise = showProgramKerja || showTemplateForm;
   const landingRoutes = landingSubMenu.map((item) => item.href);
   const isLandingRoute = landingRoutes.some(
     (route) => pathname === route || pathname.startsWith(`${route}/`),
   );
-  const [landingOpen, setLandingOpen] = useState(isLandingRoute);
-
-  useEffect(() => {
-    if (isLandingRoute) {
-      setLandingOpen(true);
-    }
-  }, [pathname, isLandingRoute]);
-
   const programKerjaRoutes = programKerjaMenu.map((item) => item.href);
   const isProgramKerjaRoute = programKerjaRoutes.some(
     (route) => pathname === route || pathname.startsWith(`${route}/`),
   );
+  const [landingOpen, setLandingOpen] = useState(isLandingRoute);
   const [programKerjaOpen, setProgramKerjaOpen] = useState(isProgramKerjaRoute);
+  const [previousPathname, setPreviousPathname] = useState(pathname);
 
-  useEffect(() => {
+  if (pathname !== previousPathname) {
+    setPreviousPathname(pathname);
+    if (isLandingRoute) {
+      setLandingOpen(true);
+    }
     if (isProgramKerjaRoute) {
       setProgramKerjaOpen(true);
     }
-  }, [pathname, isProgramKerjaRoute]);
+  }
 
   function isActivePath(href: string): boolean {
     return pathname === href || pathname.startsWith(`${href}/`);
@@ -274,50 +288,61 @@ export default function DashboardSidebar({ open, onClose, userRole }: DashboardS
             </div>
           ) : null}
 
-          {showProgramKerja ? (
+          {showCoreEnterprise ? (
             <div>
               <div className="mb-2 px-3 text-[11px] font-bold uppercase tracking-wider text-slate-400">
                 Core Enterprise
               </div>
-              <div className="px-1">
-                <button
-                  type="button"
-                  aria-expanded={programKerjaOpen}
-                  aria-controls="program-kerja-menu"
-                  onClick={() => setProgramKerjaOpen((prev) => !prev)}
-                  className="flex w-full items-center justify-between rounded-lg border border-transparent px-2.5 py-2 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50"
-                >
-                  <span className="flex items-center gap-2.5">
-                    <span className="text-secondary">
-                      <MenuIcon>
-                        <path d="M3 3v18h18" />
-                        <path d="M7 15v3" />
-                        <path d="M12 10v8" />
-                        <path d="M17 6v12" />
-                      </MenuIcon>
-                    </span>
-                    <span>Program Kerja</span>
-                  </span>
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden="true"
-                    className={`text-slate-400 transition-transform duration-200 ${programKerjaOpen ? "rotate-180" : "rotate-0"}`}
-                  >
-                    <path d="m6 9 6 6 6-6" />
-                  </svg>
-                </button>
-              </div>
-              {programKerjaOpen ? (
-                <div id="program-kerja-menu">
-                  <nav className="ml-4 space-y-1 border-l-2 border-slate-100 pl-3" aria-label="Program Kerja">
-                    {programKerjaMenu.map(renderItem)}
+              {showProgramKerja ? (
+                <div>
+                  <div className="px-1">
+                    <button
+                      type="button"
+                      aria-expanded={programKerjaOpen}
+                      aria-controls="program-kerja-menu"
+                      onClick={() => setProgramKerjaOpen((prev) => !prev)}
+                      className="flex w-full items-center justify-between rounded-lg border border-transparent px-2.5 py-2 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+                    >
+                      <span className="flex items-center gap-2.5">
+                        <span className="text-secondary">
+                          <MenuIcon>
+                            <path d="M3 3v18h18" />
+                            <path d="M7 15v3" />
+                            <path d="M12 10v8" />
+                            <path d="M17 6v12" />
+                          </MenuIcon>
+                        </span>
+                        <span>Program Kerja</span>
+                      </span>
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                        className={`text-slate-400 transition-transform duration-200 ${programKerjaOpen ? "rotate-180" : "rotate-0"}`}
+                      >
+                        <path d="m6 9 6 6 6-6" />
+                      </svg>
+                    </button>
+                  </div>
+                  {programKerjaOpen ? (
+                    <div id="program-kerja-menu">
+                      <nav className="ml-4 space-y-1 border-l-2 border-slate-100 pl-3" aria-label="Program Kerja">
+                        {programKerjaMenu.map(renderItem)}
+                      </nav>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+              {showTemplateForm ? (
+                <div className="mt-1">
+                  <nav className="space-y-1 px-1" aria-label="Template & Form">
+                    {renderItem(templateFormMenu)}
                   </nav>
                 </div>
               ) : null}
