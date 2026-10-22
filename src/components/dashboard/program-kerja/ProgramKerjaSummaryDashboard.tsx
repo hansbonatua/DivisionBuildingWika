@@ -1,9 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import ProgramKerjaGroupChart from "@/components/dashboard/program-kerja/ProgramKerjaGroupChart";
-import ProgramKerjaMonthlyTrendChart from "@/components/dashboard/program-kerja/ProgramKerjaMonthlyTrendChart";
-import ProgramKerjaPicChart from "@/components/dashboard/program-kerja/ProgramKerjaPicChart";
+import ProgramKerjaPerKelompokChart from "@/components/dashboard/program-kerja/ProgramKerjaPerKelompokChart";
 import ProgramKerjaStatusChart from "@/components/dashboard/program-kerja/ProgramKerjaStatusChart";
 import ProgramKerjaSummaryTable from "@/components/dashboard/program-kerja/ProgramKerjaSummaryTable";
 import type { ProgramKerjaSummaryPdfMeta } from "@/components/dashboard/program-kerja/programKerjaSummaryExportPdf";
@@ -560,54 +558,42 @@ export default function ProgramKerjaSummaryDashboard() {
             ))}
           </div>
           <div
-            className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]"
+            className="rounded-lg border border-outline bg-surface p-5 shadow-sm"
             aria-hidden="true"
           >
-            <div className="rounded-lg border border-outline bg-surface p-5 shadow-sm">
-              <div className="h-3 w-36 animate-pulse rounded bg-slate-200" />
-              <div className="mt-2 h-3 w-52 animate-pulse rounded bg-slate-100" />
-              <div className="mx-auto mt-6 h-44 w-44 animate-pulse rounded-full border-[16px] border-slate-100 bg-slate-50" />
-              <div className="mt-6 grid grid-cols-2 gap-x-5 gap-y-2">
-                {[0, 1, 2, 3].map((item) => (
-                  <div
-                    key={item}
-                    className="h-3 animate-pulse rounded bg-slate-100"
-                  />
-                ))}
-              </div>
-            </div>
-            <div className="rounded-lg border border-outline bg-surface p-5 shadow-sm">
-              <div className="h-3 w-28 animate-pulse rounded bg-slate-200" />
-              <div className="mt-2 h-3 w-60 animate-pulse rounded bg-slate-100" />
-              <div className="mt-6 space-y-4">
-                {[0, 1, 2, 3].map((item) => (
-                  <div
-                    key={item}
-                    className="h-4 animate-pulse rounded bg-slate-100"
-                    style={{ width: `${72 + item * 6}%` }}
-                  />
-                ))}
-              </div>
+            <div className="h-3 w-36 animate-pulse rounded bg-slate-200" />
+            <div className="mt-2 h-3 w-52 animate-pulse rounded bg-slate-100" />
+            <div className="mx-auto mt-6 h-44 w-44 animate-pulse rounded-full border-[16px] border-slate-100 bg-slate-50" />
+            <div className="mt-6 grid grid-cols-2 gap-x-5 gap-y-2">
+              {[0, 1, 2, 3].map((item) => (
+                <div
+                  key={item}
+                  className="h-3 animate-pulse rounded bg-slate-100"
+                />
+              ))}
             </div>
           </div>
-          <div className="space-y-4" aria-hidden="true">
-            <div className="rounded-lg border border-outline bg-surface p-5 shadow-sm">
-              <div className="h-3 w-44 animate-pulse rounded bg-slate-200" />
-              <div className="mt-2 h-3 w-64 animate-pulse rounded bg-slate-100" />
-              <div className="mt-6 space-y-4">
-                {[0, 1, 2, 3].map((item) => (
-                  <div
-                    key={item}
-                    className="h-4 animate-pulse rounded bg-slate-100"
-                    style={{ width: `${68 + item * 7}%` }}
-                  />
-                ))}
+          <div
+            className="rounded-lg border border-outline bg-surface p-5 shadow-sm"
+            aria-hidden="true"
+          >
+            <div className="flex flex-col justify-between gap-4 lg:flex-row">
+              <div>
+                <div className="h-3 w-44 animate-pulse rounded bg-slate-200" />
+                <div className="mt-2 h-3 w-64 animate-pulse rounded bg-slate-100" />
               </div>
+              <div className="h-10 w-full animate-pulse rounded-lg bg-slate-100 lg:w-72" />
             </div>
-            <div className="rounded-lg border border-outline bg-surface p-5 shadow-sm">
-              <div className="h-3 w-40 animate-pulse rounded bg-slate-200" />
-              <div className="mt-2 h-3 w-72 animate-pulse rounded bg-slate-100" />
-              <div className="mt-6 h-64 animate-pulse rounded-lg bg-slate-50" />
+            <div className="mt-5 space-y-4">
+              {[0, 1].map((item) => (
+                <div
+                  key={item}
+                  className="rounded-lg border border-outline/70 bg-white p-4"
+                >
+                  <div className="h-3 w-40 animate-pulse rounded bg-slate-200" />
+                  <div className="mt-4 h-48 animate-pulse rounded-lg bg-slate-50" />
+                </div>
+              ))}
             </div>
           </div>
         </>
@@ -698,37 +684,27 @@ export default function ProgramKerjaSummaryDashboard() {
             </div>
           </div>
 
-          <section
-            className={`grid grid-cols-1 gap-4 transition-opacity xl:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] ${
-              loading ? "opacity-60" : "opacity-100"
-            }`}
-            aria-label="Visualisasi Summary Report"
+          <div
+            className={`transition-opacity ${loading ? "opacity-60" : "opacity-100"}`}
             aria-busy={loading}
           >
             <ProgramKerjaStatusChart
               distribution={summary.statusDistribution}
               totalPrograms={summary.kpis.totalPrograms}
             />
-            <ProgramKerjaGroupChart
-              groups={summary.groups}
-              unit={summary.filters.unit}
-            />
-          </section>
+          </div>
 
-          <section
-            className={`space-y-4 transition-opacity ${
-              loading ? "opacity-60" : "opacity-100"
-            }`}
-            aria-label="Pencapaian PIC dan Tren Bulanan"
+          <div
+            className={`transition-opacity ${loading ? "opacity-60" : "opacity-100"}`}
             aria-busy={loading}
           >
-            <ProgramKerjaPicChart pics={summary.pics} unit={summary.filters.unit} />
-            <ProgramKerjaMonthlyTrendChart
-              monthly={summary.monthly}
+            <ProgramKerjaPerKelompokChart
+              programs={summary.programs}
+              groups={summary.options.groups}
+              globalGroupId={summary.filters.groupId}
               unit={summary.filters.unit}
-              totalPrograms={summary.kpis.totalPrograms}
             />
-          </section>
+          </div>
 
           <div
             className={`transition-opacity ${loading ? "opacity-60" : "opacity-100"}`}

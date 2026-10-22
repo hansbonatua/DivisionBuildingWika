@@ -239,6 +239,68 @@ export function summaryAchievementFor(
   return roundTo((riSum / raSum) * 100, 4);
 }
 
+export function reportedRiAverageForProgram(
+  monthly: readonly ProgramKerjaMonth[],
+  startMonth: number,
+  endMonth: number,
+): number | null {
+  if (!isValidMonth(startMonth) || !isValidMonth(endMonth) || startMonth > endMonth) {
+    return null;
+  }
+  let sum = 0;
+  let count = 0;
+  for (const row of monthly) {
+    if (!inPeriod(row.month, startMonth, endMonth)) {
+      continue;
+    }
+    if (row.riValue === null || !Number.isFinite(row.riValue)) {
+      continue;
+    }
+    sum += row.riValue;
+    count += 1;
+  }
+  return count === 0 ? null : roundTo(sum / count, 4);
+}
+
+export type SummaryProgramChartMetrics = {
+  ra: number | null;
+  riActualRunning: number | null;
+};
+
+export function chartMetricsForProgram(
+  unit: string,
+  monthly: readonly ProgramKerjaMonth[],
+  startMonth: number,
+  endMonth: number,
+): SummaryProgramChartMetrics {
+  if (unit === "Persentase") {
+    return {
+      ra: 100,
+      riActualRunning: reportedRiAverageForProgram(monthly, startMonth, endMonth),
+    };
+  }
+
+  if (monthly.length === 0) {
+    return { ra: null, riActualRunning: null };
+  }
+
+  const raSum = monthly.reduce((sum, row) => sum + row.raValue, 0);
+  const riRows = monthly.filter(
+    (row): row is ProgramKerjaMonth & { riValue: number } =>
+      row.riValue !== null && Number.isFinite(row.riValue),
+  );
+  return {
+    ra: Number.isFinite(raSum) ? roundTo(raSum, 4) : null,
+    riActualRunning:
+      riRows.length === 0
+        ? null
+        : roundTo(
+            riRows.reduce((sum, row) => sum + row.riValue, 0),
+            4,
+          ),
+  };
+}
+
 // V1 statuses only. Edge case: RI already reported but achievement is
 // undefined (zero planned RA) is treated as "Berjalan" — the work has
 // started and there is no fifth status. This keeps the status distribution
@@ -357,6 +419,7 @@ export type SummaryProgramRow = {
   status: ProgramKerjaStatus;
   parameter: string;
   monitor: string | null;
+  chartMetrics: SummaryProgramChartMetrics;
 };
 
 export type SummaryAggregate = {
@@ -615,6 +678,12 @@ export function aggregateSummary(
       status: program.status,
       parameter: program.parameter,
       monitor: program.monitor,
+      chartMetrics: chartMetricsForProgram(
+        program.unit,
+        program.monthly,
+        program.startMonth,
+        program.endMonth,
+      ),
     }))
     .sort((a, b) => {
       const groupOrder = (a.group?.name ?? "").localeCompare(b.group?.name ?? "");
