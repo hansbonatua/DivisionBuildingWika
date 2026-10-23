@@ -8,6 +8,7 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
@@ -214,3 +215,39 @@ export const templateForms = pgTable(
 
 export type PgTemplateForm = typeof templateForms.$inferSelect;
 export type NewPgTemplateForm = typeof templateForms.$inferInsert;
+
+export const masterProjects = pgTable(
+  "master_projects",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    location: text("location").notNull(),
+    picUserId: uuid("pic_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "no action" }),
+    createdBy: uuid("created_by")
+      .notNull()
+      .references(() => users.id, { onDelete: "no action" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("master_projects_pic_user_id_idx").on(table.picUserId),
+    index("master_projects_created_by_idx").on(table.createdBy),
+    uniqueIndex("master_projects_name_location_ci_unique").on(
+      sql`lower(btrim(${table.name}))`,
+      sql`lower(btrim(${table.location}))`,
+    ),
+    index("master_projects_name_trgm_idx").using(
+      "gin",
+      sql`${table.name} gin_trgm_ops`,
+    ),
+    index("master_projects_location_trgm_idx").using(
+      "gin",
+      sql`${table.location} gin_trgm_ops`,
+    ),
+  ],
+);
+
+export type PgMasterProject = typeof masterProjects.$inferSelect;
+export type NewPgMasterProject = typeof masterProjects.$inferInsert;

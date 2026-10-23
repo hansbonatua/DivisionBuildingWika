@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { canViewMasterProject } from "@/lib/master-project/access";
 import { canViewProgramKerja } from "@/lib/program-kerja/access";
 import { canViewTemplateForm } from "@/lib/template-form/access";
 
@@ -147,13 +148,30 @@ const templateFormMenu: SidebarItem = {
   ),
 };
 
+const masterProjectMenu: SidebarItem[] = [
+  {
+    label: "Kelola Project",
+    href: "/dashboard/master-project/manage",
+    icon: (
+      <MenuIcon>
+        <rect width="18" height="18" x="3" y="3" rx="2" />
+        <path d="M8 7h8" />
+        <path d="M8 12h8" />
+        <path d="M8 17h5" />
+      </MenuIcon>
+    ),
+  },
+];
+
 export default function DashboardSidebar({ open, onClose, userRole }: DashboardSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
   const showProgramKerja = canViewProgramKerja(userRole ?? "");
   const showTemplateForm = canViewTemplateForm(userRole ?? "");
-  const showCoreEnterprise = showProgramKerja || showTemplateForm;
+  const showMasterProject = canViewMasterProject(userRole ?? "");
+  const showCoreEnterprise =
+    showProgramKerja || showTemplateForm || showMasterProject;
   const landingRoutes = landingSubMenu.map((item) => item.href);
   const isLandingRoute = landingRoutes.some(
     (route) => pathname === route || pathname.startsWith(`${route}/`),
@@ -162,8 +180,10 @@ export default function DashboardSidebar({ open, onClose, userRole }: DashboardS
   const isProgramKerjaRoute = programKerjaRoutes.some(
     (route) => pathname === route || pathname.startsWith(`${route}/`),
   );
+  const isMasterProjectRoute = pathname.startsWith("/dashboard/master-project");
   const [landingOpen, setLandingOpen] = useState(isLandingRoute);
   const [programKerjaOpen, setProgramKerjaOpen] = useState(isProgramKerjaRoute);
+  const [masterProjectOpen, setMasterProjectOpen] = useState(isMasterProjectRoute);
   const [previousPathname, setPreviousPathname] = useState(pathname);
 
   if (pathname !== previousPathname) {
@@ -173,6 +193,9 @@ export default function DashboardSidebar({ open, onClose, userRole }: DashboardS
     }
     if (isProgramKerjaRoute) {
       setProgramKerjaOpen(true);
+    }
+    if (isMasterProjectRoute) {
+      setMasterProjectOpen(true);
     }
   }
 
@@ -344,6 +367,58 @@ export default function DashboardSidebar({ open, onClose, userRole }: DashboardS
                   <nav className="space-y-1 px-1" aria-label="Template & Form">
                     {renderItem(templateFormMenu)}
                   </nav>
+                </div>
+              ) : null}
+              {showMasterProject ? (
+                <div className="mt-1">
+                  <div className="px-1">
+                    <button
+                      type="button"
+                      aria-expanded={masterProjectOpen}
+                      aria-controls="master-project-menu"
+                      onClick={() => setMasterProjectOpen((prev) => !prev)}
+                      className="flex w-full items-center justify-between rounded-lg border border-transparent px-2.5 py-2 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+                    >
+                      <span className="flex items-center gap-2.5">
+                        <span className="text-secondary">
+                          <MenuIcon>
+                            <path d="M3 21h18" />
+                            <path d="M5 21V7l8-4v18" />
+                            <path d="M19 21V11l-6-4" />
+                            <path d="M9 9v.01" />
+                            <path d="M9 12v.01" />
+                            <path d="M9 15v.01" />
+                            <path d="M9 18v.01" />
+                          </MenuIcon>
+                        </span>
+                        <span>Master Project</span>
+                      </span>
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                        className={`text-slate-400 transition-transform duration-200 ${masterProjectOpen ? "rotate-180" : "rotate-0"}`}
+                      >
+                        <path d="m6 9 6 6 6-6" />
+                      </svg>
+                    </button>
+                  </div>
+                  {masterProjectOpen ? (
+                    <div id="master-project-menu">
+                      <nav
+                        className="ml-4 space-y-1 border-l-2 border-slate-100 pl-3"
+                        aria-label="Master Project"
+                      >
+                        {masterProjectMenu.map(renderItem)}
+                      </nav>
+                    </div>
+                  ) : null}
                 </div>
               ) : null}
             </div>

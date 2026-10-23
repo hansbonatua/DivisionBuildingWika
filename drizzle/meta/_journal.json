@@ -29,6 +29,13 @@
       "when": 1792653441114,
       "tag": "0003_template_forms",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792741179856,
+      "tag": "0004_master_projects",
+      "breakpoints": true
     }
   ]
 }
