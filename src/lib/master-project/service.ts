@@ -90,6 +90,25 @@ function isUniqueViolation(error: unknown): boolean {
   );
 }
 
+// A referenced row cannot be deleted. PostgreSQL signals this with 23503
+// (foreign_key_violation, NO ACTION) or 23001 (restrict_violation, ON DELETE
+// RESTRICT) — engineering_database_entries.project_id uses RESTRICT, which is
+// why both are accepted. Drizzle wraps driver errors in DrizzleQueryError, so
+// the SQLSTATE is read from the nested `cause` chain.
+const ROW_REFERENCED_CODES = new Set(["23503", "23001"]);
+
+function isForeignKeyViolation(error: unknown, depth = 0): boolean {
+  if (depth > 3 || typeof error !== "object" || error === null) {
+    return false;
+  }
+  const code = (error as { code?: unknown }).code;
+  if (typeof code === "string" && ROW_REFERENCED_CODES.has(code)) {
+    return true;
+  }
+  const cause = (error as { cause?: unknown }).cause;
+  return cause === error ? false : isForeignKeyViolation(cause, depth + 1);
+}
+
 function assertActive(actor: MasterProjectActor): void {
   if (actor.status !== "active") {
     throw new MasterProjectForbiddenError();
@@ -259,7 +278,21 @@ export async function deleteMasterProject(
   id: string,
 ): Promise<{ deleted: true; id: string }> {
   assertDeleteAccess(actor);
-  const deleted = await deleteMasterProjectRow(id);
+
+  // Hard delete semantics are unchanged: the row is removed, never
+  // soft-deleted. Only the refusal case is mapped (23503 → 409).
+  let deleted: boolean;
+  try {
+    deleted = await deleteMasterProjectRow(id);
+  } catch (error) {
+    if (isForeignKeyViolation(error)) {
+      throw new MasterProjectConflictError(
+        "Master Project tidak dapat dihapus karena masih digunakan oleh data Engineering Database",
+      );
+    }
+    throw error;
+  }
+
   if (!deleted) {
     throw new MasterProjectNotFoundError();
   }

@@ -251,3 +251,57 @@ export const masterProjects = pgTable(
 
 export type PgMasterProject = typeof masterProjects.$inferSelect;
 export type NewPgMasterProject = typeof masterProjects.$inferInsert;
+
+// ---------------------------------------------------------------------------
+// Core Enterprise: Engineering Databases (V1).
+// One row per external file reference. The project is NEVER stored as free
+// text: project_id references the canonical master_projects directory.
+// RESTRICT (not CASCADE) so a Master Project still referenced by Engineering
+// records cannot be deleted — engineering documentation is never silently
+// removed as a side effect of directory cleanup. The category is validated by
+// a CHECK constraint (no PostgreSQL enum type), mirroring users.role and
+// program_kerja.unit. Multiple rows per (project, category) are valid: a
+// project may hold many drawings or specifications in one category, so there
+// is deliberately no unique constraint on that pair.
+export const engineeringDatabaseEntries = pgTable(
+  "engineering_database_entries",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => masterProjects.id, { onDelete: "restrict" }),
+    category: text("category").notNull(),
+    fileUrl: text("file_url").notNull(),
+    picUserId: uuid("pic_user_id")
+      .notNull()
+      // Deleting a user who is PIC of an Engineering record is refused
+      // (NO ACTION): the reference is never silently orphaned.
+      .references(() => users.id, { onDelete: "no action" }),
+    note: text("note").notNull(),
+    createdBy: uuid("created_by")
+      .notNull()
+      .references(() => users.id, { onDelete: "no action" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    // Every list is category-scoped, so category leads; project_id follows so
+    // the same index also serves per-project lookups inside a category.
+    index("engineering_database_entries_category_project_id_idx").on(
+      table.category,
+      table.projectId,
+    ),
+    // Referencing-column index: keeps the RESTRICT check on Master Project
+    // delete an index lookup instead of a sequential scan.
+    index("engineering_database_entries_project_id_idx").on(table.projectId),
+    index("engineering_database_entries_pic_user_id_idx").on(table.picUserId),
+    index("engineering_database_entries_created_by_idx").on(table.createdBy),
+    check(
+      "engineering_database_entries_category_check",
+      sql`${table.category} in ('ENGINEERING_DRAWING', 'ENGINEERING_DESIGN_REPORT', 'METODE_PELAKSANAAN_PEKERJAAN', 'SPESIFIKASI_TEKNIS', 'PROJECT_MASTER_SCHEDULE', 'BIM')`,
+    ),
+  ],
+);
+
+export type PgEngineeringDatabaseEntry = typeof engineeringDatabaseEntries.$inferSelect;
+export type NewPgEngineeringDatabaseEntry = typeof engineeringDatabaseEntries.$inferInsert;

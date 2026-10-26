@@ -3,6 +3,12 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import {
+  ENGINEERING_DATABASE_CATEGORIES,
+  ENGINEERING_DATABASE_CATEGORY_LABELS,
+  ENGINEERING_DATABASE_CATEGORY_SLUGS,
+  canViewEngineeringDatabase,
+} from "@/lib/engineering-database/access";
 import { canViewMasterProject } from "@/lib/master-project/access";
 import { canViewProgramKerja } from "@/lib/program-kerja/access";
 import { canViewTemplateForm } from "@/lib/template-form/access";
@@ -163,6 +169,35 @@ const masterProjectMenu: SidebarItem[] = [
   },
 ];
 
+// Category items are derived from the canonical constants so labels/slugs can
+// never drift from the API category values.
+const engineeringDatabaseCategoryIcon = (
+  <MenuIcon>
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+    <polyline points="14 2 14 8 20 8" />
+  </MenuIcon>
+);
+
+const engineeringDatabaseMenu: SidebarItem[] = [
+  {
+    label: "Summary Report",
+    href: "/dashboard/engineering-database/summary",
+    icon: (
+      <MenuIcon>
+        <path d="M3 3v18h18" />
+        <path d="M7 15v3" />
+        <path d="M12 10v8" />
+        <path d="M17 6v12" />
+      </MenuIcon>
+    ),
+  },
+  ...ENGINEERING_DATABASE_CATEGORIES.map((category) => ({
+    label: ENGINEERING_DATABASE_CATEGORY_LABELS[category],
+    href: `/dashboard/engineering-database/${ENGINEERING_DATABASE_CATEGORY_SLUGS[category]}`,
+    icon: engineeringDatabaseCategoryIcon,
+  })),
+];
+
 export default function DashboardSidebar({ open, onClose, userRole }: DashboardSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
@@ -170,8 +205,12 @@ export default function DashboardSidebar({ open, onClose, userRole }: DashboardS
   const showProgramKerja = canViewProgramKerja(userRole ?? "");
   const showTemplateForm = canViewTemplateForm(userRole ?? "");
   const showMasterProject = canViewMasterProject(userRole ?? "");
+  const showEngineeringDatabase = canViewEngineeringDatabase(userRole ?? "");
   const showCoreEnterprise =
-    showProgramKerja || showTemplateForm || showMasterProject;
+    showProgramKerja ||
+    showTemplateForm ||
+    showMasterProject ||
+    showEngineeringDatabase;
   const landingRoutes = landingSubMenu.map((item) => item.href);
   const isLandingRoute = landingRoutes.some(
     (route) => pathname === route || pathname.startsWith(`${route}/`),
@@ -181,9 +220,15 @@ export default function DashboardSidebar({ open, onClose, userRole }: DashboardS
     (route) => pathname === route || pathname.startsWith(`${route}/`),
   );
   const isMasterProjectRoute = pathname.startsWith("/dashboard/master-project");
+  const isEngineeringDatabaseRoute = pathname.startsWith(
+    "/dashboard/engineering-database",
+  );
   const [landingOpen, setLandingOpen] = useState(isLandingRoute);
   const [programKerjaOpen, setProgramKerjaOpen] = useState(isProgramKerjaRoute);
   const [masterProjectOpen, setMasterProjectOpen] = useState(isMasterProjectRoute);
+  const [engineeringDatabaseOpen, setEngineeringDatabaseOpen] = useState(
+    isEngineeringDatabaseRoute,
+  );
   const [previousPathname, setPreviousPathname] = useState(pathname);
 
   if (pathname !== previousPathname) {
@@ -196,6 +241,9 @@ export default function DashboardSidebar({ open, onClose, userRole }: DashboardS
     }
     if (isMasterProjectRoute) {
       setMasterProjectOpen(true);
+    }
+    if (isEngineeringDatabaseRoute) {
+      setEngineeringDatabaseOpen(true);
     }
   }
 
@@ -416,6 +464,53 @@ export default function DashboardSidebar({ open, onClose, userRole }: DashboardS
                         aria-label="Master Project"
                       >
                         {masterProjectMenu.map(renderItem)}
+                      </nav>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+              {showEngineeringDatabase ? (
+                <div className="mt-1">
+                  <div className="px-1">
+                    <button
+                      type="button"
+                      aria-expanded={engineeringDatabaseOpen}
+                      aria-controls="engineering-database-menu"
+                      onClick={() => setEngineeringDatabaseOpen((prev) => !prev)}
+                      className="flex w-full items-center justify-between rounded-lg border border-transparent px-2.5 py-2 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+                    >
+                      <span className="flex items-center gap-2.5">
+                        <span className="text-secondary">
+                          <MenuIcon>
+                            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+                          </MenuIcon>
+                        </span>
+                        <span>Engineering Databases</span>
+                      </span>
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                        className={`text-slate-400 transition-transform duration-200 ${engineeringDatabaseOpen ? "rotate-180" : "rotate-0"}`}
+                      >
+                        <path d="m6 9 6 6 6-6" />
+                      </svg>
+                    </button>
+                  </div>
+                  {engineeringDatabaseOpen ? (
+                    <div id="engineering-database-menu">
+                      <nav
+                        className="ml-4 space-y-1 border-l-2 border-slate-100 pl-3"
+                        aria-label="Engineering Databases"
+                      >
+                        {engineeringDatabaseMenu.map(renderItem)}
                       </nav>
                     </div>
                   ) : null}
