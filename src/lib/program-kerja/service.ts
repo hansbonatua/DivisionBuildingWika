@@ -1,5 +1,5 @@
 import { getPgDb } from "@/lib/pg/client";
-import { HEAD_OFFICE_ROLE } from "@/lib/users/roles";
+import { HEAD_OFFICE_ROLE, isAdmin } from "@/lib/users/roles";
 import {
   canManageProgramKerja,
   canUpdateProgramEvidence,
@@ -20,6 +20,7 @@ import {
   insertMonthlyRows,
   insertProgram,
   isUserAssignedPic,
+  listHeadOfficePicOptions,
   listProgramRows,
   replacePics,
   updateMonthlyRa,
@@ -196,6 +197,23 @@ export type ProgramKerjaGroupItem = {
   name: string;
   sortOrder: number | null;
 };
+
+// Narrow PIC option feed for the create/edit forms. Only id + name are exposed:
+// the forms must never need the broad user directory again.
+export type ProgramKerjaPicOption = {
+  id: string;
+  name: string;
+};
+
+export async function listProgramKerjaPicOptions(
+  actor: ProgramKerjaActor,
+): Promise<ProgramKerjaPicOption[]> {
+  // Same audience as create/edit master data: Admin (super application) and
+  // Head Office. Management may view Program Kerja but never manage it, and
+  // Project has no Program Kerja access at all.
+  assertManageAccess(actor);
+  return listHeadOfficePicOptions();
+}
 
 export async function listProgramKerjaGroups(
   actor: ProgramKerjaActor,
@@ -398,11 +416,15 @@ export async function updateProgramRi(
   assertActive(actor);
   assertFiniteNumber(input.ri, "RI");
   await getProgramOrThrow(id);
-  // Record-level rule: Head Office AND assigned PIC. Admin without
-  // assignment and Head Office without assignment are both denied.
-  const assigned = await isUserAssignedPic(id, actor.id);
-  if (!canUpdateProgramRi(actor.role, assigned)) {
-    throw new ProgramKerjaForbiddenError("Hanya PIC yang ditugaskan dapat mengubah RI");
+  // Admin = super application at feature level: allowed for every Program
+  // Kerja record, and the PIC lookup is skipped because it can never change
+  // the outcome. Everyone else is evaluated by the record-level rule
+  // (Head Office AND assigned PIC; Management/Project always denied).
+  if (!isAdmin(actor.role)) {
+    const assigned = await isUserAssignedPic(id, actor.id);
+    if (!canUpdateProgramRi(actor.role, assigned)) {
+      throw new ProgramKerjaForbiddenError("Hanya PIC yang ditugaskan dapat mengubah RI");
+    }
   }
   const updated = await updateMonthlyRi(id, input.month, input.ri, actor.id);
   if (!updated) {

@@ -1,17 +1,23 @@
 import { NextResponse } from "next/server";
+import { PERMISSIONS } from "@/lib/auth/permissions";
+import { getPermittedActor, mapPermissionError } from "@/lib/auth/require-permission";
 import { createGreenBuildingSchema } from "@/lib/green-buildings/green-building.schema";
 import * as greenBuildingService from "@/lib/green-buildings/green-building.service";
 import { serializeGreenBuildingCertificateDocument } from "@/lib/green-buildings/green-building.types";
 
-import { apiAuthGuard } from "@/lib/auth/current-user";
+// Landing Page CMS management API — ADMIN ONLY (CMS_MANAGE).
+// The public landing feed lives at /api/green-buildings/public and stays
+// unauthenticated.
 
 export async function GET() {
   try {
-    const denied = await apiAuthGuard();
-    if (denied) return denied;
-    const certificates = await greenBuildingService.listCertificates();
+    const auth = await getPermittedActor(PERMISSIONS.CMS_MANAGE);
+    if ("response" in auth) return auth.response;
+    const certificates = await greenBuildingService.listCertificates(auth.actor);
     return NextResponse.json({ data: certificates.map(serializeGreenBuildingCertificateDocument) });
   } catch (error) {
+    const mapped = mapPermissionError(error);
+    if (mapped) return mapped;
     console.error("GET /api/green-buildings failed", error);
     return NextResponse.json({ error: { message: "Internal server error" } }, { status: 500 });
   }
@@ -19,8 +25,8 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const denied = await apiAuthGuard();
-    if (denied) return denied;
+    const auth = await getPermittedActor(PERMISSIONS.CMS_MANAGE);
+    if ("response" in auth) return auth.response;
     let body: unknown;
     try {
       body = await request.json();
@@ -42,9 +48,14 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
-    const created = await greenBuildingService.createCertificate(parsed.data);
-    return NextResponse.json({ data: serializeGreenBuildingCertificateDocument(created) }, { status: 201 });
+    const created = await greenBuildingService.createCertificate(parsed.data, auth.actor);
+    return NextResponse.json(
+      { data: serializeGreenBuildingCertificateDocument(created) },
+      { status: 201 },
+    );
   } catch (error) {
+    const mapped = mapPermissionError(error);
+    if (mapped) return mapped;
     console.error("POST /api/green-buildings failed", error);
     return NextResponse.json({ error: { message: "Internal server error" } }, { status: 500 });
   }

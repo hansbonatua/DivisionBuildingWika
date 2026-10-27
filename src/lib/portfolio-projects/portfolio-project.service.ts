@@ -1,5 +1,6 @@
 import { ObjectId } from "mongodb";
 import * as portfolioProjectRepository from "@/lib/portfolio-projects/portfolio-project.repository";
+import { assertCanManageCms, type CmsActor } from "@/lib/cms/access";
 import type {
   CreatePortfolioProjectInput,
   UpdatePortfolioProjectInput,
@@ -10,14 +11,19 @@ import type {
 } from "@/lib/portfolio-projects/portfolio-project.types";
 
 // Business rules live here. Route handlers stay thin.
-// NOTE: endpoints are temporarily unauthenticated (dev stage);
-// add auth checks at the route/middleware layer later without touching this file.
+//
+// RBAC consolidation Phase 3: every management operation (list/detail/create/
+// update/delete) asserts CMS_MANAGE in this domain layer, not only in the route
+// handler. `listPublicPortfolioProjects` is the public landing read and stays open.
 
 export function isValidPortfolioProjectId(id: string): boolean {
   return ObjectId.isValid(id);
 }
 
-export async function listPortfolioProjects(): Promise<PortfolioProjectDocument[]> {
+export async function listPortfolioProjects(
+  actor: CmsActor,
+): Promise<PortfolioProjectDocument[]> {
+  assertCanManageCms(actor.role);
   return portfolioProjectRepository.findAll();
 }
 
@@ -25,7 +31,11 @@ export async function listPublicPortfolioProjects(): Promise<PortfolioProjectPub
   return portfolioProjectRepository.findActivePublic();
 }
 
-export async function getPortfolioProjectById(id: string): Promise<PortfolioProjectDocument | null> {
+export async function getPortfolioProjectById(
+  id: string,
+  actor: CmsActor,
+): Promise<PortfolioProjectDocument | null> {
+  assertCanManageCms(actor.role);
   if (!isValidPortfolioProjectId(id)) {
     return null;
   }
@@ -34,7 +44,9 @@ export async function getPortfolioProjectById(id: string): Promise<PortfolioProj
 
 export async function createPortfolioProject(
   input: CreatePortfolioProjectInput,
+  actor: CmsActor,
 ): Promise<PortfolioProjectDocument> {
+  assertCanManageCms(actor.role);
   const maxSortOrder = await portfolioProjectRepository.getMaxSortOrder();
   const now = new Date();
   return portfolioProjectRepository.insertOne({
@@ -55,14 +67,17 @@ export async function createPortfolioProject(
 export async function updatePortfolioProject(
   id: string,
   input: UpdatePortfolioProjectInput,
+  actor: CmsActor,
 ): Promise<PortfolioProjectDocument | null> {
+  assertCanManageCms(actor.role);
   if (!isValidPortfolioProjectId(id)) {
     return null;
   }
   return portfolioProjectRepository.updateById(id, { ...input, updatedAt: new Date() });
 }
 
-export async function deletePortfolioProject(id: string): Promise<boolean> {
+export async function deletePortfolioProject(id: string, actor: CmsActor): Promise<boolean> {
+  assertCanManageCms(actor.role);
   if (!isValidPortfolioProjectId(id)) {
     return false;
   }

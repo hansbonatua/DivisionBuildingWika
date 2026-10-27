@@ -1,26 +1,21 @@
-import {
-  ADMIN_ROLE,
-  HEAD_OFFICE_ROLE,
-  PROJECT_ROLE,
-  isUserRole,
-} from "@/lib/users/roles";
+import { PERMISSIONS, hasPermission } from "@/lib/auth/permissions";
 
-const CREATE_ROLES = [ADMIN_ROLE, HEAD_OFFICE_ROLE];
-const EDIT_ROLES = [ADMIN_ROLE, HEAD_OFFICE_ROLE, PROJECT_ROLE];
-const DELETE_ROLES = [ADMIN_ROLE, HEAD_OFFICE_ROLE];
+// Access rules delegate to the central feature-permission layer.
+// Admin is granted every permission by the super-application rule; the
+// non-Admin mapping keeps Head Office / Project / Management as before.
 
 export function canViewMasterProject(role: string): boolean {
-  return isUserRole(role);
+  return hasPermission(role, PERMISSIONS.MASTER_PROJECT_VIEW);
 }
 
 export function canCreateMasterProject(role: string): boolean {
-  return (CREATE_ROLES as readonly string[]).includes(role);
+  return hasPermission(role, PERMISSIONS.MASTER_PROJECT_CREATE);
 }
 
 export function canEditMasterProject(role: string): boolean {
-  return (EDIT_ROLES as readonly string[]).includes(role);
+  return hasPermission(role, PERMISSIONS.MASTER_PROJECT_EDIT);
 }
 
 export function canDeleteMasterProject(role: string): boolean {
-  return (DELETE_ROLES as readonly string[]).includes(role);
+  return hasPermission(role, PERMISSIONS.MASTER_PROJECT_DELETE);
 }

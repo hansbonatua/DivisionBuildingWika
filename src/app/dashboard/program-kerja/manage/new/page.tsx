@@ -8,17 +8,16 @@ import ProgramKerjaForm, {
   type ProgramKerjaGroupOption,
   type ProgramKerjaPicOption,
 } from "@/components/dashboard/program-kerja/ProgramKerjaForm";
-import { HEAD_OFFICE_ROLE } from "@/lib/users/roles";
 
 type GroupsResponseItem = {
   id: string;
   name: string;
 };
 
-type UsersListItem = {
+// Narrow PIC option shape from /api/program-kerja/pic-options.
+type PicOptionItem = {
   id: string;
   name: string;
-  role: string;
 };
 
 export default function AddProgramKerjaPage() {
@@ -33,29 +32,35 @@ export default function AddProgramKerjaPage() {
       setLoading(true);
       setError(null);
       try {
-        const [groupsResponse, usersResponse] = await Promise.all([
+        const [groupsResponse, picResponse] = await Promise.all([
           fetch("/api/program-kerja/groups"),
-          fetch("/api/users"),
+          fetch("/api/program-kerja/pic-options"),
         ]);
-        if (groupsResponse.status === 401 || groupsResponse.status === 403) {
+        if (
+          groupsResponse.status === 401 ||
+          groupsResponse.status === 403 ||
+          picResponse.status === 401 ||
+          picResponse.status === 403
+        ) {
           throw new Error("UNAUTHORIZED");
         }
-        if (!groupsResponse.ok || !usersResponse.ok) {
+        if (!groupsResponse.ok || !picResponse.ok) {
           throw new Error("LOAD_FAILED");
         }
         const groupsBody = (await groupsResponse.json()) as { data?: GroupsResponseItem[] };
-        const usersBody = (await usersResponse.json()) as { data?: UsersListItem[] };
+        const picBody = (await picResponse.json()) as { data?: PicOptionItem[] };
         setGroups(
           (Array.isArray(groupsBody.data) ? groupsBody.data : []).map((group) => ({
             id: group.id,
             name: group.name,
           })),
         );
+        // Head Office eligibility is enforced server-side by the endpoint.
         setPicOptions(
-          (Array.isArray(usersBody.data) ? usersBody.data : [])
-            .filter((user) => user.role === HEAD_OFFICE_ROLE)
-            .map((user) => ({ id: user.id, name: user.name }))
-            .sort((a, b) => a.name.localeCompare(b.name)),
+          (Array.isArray(picBody.data) ? picBody.data : []).map((pic) => ({
+            id: pic.id,
+            name: pic.name,
+          })),
         );
       } catch (err) {
         setError(

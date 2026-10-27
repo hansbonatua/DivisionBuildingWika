@@ -9,9 +9,11 @@ import {
   ENGINEERING_DATABASE_CATEGORY_SLUGS,
   canViewEngineeringDatabase,
 } from "@/lib/engineering-database/access";
+import { canManageCms } from "@/lib/cms/access";
 import { canViewMasterProject } from "@/lib/master-project/access";
 import { canViewProgramKerja } from "@/lib/program-kerja/access";
 import { canViewTemplateForm } from "@/lib/template-form/access";
+import { canManageUsers } from "@/lib/users/access";
 
 type SidebarItem = {
   label: string;
@@ -206,6 +208,11 @@ export default function DashboardSidebar({ open, onClose, userRole }: DashboardS
   const showTemplateForm = canViewTemplateForm(userRole ?? "");
   const showMasterProject = canViewMasterProject(userRole ?? "");
   const showEngineeringDatabase = canViewEngineeringDatabase(userRole ?? "");
+  // Landing Page Manager and User Directory are Admin-only, resolved through the
+  // central permission layer (CMS_MANAGE / USER_MANAGE) rather than a local
+  // `role === "Admin"` literal.
+  const showCms = canManageCms(userRole ?? "");
+  const showUserDirectory = canManageUsers(userRole ?? "");
   const showCoreEnterprise =
     showProgramKerja ||
     showTemplateForm ||
@@ -311,6 +318,9 @@ export default function DashboardSidebar({ open, onClose, userRole }: DashboardS
     >
       <div className="flex min-h-0 flex-1 flex-col space-y-6 overflow-y-auto p-4">
         <div className="space-y-4">
+          {/* Landing Page Manager group — Admin only. Hidden in full (heading
+              included) for other roles so no empty group is left behind. */}
+          {showCms ? (
           <div>
             <div className="mb-2 px-3 text-[11px] font-bold uppercase tracking-wider text-slate-400">
               DASHBOARD ADMIN
@@ -350,8 +360,9 @@ export default function DashboardSidebar({ open, onClose, userRole }: DashboardS
               </button>
             </div>
           </div>
+          ) : null}
 
-          {landingOpen ? (
+          {showCms && landingOpen ? (
             <div id="landing-page-manager-menu">
               <nav className="ml-4 space-y-1 border-l-2 border-slate-100 pl-3" aria-label="Landing Page Manager">
                 {landingSubMenu.map(renderItem)}
@@ -519,6 +530,8 @@ export default function DashboardSidebar({ open, onClose, userRole }: DashboardS
             </div>
           ) : null}
 
+          {/* User Directory — Admin only (USER_MANAGE). */}
+          {showUserDirectory ? (
           <div className="border-t border-slate-200 pt-2">
             <div className="mb-2 px-3 text-[11px] font-bold uppercase tracking-wider text-slate-400">
               ADMINISTRASI
@@ -548,6 +561,7 @@ export default function DashboardSidebar({ open, onClose, userRole }: DashboardS
               })}
             </nav>
           </div>
+          ) : null}
         </div>
       </div>
       <button

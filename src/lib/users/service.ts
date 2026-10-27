@@ -13,6 +13,8 @@ import {
 import { hashPassword } from "@/lib/auth/password";
 import { deleteUserSessions } from "@/lib/auth/session";
 import { ADMIN_ROLE } from "@/lib/users/roles";
+import { assertCanManageUsers } from "@/lib/users/access";
+import { isForeignKeyViolation } from "@/lib/pg/errors";
 import type {
   CreateUserInput,
   ProfileUpdateInput,
@@ -22,6 +24,13 @@ import type {
 // Server-only: user lookups (auth + User Control read-path) with a safe projection.
 // password_hash is available internally for login verification but is never
 // included in the safe user object returned to route handlers.
+//
+// Authorization split (RBAC consolidation Phase 3):
+//   - global user administration (list/detail/create/update/status/delete)
+//     requires USER_MANAGE — asserted here in the domain layer, not only in the
+//     route handlers, and always before any DB work;
+//   - self-service (getUserForLoginByNip, updateOwnProfile) is NOT governed by
+//     USER_MANAGE and keeps its previous behaviour for every active role.
 
 export type SafeUser = Omit<PgUser, "passwordHash">;
 
@@ -39,11 +48,18 @@ export async function getUserById(id: string): Promise<SafeUser | null> {
   return user ? toSafeUser(user) : null;
 }
 
-export async function getSafeUserById(id: string): Promise<SafeUser | null> {
+// Arbitrary user detail: global administration read, Admin only.
+export async function getSafeUserById(
+  id: string,
+  actorRole: string,
+): Promise<SafeUser | null> {
+  assertCanManageUsers(actorRole);
   return getUserById(id);
 }
 
-export async function listSafeUsers(): Promise<SafeUser[]> {
+// Global user directory list: Admin only.
+export async function listSafeUsers(actorRole: string): Promise<SafeUser[]> {
+  assertCanManageUsers(actorRole);
   const rows = await listUserRows();
   return rows.map(toSafeUser);
 }
@@ -97,6 +113,20 @@ export class CannotDeleteLastAdminError extends Error {
   }
 }
 
+// Raised when a user still has dependent rows, so referential integrity blocks
+// the delete. References include user administration itself plus Program Kerja
+// (created_by / PIC assignment), Master Project, Template & Form and
+// Engineering Database. Routes map this to 409; nothing is cascaded and no
+// reference is nulled out.
+export class UserConflictError extends Error {
+  constructor(
+    message = "User tidak dapat dihapus karena masih digunakan oleh data lain.",
+  ) {
+    super(message);
+    this.name = "UserConflictError";
+  }
+}
+
 function isUniqueViolation(error: unknown, constraint: string): boolean {
   return (
     typeof error === "object" &&
@@ -108,7 +138,11 @@ function isUniqueViolation(error: unknown, constraint: string): boolean {
   );
 }
 
-export async function createSafeUser(input: CreateUserInput): Promise<SafeUser> {
+export async function createSafeUser(
+  input: CreateUserInput,
+  actorRole: string,
+): Promise<SafeUser> {
+  assertCanManageUsers(actorRole);
   if (await findUserRowByNip(input.nip)) {
     throw new DuplicateNipError();
   }
@@ -145,7 +179,9 @@ export async function setUserStatus(
   targetUserId: string,
   nextStatus: "active" | "suspended",
   actorUserId: string,
+  actorRole: string,
 ): Promise<SafeUser> {
+  assertCanManageUsers(actorRole);
   const target = await findUserRowById(targetUserId);
   if (!target) {
     throw new UserNotFoundError();
@@ -181,7 +217,9 @@ export async function updateSafeUser(
   id: string,
   input: UpdateUserInput,
   actorUserId: string,
+  actorRole: string,
 ): Promise<SafeUser> {
+  assertCanManageUsers(actorRole);
   const existing = await findUserRowById(id);
   if (!existing) {
     throw new UserNotFoundError();
@@ -227,7 +265,7 @@ export async function updateSafeUser(
     // generic PATCH can never bypass self/last-admin protection or
     // session revocation — including mixed field+status payloads.
     if (statusChanged && input.status !== undefined) {
-      return setUserStatus(id, input.status, actorUserId);
+      return setUserStatus(id, input.status, actorUserId, actorRole);
     }
     if (Object.keys(patch).length === 0) {
       // No effective changes (e.g. body contained only an empty password,
@@ -257,7 +295,9 @@ export async function updateSafeUser(
 export async function deleteUserSafely(
   targetUserId: string,
   actorUserId: string,
+  actorRole: string,
 ): Promise<{ deleted: true; id: string }> {
+  assertCanManageUsers(actorRole);
   const target = await findUserRowById(targetUserId);
   if (!target) {
     throw new UserNotFoundError();
@@ -271,13 +311,27 @@ export async function deleteUserSafely(
       throw new CannotDeleteLastAdminError();
     }
   }
-  // Explicit revocation first for immediate effect; the FK cascade
-  // (sessions.user_id ON DELETE CASCADE) is the final backstop.
-  await deleteUserSessions(targetUserId);
-  const deleted = await deleteUserRow(targetUserId);
+  // Hard delete first, so a REFUSED delete stays a true no-op: a user who is
+  // still referenced must not be logged out by the attempt. Sessions are
+  // revoked only once the row is actually gone, and the FK cascade
+  // (sessions.user_id ON DELETE CASCADE) already removed them with the row.
+  let deleted: boolean;
+  try {
+    const row = await deleteUserRow(targetUserId);
+    deleted = row !== null;
+  } catch (error) {
+    // The safety checks above passed, so the only expected DB refusal is a
+    // remaining reference. Surface a domain conflict (409) and leave both the
+    // user and the referencing rows untouched.
+    if (isForeignKeyViolation(error)) {
+      throw new UserConflictError();
+    }
+    throw error;
+  }
   if (!deleted) {
     throw new UserNotFoundError();
   }
+  await deleteUserSessions(targetUserId);
   return { deleted: true, id: targetUserId };
 }
 

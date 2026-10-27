@@ -1,5 +1,6 @@
 import { ObjectId } from "mongodb";
 import * as socialPostRepository from "@/lib/social-posts/social-post.repository";
+import { assertCanManageCms, type CmsActor } from "@/lib/cms/access";
 import type {
   CreateSocialPostInput,
   UpdateSocialPostInput,
@@ -7,14 +8,17 @@ import type {
 import type { SocialPostDocument, SocialPostPublic } from "@/lib/social-posts/social-post.types";
 
 // Business rules live here. Route handlers stay thin.
-// NOTE: endpoints are temporarily unauthenticated (dev stage);
-// add auth checks at the route/middleware layer later without touching this file.
+//
+// RBAC consolidation Phase 3: every management operation (list/detail/create/
+// update/delete) asserts CMS_MANAGE in this domain layer, not only in the route
+// handler. `listPublicSocialPosts` is the public landing read and stays open.
 
 export function isValidSocialPostId(id: string): boolean {
   return ObjectId.isValid(id);
 }
 
-export async function listSocialPosts(): Promise<SocialPostDocument[]> {
+export async function listSocialPosts(actor: CmsActor): Promise<SocialPostDocument[]> {
+  assertCanManageCms(actor.role);
   return socialPostRepository.findAll();
 }
 
@@ -22,14 +26,22 @@ export async function listPublicSocialPosts(): Promise<SocialPostPublic[]> {
   return socialPostRepository.findPublishedPublic();
 }
 
-export async function getSocialPostById(id: string): Promise<SocialPostDocument | null> {
+export async function getSocialPostById(
+  id: string,
+  actor: CmsActor,
+): Promise<SocialPostDocument | null> {
+  assertCanManageCms(actor.role);
   if (!isValidSocialPostId(id)) {
     return null;
   }
   return socialPostRepository.findById(id);
 }
 
-export async function createSocialPost(input: CreateSocialPostInput): Promise<SocialPostDocument> {
+export async function createSocialPost(
+  input: CreateSocialPostInput,
+  actor: CmsActor,
+): Promise<SocialPostDocument> {
+  assertCanManageCms(actor.role);
   const maxSortOrder = await socialPostRepository.getMaxSortOrder();
   const now = new Date();
   return socialPostRepository.insertOne({
@@ -50,14 +62,17 @@ export async function createSocialPost(input: CreateSocialPostInput): Promise<So
 export async function updateSocialPost(
   id: string,
   input: UpdateSocialPostInput,
+  actor: CmsActor,
 ): Promise<SocialPostDocument | null> {
+  assertCanManageCms(actor.role);
   if (!isValidSocialPostId(id)) {
     return null;
   }
   return socialPostRepository.updateById(id, { ...input, updatedAt: new Date() });
 }
 
-export async function deleteSocialPost(id: string): Promise<boolean> {
+export async function deleteSocialPost(id: string, actor: CmsActor): Promise<boolean> {
+  assertCanManageCms(actor.role);
   if (!isValidSocialPostId(id)) {
     return false;
   }

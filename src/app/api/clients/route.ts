@@ -1,17 +1,22 @@
 import { NextResponse } from "next/server";
+import { PERMISSIONS } from "@/lib/auth/permissions";
+import { getPermittedActor, mapPermissionError } from "@/lib/auth/require-permission";
 import { createClientSchema } from "@/lib/clients/client.schema";
 import * as clientService from "@/lib/clients/client.service";
 import { serializeClientDocument } from "@/lib/clients/client.types";
 
-import { apiAuthGuard } from "@/lib/auth/current-user";
+// Landing Page CMS management API — ADMIN ONLY (CMS_MANAGE).
+// The public landing feed lives at /api/clients/public and stays unauthenticated.
 
 export async function GET() {
   try {
-    const denied = await apiAuthGuard();
-    if (denied) return denied;
-    const clients = await clientService.listClients();
+    const auth = await getPermittedActor(PERMISSIONS.CMS_MANAGE);
+    if ("response" in auth) return auth.response;
+    const clients = await clientService.listClients(auth.actor);
     return NextResponse.json({ data: clients.map(serializeClientDocument) });
   } catch (error) {
+    const mapped = mapPermissionError(error);
+    if (mapped) return mapped;
     console.error("GET /api/clients failed", error);
     return NextResponse.json({ error: { message: "Internal server error" } }, { status: 500 });
   }
@@ -19,8 +24,8 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const denied = await apiAuthGuard();
-    if (denied) return denied;
+    const auth = await getPermittedActor(PERMISSIONS.CMS_MANAGE);
+    if ("response" in auth) return auth.response;
     let body: unknown;
     try {
       body = await request.json();
@@ -42,9 +47,11 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
-    const created = await clientService.createClient(parsed.data);
+    const created = await clientService.createClient(parsed.data, auth.actor);
     return NextResponse.json({ data: serializeClientDocument(created) }, { status: 201 });
   } catch (error) {
+    const mapped = mapPermissionError(error);
+    if (mapped) return mapped;
     console.error("POST /api/clients failed", error);
     return NextResponse.json({ error: { message: "Internal server error" } }, { status: 500 });
   }

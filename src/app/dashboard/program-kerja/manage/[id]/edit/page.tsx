@@ -9,7 +9,6 @@ import ProgramKerjaForm, {
   type ProgramKerjaGroupOption,
   type ProgramKerjaPicOption,
 } from "@/components/dashboard/program-kerja/ProgramKerjaForm";
-import { HEAD_OFFICE_ROLE } from "@/lib/users/roles";
 
 type DetailResponse = {
   program: {
@@ -33,10 +32,10 @@ type GroupsResponseItem = {
   name: string;
 };
 
-type UsersListItem = {
+// Narrow PIC option shape from /api/program-kerja/pic-options.
+type PicOptionItem = {
   id: string;
   name: string;
-  role: string;
 };
 
 export default function EditProgramKerjaPage({ params }: { params: Promise<{ id: string }> }) {
@@ -57,16 +56,16 @@ export default function EditProgramKerjaPage({ params }: { params: Promise<{ id:
       setError(null);
       setNotFound(false);
       try {
-        const [detailResponse, usersResponse, groupsResponse] = await Promise.all([
+        const [detailResponse, picResponse, groupsResponse] = await Promise.all([
           fetch(`/api/program-kerja/${id}`),
-          fetch("/api/users"),
+          fetch("/api/program-kerja/pic-options"),
           fetch("/api/program-kerja/groups"),
         ]);
         if (
           detailResponse.status === 401 ||
           detailResponse.status === 403 ||
-          usersResponse.status === 401 ||
-          usersResponse.status === 403
+          picResponse.status === 401 ||
+          picResponse.status === 403
         ) {
           throw new Error("UNAUTHORIZED");
         }
@@ -74,11 +73,11 @@ export default function EditProgramKerjaPage({ params }: { params: Promise<{ id:
           setNotFound(true);
           return;
         }
-        if (!detailResponse.ok || !usersResponse.ok || !groupsResponse.ok) {
+        if (!detailResponse.ok || !picResponse.ok || !groupsResponse.ok) {
           throw new Error("LOAD_FAILED");
         }
         const detailBody = (await detailResponse.json()) as { data?: DetailResponse };
-        const usersBody = (await usersResponse.json()) as { data?: UsersListItem[] };
+        const picBody = (await picResponse.json()) as { data?: PicOptionItem[] };
         const groupsBody = (await groupsResponse.json()) as { data?: GroupsResponseItem[] };
         if (!detailBody.data) {
           throw new Error("LOAD_FAILED");
@@ -111,11 +110,12 @@ export default function EditProgramKerjaPage({ params }: { params: Promise<{ id:
             name: group.name,
           })),
         );
+        // Head Office eligibility is enforced server-side by the endpoint.
         setPicOptions(
-          (Array.isArray(usersBody.data) ? usersBody.data : [])
-            .filter((user) => user.role === HEAD_OFFICE_ROLE)
-            .map((user) => ({ id: user.id, name: user.name }))
-            .sort((a, b) => a.name.localeCompare(b.name)),
+          (Array.isArray(picBody.data) ? picBody.data : []).map((pic) => ({
+            id: pic.id,
+            name: pic.name,
+          })),
         );
       } catch (err) {
         setError(

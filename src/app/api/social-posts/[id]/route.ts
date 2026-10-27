@@ -1,26 +1,30 @@
 import { NextResponse } from "next/server";
+import { PERMISSIONS } from "@/lib/auth/permissions";
+import { getPermittedActor, mapPermissionError } from "@/lib/auth/require-permission";
 import { updateSocialPostSchema } from "@/lib/social-posts/social-post.schema";
 import * as socialPostService from "@/lib/social-posts/social-post.service";
 import { serializeSocialPostDocument } from "@/lib/social-posts/social-post.types";
 
-import { apiAuthGuard } from "@/lib/auth/current-user";
+// Landing Page CMS management API — ADMIN ONLY (CMS_MANAGE).
 
 type RouteContext = { params: Promise<{ id: string }> };
 
 export async function GET(_request: Request, context: RouteContext) {
   try {
-    const denied = await apiAuthGuard();
-    if (denied) return denied;
+    const auth = await getPermittedActor(PERMISSIONS.CMS_MANAGE);
+    if ("response" in auth) return auth.response;
     const { id } = await context.params;
     if (!socialPostService.isValidSocialPostId(id)) {
       return NextResponse.json({ error: { message: "ID post tidak valid" } }, { status: 400 });
     }
-    const post = await socialPostService.getSocialPostById(id);
+    const post = await socialPostService.getSocialPostById(id, auth.actor);
     if (!post) {
       return NextResponse.json({ error: { message: "Post tidak ditemukan" } }, { status: 404 });
     }
     return NextResponse.json({ data: serializeSocialPostDocument(post) });
   } catch (error) {
+    const mapped = mapPermissionError(error);
+    if (mapped) return mapped;
     console.error("GET /api/social-posts/[id] failed", error);
     return NextResponse.json({ error: { message: "Internal server error" } }, { status: 500 });
   }
@@ -28,8 +32,8 @@ export async function GET(_request: Request, context: RouteContext) {
 
 export async function PATCH(request: Request, context: RouteContext) {
   try {
-    const denied = await apiAuthGuard();
-    if (denied) return denied;
+    const auth = await getPermittedActor(PERMISSIONS.CMS_MANAGE);
+    if ("response" in auth) return auth.response;
     const { id } = await context.params;
     if (!socialPostService.isValidSocialPostId(id)) {
       return NextResponse.json({ error: { message: "ID post tidak valid" } }, { status: 400 });
@@ -61,12 +65,14 @@ export async function PATCH(request: Request, context: RouteContext) {
         { status: 400 },
       );
     }
-    const updated = await socialPostService.updateSocialPost(id, parsed.data);
+    const updated = await socialPostService.updateSocialPost(id, parsed.data, auth.actor);
     if (!updated) {
       return NextResponse.json({ error: { message: "Post tidak ditemukan" } }, { status: 404 });
     }
     return NextResponse.json({ data: serializeSocialPostDocument(updated) });
   } catch (error) {
+    const mapped = mapPermissionError(error);
+    if (mapped) return mapped;
     console.error("PATCH /api/social-posts/[id] failed", error);
     return NextResponse.json({ error: { message: "Internal server error" } }, { status: 500 });
   }
@@ -74,18 +80,20 @@ export async function PATCH(request: Request, context: RouteContext) {
 
 export async function DELETE(_request: Request, context: RouteContext) {
   try {
-    const denied = await apiAuthGuard();
-    if (denied) return denied;
+    const auth = await getPermittedActor(PERMISSIONS.CMS_MANAGE);
+    if ("response" in auth) return auth.response;
     const { id } = await context.params;
     if (!socialPostService.isValidSocialPostId(id)) {
       return NextResponse.json({ error: { message: "ID post tidak valid" } }, { status: 400 });
     }
-    const deleted = await socialPostService.deleteSocialPost(id);
+    const deleted = await socialPostService.deleteSocialPost(id, auth.actor);
     if (!deleted) {
       return NextResponse.json({ error: { message: "Post tidak ditemukan" } }, { status: 404 });
     }
     return NextResponse.json({ data: { id, deleted: true } });
   } catch (error) {
+    const mapped = mapPermissionError(error);
+    if (mapped) return mapped;
     console.error("DELETE /api/social-posts/[id] failed", error);
     return NextResponse.json({ error: { message: "Internal server error" } }, { status: 500 });
   }

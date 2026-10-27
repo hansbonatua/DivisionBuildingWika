@@ -1,17 +1,22 @@
 import { NextResponse } from "next/server";
+import { PERMISSIONS } from "@/lib/auth/permissions";
+import { getPermittedActor, mapPermissionError } from "@/lib/auth/require-permission";
 import { createHeroSchema } from "@/lib/heroes/hero.schema";
 import * as heroService from "@/lib/heroes/hero.service";
 import { serializeHeroDocument } from "@/lib/heroes/hero.types";
 
-import { apiAuthGuard } from "@/lib/auth/current-user";
+// Landing Page CMS management API — ADMIN ONLY (CMS_MANAGE).
+// The public landing feed lives at /api/heroes/public and stays unauthenticated.
 
 export async function GET() {
   try {
-    const denied = await apiAuthGuard();
-    if (denied) return denied;
-    const heroes = await heroService.listHeroes();
+    const auth = await getPermittedActor(PERMISSIONS.CMS_MANAGE);
+    if ("response" in auth) return auth.response;
+    const heroes = await heroService.listHeroes(auth.actor);
     return NextResponse.json({ data: heroes.map(serializeHeroDocument) });
   } catch (error) {
+    const mapped = mapPermissionError(error);
+    if (mapped) return mapped;
     console.error("GET /api/heroes failed", error);
     return NextResponse.json({ error: { message: "Internal server error" } }, { status: 500 });
   }
@@ -19,8 +24,8 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const denied = await apiAuthGuard();
-    if (denied) return denied;
+    const auth = await getPermittedActor(PERMISSIONS.CMS_MANAGE);
+    if ("response" in auth) return auth.response;
     let body: unknown;
     try {
       body = await request.json();
@@ -42,9 +47,11 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
-    const created = await heroService.createHero(parsed.data);
+    const created = await heroService.createHero(parsed.data, auth.actor);
     return NextResponse.json({ data: serializeHeroDocument(created) }, { status: 201 });
   } catch (error) {
+    const mapped = mapPermissionError(error);
+    if (mapped) return mapped;
     console.error("POST /api/heroes failed", error);
     return NextResponse.json({ error: { message: "Internal server error" } }, { status: 500 });
   }

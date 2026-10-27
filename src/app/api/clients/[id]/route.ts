@@ -1,26 +1,30 @@
 import { NextResponse } from "next/server";
+import { PERMISSIONS } from "@/lib/auth/permissions";
+import { getPermittedActor, mapPermissionError } from "@/lib/auth/require-permission";
 import { updateClientSchema } from "@/lib/clients/client.schema";
 import * as clientService from "@/lib/clients/client.service";
 import { serializeClientDocument } from "@/lib/clients/client.types";
 
-import { apiAuthGuard } from "@/lib/auth/current-user";
+// Landing Page CMS management API — ADMIN ONLY (CMS_MANAGE).
 
 type RouteContext = { params: Promise<{ id: string }> };
 
 export async function GET(_request: Request, context: RouteContext) {
   try {
-    const denied = await apiAuthGuard();
-    if (denied) return denied;
+    const auth = await getPermittedActor(PERMISSIONS.CMS_MANAGE);
+    if ("response" in auth) return auth.response;
     const { id } = await context.params;
     if (!clientService.isValidClientId(id)) {
       return NextResponse.json({ error: { message: "ID client tidak valid" } }, { status: 400 });
     }
-    const client = await clientService.getClient(id);
+    const client = await clientService.getClient(id, auth.actor);
     if (!client) {
       return NextResponse.json({ error: { message: "Client tidak ditemukan" } }, { status: 404 });
     }
     return NextResponse.json({ data: serializeClientDocument(client) });
   } catch (error) {
+    const mapped = mapPermissionError(error);
+    if (mapped) return mapped;
     console.error("GET /api/clients/[id] failed", error);
     return NextResponse.json({ error: { message: "Internal server error" } }, { status: 500 });
   }
@@ -28,8 +32,8 @@ export async function GET(_request: Request, context: RouteContext) {
 
 export async function PATCH(request: Request, context: RouteContext) {
   try {
-    const denied = await apiAuthGuard();
-    if (denied) return denied;
+    const auth = await getPermittedActor(PERMISSIONS.CMS_MANAGE);
+    if ("response" in auth) return auth.response;
     const { id } = await context.params;
     if (!clientService.isValidClientId(id)) {
       return NextResponse.json({ error: { message: "ID client tidak valid" } }, { status: 400 });
@@ -61,12 +65,14 @@ export async function PATCH(request: Request, context: RouteContext) {
         { status: 400 },
       );
     }
-    const updated = await clientService.updateClient(id, parsed.data);
+    const updated = await clientService.updateClient(id, parsed.data, auth.actor);
     if (!updated) {
       return NextResponse.json({ error: { message: "Client tidak ditemukan" } }, { status: 404 });
     }
     return NextResponse.json({ data: serializeClientDocument(updated) });
   } catch (error) {
+    const mapped = mapPermissionError(error);
+    if (mapped) return mapped;
     console.error("PATCH /api/clients/[id] failed", error);
     return NextResponse.json({ error: { message: "Internal server error" } }, { status: 500 });
   }
@@ -74,18 +80,20 @@ export async function PATCH(request: Request, context: RouteContext) {
 
 export async function DELETE(_request: Request, context: RouteContext) {
   try {
-    const denied = await apiAuthGuard();
-    if (denied) return denied;
+    const auth = await getPermittedActor(PERMISSIONS.CMS_MANAGE);
+    if ("response" in auth) return auth.response;
     const { id } = await context.params;
     if (!clientService.isValidClientId(id)) {
       return NextResponse.json({ error: { message: "ID client tidak valid" } }, { status: 400 });
     }
-    const deleted = await clientService.deleteClient(id);
+    const deleted = await clientService.deleteClient(id, auth.actor);
     if (!deleted) {
       return NextResponse.json({ error: { message: "Client tidak ditemukan" } }, { status: 404 });
     }
     return NextResponse.json({ data: { id, deleted: true } });
   } catch (error) {
+    const mapped = mapPermissionError(error);
+    if (mapped) return mapped;
     console.error("DELETE /api/clients/[id] failed", error);
     return NextResponse.json({ error: { message: "Internal server error" } }, { status: 500 });
   }

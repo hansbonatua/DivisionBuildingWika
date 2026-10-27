@@ -132,6 +132,19 @@ export async function listAssignedPicUsers(
     .orderBy(asc(users.name), asc(users.id));
 }
 
+// PIC option feed for the create/edit forms: every Head Office user, role-based
+// only (V1 deliberately does not filter by account status). Narrow projection —
+// this is the dedicated replacement for reading the broad user directory.
+export async function listHeadOfficePicOptions(
+  db: ProgramKerjaDb = dbOrDefault(),
+): Promise<Array<{ id: string; name: string }>> {
+  return db
+    .select({ id: users.id, name: users.name })
+    .from(users)
+    .where(eq(users.role, HEAD_OFFICE_ROLE))
+    .orderBy(asc(users.name), asc(users.id));
+}
+
 export async function findProgramById(
   id: string,
   db: ProgramKerjaDb = dbOrDefault(),

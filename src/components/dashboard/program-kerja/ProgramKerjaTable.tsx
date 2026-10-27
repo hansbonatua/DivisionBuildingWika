@@ -2,8 +2,7 @@
 
 import { Fragment, useState } from "react";
 import Link from "next/link";
-import { HEAD_OFFICE_ROLE } from "@/lib/users/roles";
-import { canManageProgramKerja } from "@/lib/program-kerja/access";
+import { canManageProgramKerja, canUpdateProgramRi } from "@/lib/program-kerja/access";
 import {
   achievementFor,
   totalsFor,
@@ -157,14 +156,16 @@ export default function ProgramKerjaTable({
   const [editingEvidence, setEditingEvidence] = useState<{ programId: string; draft: string } | null>(null);
   const [evidenceError, setEvidenceError] = useState<string | null>(null);
   // Management (and any non-manager) is read-only: no add/edit/delete/note/
-  // evidence controls. RI already has its own HO+PIC rule below.
+  // evidence controls. RI has its own rule below (Admin always, Head Office
+  // only when assigned PIC).
   const canManage = currentUser !== null && canManageProgramKerja(currentUser.role);
 
+  // Delegates to the shared rule instead of re-implementing it, so the UI and
+  // the PATCH /api/program-kerja/[id]/ri service can never drift apart.
   function canEditRi(picIds: string[]): boolean {
     return (
       currentUser !== null &&
-      currentUser.role === HEAD_OFFICE_ROLE &&
-      picIds.includes(currentUser.id)
+      canUpdateProgramRi(currentUser.role, picIds.includes(currentUser.id))
     );
   }
 

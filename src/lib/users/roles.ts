@@ -18,9 +18,28 @@ export function isUserRole(value: string): value is UserRole {
   return (USER_ROLES as readonly string[]).includes(value);
 }
 
-// Future Core Enterprise (Program Kerja) access reference — NOT enforced.
-// RBAC for Program Kerja will be developed with that feature.
-//   Admin       → Summary Report, Kelola Program Kerja
-//   Head Office → Summary Report, Kelola Program Kerja
-//   Management  → Summary Report only
-//   Project     → No Program Kerja access
+// Canonical role primitives — pure, dependency-free functions usable on the
+// server and in Client Components. Feature-level permissions (and the Admin
+// super-application rule) live in @/lib/auth/permissions; record-level rules
+// (e.g. Program Kerja RI PIC assignment) stay in their module access helper.
+export function isAdmin(role: string): boolean {
+  return role === ADMIN_ROLE;
+}
+
+export function isHeadOffice(role: string): boolean {
+  return role === HEAD_OFFICE_ROLE;
+}
+
+export function isProject(role: string): boolean {
+  return role === PROJECT_ROLE;
+}
+
+export function isManagement(role: string): boolean {
+  return role === MANAGEMENT_ROLE;
+}
+
+// True when `role` is one of the given canonical roles. Unknown role strings
+// simply never match, so they can never gain access by accident.
+export function hasRole(role: string, ...roles: readonly UserRole[]): boolean {
+  return (roles as readonly string[]).includes(role);
+}

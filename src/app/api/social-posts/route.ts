@@ -1,17 +1,23 @@
 import { NextResponse } from "next/server";
+import { PERMISSIONS } from "@/lib/auth/permissions";
+import { getPermittedActor, mapPermissionError } from "@/lib/auth/require-permission";
 import { createSocialPostSchema } from "@/lib/social-posts/social-post.schema";
 import * as socialPostService from "@/lib/social-posts/social-post.service";
 import { serializeSocialPostDocument } from "@/lib/social-posts/social-post.types";
 
-import { apiAuthGuard } from "@/lib/auth/current-user";
+// Landing Page CMS management API — ADMIN ONLY (CMS_MANAGE).
+// The public landing feed lives at /api/social-posts/public and stays
+// unauthenticated.
 
 export async function GET() {
   try {
-    const denied = await apiAuthGuard();
-    if (denied) return denied;
-    const posts = await socialPostService.listSocialPosts();
+    const auth = await getPermittedActor(PERMISSIONS.CMS_MANAGE);
+    if ("response" in auth) return auth.response;
+    const posts = await socialPostService.listSocialPosts(auth.actor);
     return NextResponse.json({ data: posts.map(serializeSocialPostDocument) });
   } catch (error) {
+    const mapped = mapPermissionError(error);
+    if (mapped) return mapped;
     console.error("GET /api/social-posts failed", error);
     return NextResponse.json({ error: { message: "Internal server error" } }, { status: 500 });
   }
@@ -19,8 +25,8 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const denied = await apiAuthGuard();
-    if (denied) return denied;
+    const auth = await getPermittedActor(PERMISSIONS.CMS_MANAGE);
+    if ("response" in auth) return auth.response;
     let body: unknown;
     try {
       body = await request.json();
@@ -42,9 +48,11 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
-    const created = await socialPostService.createSocialPost(parsed.data);
+    const created = await socialPostService.createSocialPost(parsed.data, auth.actor);
     return NextResponse.json({ data: serializeSocialPostDocument(created) }, { status: 201 });
   } catch (error) {
+    const mapped = mapPermissionError(error);
+    if (mapped) return mapped;
     console.error("POST /api/social-posts failed", error);
     return NextResponse.json({ error: { message: "Internal server error" } }, { status: 500 });
   }

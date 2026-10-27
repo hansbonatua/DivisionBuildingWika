@@ -1,10 +1,6 @@
+import { PERMISSIONS, hasPermission } from "@/lib/auth/permissions";
 import type { UserRole } from "@/lib/users/roles";
-import {
-  ADMIN_ROLE,
-  HEAD_OFFICE_ROLE,
-  MANAGEMENT_ROLE,
-  PROJECT_ROLE,
-} from "@/lib/users/roles";
+import { ADMIN_ROLE, HEAD_OFFICE_ROLE, PROJECT_ROLE } from "@/lib/users/roles";
 
 // Canonical Engineering Databases categories — single source of truth.
 // These exact strings match the PostgreSQL CHECK constraint on
@@ -78,41 +74,31 @@ export function engineeringDatabaseCategoryFromSlug(
   return SLUG_TO_CATEGORY[slug] ?? null;
 }
 
-// Engineering Database RBAC is intentionally NOT derived from Master Project:
-// unlike Master Project, the Project role may also create and delete records.
-const VIEW_ROLES: readonly UserRole[] = [
-  ADMIN_ROLE,
-  HEAD_OFFICE_ROLE,
-  PROJECT_ROLE,
-  MANAGEMENT_ROLE,
-];
+// Feature-level RBAC delegates to the central permission layer. It is
+// intentionally NOT derived from Master Project: unlike Master Project, the
+// Project role may also create and delete Engineering Database records.
+export function canViewEngineeringDatabase(role: string): boolean {
+  return hasPermission(role, PERMISSIONS.ENGINEERING_DATABASE_VIEW);
+}
 
-const MANAGE_ROLES: readonly UserRole[] = [
-  ADMIN_ROLE,
-  HEAD_OFFICE_ROLE,
-  PROJECT_ROLE,
-];
+export function canManageEngineeringDatabase(role: string): boolean {
+  return hasPermission(role, PERMISSIONS.ENGINEERING_DATABASE_MANAGE);
+}
 
-// PIC eligibility is role-based only (Management excluded). V1 deliberately
-// does not filter options by account status — matching the existing PIC
-// option queries in Master Project and Template & Form.
+export function canViewEngineeringDatabaseSummary(role: string): boolean {
+  return hasPermission(role, PERMISSIONS.ENGINEERING_DATABASE_VIEW);
+}
+
+// PIC eligibility is a role list, not a feature permission: it answers "who may
+// be referenced as PIC", which is a domain rule. Role-based only (Management
+// excluded). V1 deliberately does not filter options by account status —
+// matching the existing PIC option queries in Master Project and Template &
+// Form.
 export const ENGINEERING_DATABASE_PIC_ROLES: readonly UserRole[] = [
   ADMIN_ROLE,
   HEAD_OFFICE_ROLE,
   PROJECT_ROLE,
 ];
-
-export function canViewEngineeringDatabase(role: string): boolean {
-  return (VIEW_ROLES as readonly string[]).includes(role);
-}
-
-export function canManageEngineeringDatabase(role: string): boolean {
-  return (MANAGE_ROLES as readonly string[]).includes(role);
-}
-
-export function canViewEngineeringDatabaseSummary(role: string): boolean {
-  return canViewEngineeringDatabase(role);
-}
 
 export function isEngineeringDatabasePicRole(role: string): boolean {
   return (ENGINEERING_DATABASE_PIC_ROLES as readonly string[]).includes(role);

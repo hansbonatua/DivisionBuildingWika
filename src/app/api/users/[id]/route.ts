@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { apiAuthGuard, requireUser, UnauthenticatedError } from "@/lib/auth/current-user";
+import { PERMISSIONS } from "@/lib/auth/permissions";
+import { getPermittedActor, mapPermissionError } from "@/lib/auth/require-permission";
 import {
   CannotDeleteLastAdminError,
   CannotDeleteSelfError,
@@ -10,26 +11,35 @@ import {
   deleteUserSafely,
   getSafeUserById,
   updateSafeUser,
+  UserConflictError,
   UserNotFoundError,
 } from "@/lib/users/service";
 import { updateUserSchema } from "@/lib/users/schema";
+
+// User Control API — ADMIN ONLY (USER_MANAGE).
+// Authorization runs before id validation and body parsing so a non-Admin
+// request is denied with 403 and performs no DB mutation. Self/last-Admin
+// integrity protections below still apply to Admin itself.
+// Self-service lives in /api/auth/me and is not routed through here.
 
 type RouteContext = { params: Promise<{ id: string }> };
 
 export async function GET(_request: Request, context: RouteContext) {
   try {
-    const denied = await apiAuthGuard();
-    if (denied) return denied;
+    const auth = await getPermittedActor(PERMISSIONS.USER_MANAGE);
+    if ("response" in auth) return auth.response;
     const { id } = await context.params;
     if (!id || id.trim().length === 0) {
       return NextResponse.json({ error: { message: "ID user tidak valid" } }, { status: 400 });
     }
-    const user = await getSafeUserById(id);
+    const user = await getSafeUserById(id, auth.actor.role);
     if (!user) {
       return NextResponse.json({ error: { message: "User tidak ditemukan" } }, { status: 404 });
     }
     return NextResponse.json({ data: user }, { status: 200 });
   } catch (error) {
+    const mapped = mapPermissionError(error);
+    if (mapped) return mapped;
     console.error("GET /api/users/[id] failed", error);
     return NextResponse.json({ error: { message: "Internal server error" } }, { status: 500 });
   }
@@ -37,15 +47,8 @@ export async function GET(_request: Request, context: RouteContext) {
 
 export async function PATCH(request: Request, context: RouteContext) {
   try {
-    let actorId: string;
-    try {
-      actorId = (await requireUser()).id;
-    } catch (error) {
-      if (error instanceof UnauthenticatedError) {
-        return NextResponse.json({ error: { message: "Unauthenticated" } }, { status: 401 });
-      }
-      throw error;
-    }
+    const auth = await getPermittedActor(PERMISSIONS.USER_MANAGE);
+    if ("response" in auth) return auth.response;
     const { id } = await context.params;
     if (!id || id.trim().length === 0) {
       return NextResponse.json({ error: { message: "ID user tidak valid" } }, { status: 400 });
@@ -81,7 +84,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       );
     }
     try {
-      const updated = await updateSafeUser(id, parsed.data, actorId);
+      const updated = await updateSafeUser(id, parsed.data, auth.actor.id, auth.actor.role);
       return NextResponse.json({ data: updated }, { status: 200 });
     } catch (error) {
       if (error instanceof UserNotFoundError) {
@@ -108,28 +111,23 @@ export async function PATCH(request: Request, context: RouteContext) {
       throw error;
     }
   } catch (error) {
+    const mapped = mapPermissionError(error);
+    if (mapped) return mapped;
     console.error("PATCH /api/users/[id] failed", error);
     return NextResponse.json({ error: { message: "Internal server error" } }, { status: 500 });
   }
 }
 
-export async function DELETE(request: Request, context: RouteContext) {
+export async function DELETE(_request: Request, context: RouteContext) {
   try {
-    let actorId: string;
-    try {
-      actorId = (await requireUser()).id;
-    } catch (error) {
-      if (error instanceof UnauthenticatedError) {
-        return NextResponse.json({ error: { message: "Unauthenticated" } }, { status: 401 });
-      }
-      throw error;
-    }
+    const auth = await getPermittedActor(PERMISSIONS.USER_MANAGE);
+    if ("response" in auth) return auth.response;
     const { id } = await context.params;
     if (!id || id.trim().length === 0) {
       return NextResponse.json({ error: { message: "ID user tidak valid" } }, { status: 400 });
     }
     try {
-      const result = await deleteUserSafely(id, actorId);
+      const result = await deleteUserSafely(id, auth.actor.id, auth.actor.role);
       return NextResponse.json({ data: result }, { status: 200 });
     } catch (error) {
       if (error instanceof UserNotFoundError) {
@@ -147,9 +145,16 @@ export async function DELETE(request: Request, context: RouteContext) {
           { status: 403 },
         );
       }
+      // Referenced user: friendly 409 with the domain wording only — never a
+      // SQLSTATE, constraint name or driver detail.
+      if (error instanceof UserConflictError) {
+        return NextResponse.json({ error: { message: error.message } }, { status: 409 });
+      }
       throw error;
     }
   } catch (error) {
+    const mapped = mapPermissionError(error);
+    if (mapped) return mapped;
     console.error("DELETE /api/users/[id] failed", error);
     return NextResponse.json({ error: { message: "Internal server error" } }, { status: 500 });
   }

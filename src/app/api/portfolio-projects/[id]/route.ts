@@ -1,26 +1,30 @@
 import { NextResponse } from "next/server";
+import { PERMISSIONS } from "@/lib/auth/permissions";
+import { getPermittedActor, mapPermissionError } from "@/lib/auth/require-permission";
 import { updatePortfolioProjectSchema } from "@/lib/portfolio-projects/portfolio-project.schema";
 import * as portfolioProjectService from "@/lib/portfolio-projects/portfolio-project.service";
 import { serializePortfolioProjectDocument } from "@/lib/portfolio-projects/portfolio-project.types";
 
-import { apiAuthGuard } from "@/lib/auth/current-user";
+// Landing Page CMS management API — ADMIN ONLY (CMS_MANAGE).
 
 type RouteContext = { params: Promise<{ id: string }> };
 
 export async function GET(_request: Request, context: RouteContext) {
   try {
-    const denied = await apiAuthGuard();
-    if (denied) return denied;
+    const auth = await getPermittedActor(PERMISSIONS.CMS_MANAGE);
+    if ("response" in auth) return auth.response;
     const { id } = await context.params;
     if (!portfolioProjectService.isValidPortfolioProjectId(id)) {
       return NextResponse.json({ error: { message: "ID project tidak valid" } }, { status: 400 });
     }
-    const project = await portfolioProjectService.getPortfolioProjectById(id);
+    const project = await portfolioProjectService.getPortfolioProjectById(id, auth.actor);
     if (!project) {
       return NextResponse.json({ error: { message: "Project tidak ditemukan" } }, { status: 404 });
     }
     return NextResponse.json({ data: serializePortfolioProjectDocument(project) });
   } catch (error) {
+    const mapped = mapPermissionError(error);
+    if (mapped) return mapped;
     console.error("GET /api/portfolio-projects/[id] failed", error);
     return NextResponse.json({ error: { message: "Internal server error" } }, { status: 500 });
   }
@@ -28,8 +32,8 @@ export async function GET(_request: Request, context: RouteContext) {
 
 export async function PATCH(request: Request, context: RouteContext) {
   try {
-    const denied = await apiAuthGuard();
-    if (denied) return denied;
+    const auth = await getPermittedActor(PERMISSIONS.CMS_MANAGE);
+    if ("response" in auth) return auth.response;
     const { id } = await context.params;
     if (!portfolioProjectService.isValidPortfolioProjectId(id)) {
       return NextResponse.json({ error: { message: "ID project tidak valid" } }, { status: 400 });
@@ -61,12 +65,18 @@ export async function PATCH(request: Request, context: RouteContext) {
         { status: 400 },
       );
     }
-    const updated = await portfolioProjectService.updatePortfolioProject(id, parsed.data);
+    const updated = await portfolioProjectService.updatePortfolioProject(
+      id,
+      parsed.data,
+      auth.actor,
+    );
     if (!updated) {
       return NextResponse.json({ error: { message: "Project tidak ditemukan" } }, { status: 404 });
     }
     return NextResponse.json({ data: serializePortfolioProjectDocument(updated) });
   } catch (error) {
+    const mapped = mapPermissionError(error);
+    if (mapped) return mapped;
     console.error("PATCH /api/portfolio-projects/[id] failed", error);
     return NextResponse.json({ error: { message: "Internal server error" } }, { status: 500 });
   }
@@ -74,18 +84,20 @@ export async function PATCH(request: Request, context: RouteContext) {
 
 export async function DELETE(_request: Request, context: RouteContext) {
   try {
-    const denied = await apiAuthGuard();
-    if (denied) return denied;
+    const auth = await getPermittedActor(PERMISSIONS.CMS_MANAGE);
+    if ("response" in auth) return auth.response;
     const { id } = await context.params;
     if (!portfolioProjectService.isValidPortfolioProjectId(id)) {
       return NextResponse.json({ error: { message: "ID project tidak valid" } }, { status: 400 });
     }
-    const deleted = await portfolioProjectService.deletePortfolioProject(id);
+    const deleted = await portfolioProjectService.deletePortfolioProject(id, auth.actor);
     if (!deleted) {
       return NextResponse.json({ error: { message: "Project tidak ditemukan" } }, { status: 404 });
     }
     return NextResponse.json({ data: { id, deleted: true } });
   } catch (error) {
+    const mapped = mapPermissionError(error);
+    if (mapped) return mapped;
     console.error("DELETE /api/portfolio-projects/[id] failed", error);
     return NextResponse.json({ error: { message: "Internal server error" } }, { status: 500 });
   }
