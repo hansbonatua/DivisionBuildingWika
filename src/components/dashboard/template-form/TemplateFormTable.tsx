@@ -3,11 +3,17 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { canManageTemplateForm } from "@/lib/template-form/access";
+import { templateFormFileKind } from "@/lib/template-form/file-meta";
+import TemplateFormFileBadge from "./TemplateFormFileBadge";
 
 type TemplateFormApiItem = {
   id: string;
   name: string;
-  fileUrl: string;
+  sourceType?: string | null;
+  fileUrl: string | null;
+  fileName?: string | null;
+  fileMimeType?: string | null;
+  fileSizeBytes?: number | null;
   uploaderPic?: { id?: string; name?: string } | null;
 };
 
@@ -43,6 +49,9 @@ function TableSkeleton() {
     <>
       {skeletonRows.map((row) => (
         <tr key={row} className="border-b border-outline/40">
+          <td className="px-4 py-4">
+            <div className="h-3 w-6 animate-pulse rounded bg-slate-100" />
+          </td>
           <td className="px-4 py-4">
             <div className="h-3 w-48 animate-pulse rounded bg-slate-100" />
           </td>
@@ -256,9 +265,12 @@ export default function TemplateFormTable({
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[880px] border-collapse text-xs">
+            <table className="w-full min-w-[920px] border-collapse text-xs">
               <thead>
                 <tr>
+                  <th scope="col" className={`${headerCell} w-16`}>
+                    No
+                  </th>
                   <th scope="col" className={headerCell}>
                     Nama Template / Form
                   </th>
@@ -279,7 +291,7 @@ export default function TemplateFormTable({
                 ) : rows.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={4}
+                      colSpan={5}
                       className="px-4 py-10 text-center text-xs font-medium text-primary/60"
                     >
                       <p className="text-sm font-medium text-primary/70">
@@ -293,8 +305,20 @@ export default function TemplateFormTable({
                     </td>
                   </tr>
                 ) : (
-                  rows.map((item) => {
+                  rows.map((item, index) => {
                     const fileUrl = safeHttpUrl(item.fileUrl);
+                    const uploadedFileName =
+                      typeof item.fileName === "string" &&
+                      item.fileName.trim() !== ""
+                        ? item.fileName
+                        : null;
+                    // Legacy rows created before sourceType existed are still
+                    // classified by their actual payload.
+                    const isUpload =
+                      item.sourceType === "upload" ||
+                      (item.sourceType !== "link" &&
+                        uploadedFileName !== null &&
+                        fileUrl === null);
                     const picName = item.uploaderPic?.name;
                     return (
                       <tr
@@ -302,35 +326,78 @@ export default function TemplateFormTable({
                         className="transition-colors hover:bg-background/60"
                       >
                         <td
+                          className={`${bodyCell} tabular-nums text-primary/50`}
+                        >
+                          {index + 1}
+                        </td>
+                        <td
                           className={`${bodyCell} min-w-64 font-semibold text-primary`}
                         >
                           {displayText(item.name)}
                         </td>
-                        <td className={`${bodyCell} min-w-40 whitespace-nowrap`}>
-                          {fileUrl ? (
-                            <a
-                              href={fileUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1.5 rounded border border-outline/50 px-2.5 py-1 text-[11px] font-bold text-secondary transition-colors hover:bg-secondary hover:text-white"
-                            >
-                              <span>Buka File</span>
-                              <svg
-                                width="12"
-                                height="12"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                aria-hidden="true"
+                        <td className={`${bodyCell} min-w-56`}>
+                          {isUpload && uploadedFileName ? (
+                            <div className="flex flex-col items-start gap-1.5">
+                              <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                                <TemplateFormFileBadge
+                                  kind={templateFormFileKind(uploadedFileName)}
+                                />
+                                <span
+                                  className="min-w-0 break-all font-semibold text-primary"
+                                  title={uploadedFileName}
+                                >
+                                  {uploadedFileName}
+                                </span>
+                              </div>
+                              <a
+                                href={`/api/template-form/${item.id}/file`}
+                                className="inline-flex items-center gap-1.5 rounded border border-outline/50 px-2.5 py-1 text-[11px] font-bold text-secondary transition-colors hover:bg-secondary hover:text-white"
                               >
-                                <path d="M15 3h6v6" />
-                                <path d="M10 14 21 3" />
-                                <path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5" />
-                              </svg>
-                            </a>
+                                <span>Unduh</span>
+                                <svg
+                                  width="12"
+                                  height="12"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  aria-hidden="true"
+                                >
+                                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                  <path d="m7 10 5 5 5-5" />
+                                  <path d="M12 15V3" />
+                                </svg>
+                              </a>
+                            </div>
+                          ) : fileUrl ? (
+                            <div className="flex flex-col items-start gap-1.5">
+                              <TemplateFormFileBadge kind="link" />
+                              <a
+                                href={fileUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1.5 rounded border border-outline/50 px-2.5 py-1 text-[11px] font-bold text-secondary transition-colors hover:bg-secondary hover:text-white"
+                              >
+                                <span>Buka Link</span>
+                                <svg
+                                  width="12"
+                                  height="12"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  aria-hidden="true"
+                                >
+                                  <path d="M15 3h6v6" />
+                                  <path d="M10 14 21 3" />
+                                  <path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5" />
+                                </svg>
+                              </a>
+                            </div>
                           ) : (
                             <span className="text-primary/40">{EMPTY_VALUE}</span>
                           )}

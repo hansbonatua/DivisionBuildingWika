@@ -40,8 +40,7 @@ export default async function EditTemplateFormPage({
           Edit Template &amp; Form
         </h1>
         <p className="mt-1 max-w-3xl text-base text-primary/70">
-          Perbarui tautan template atau form yang digunakan pada WIBEX Building
-          Division.
+          Perbarui Template &amp; Form melalui tautan atau file upload.
         </p>
       </div>
 

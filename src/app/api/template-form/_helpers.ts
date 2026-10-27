@@ -4,8 +4,13 @@ import {
   TemplateFormConflictError,
   TemplateFormForbiddenError,
   TemplateFormNotFoundError,
+  TemplateFormValidationError,
   type TemplateFormActor,
 } from "@/lib/template-form/service";
+import {
+  BlobStorageNotConfiguredError,
+  BlobStorageUnavailableError,
+} from "@/lib/storage/blob";
 
 export async function getActor(): Promise<
   { actor: TemplateFormActor } | { response: NextResponse }
@@ -43,6 +48,31 @@ export function mapDomainError(error: unknown): NextResponse | null {
     return NextResponse.json(
       { error: { message: error.message } },
       { status: 409 },
+    );
+  }
+  // Domain-level validation that the Zod contract cannot express (uploaded
+  // object missing, pathname outside the namespace, metadata mismatch, ...).
+  if (error instanceof TemplateFormValidationError) {
+    return NextResponse.json(
+      { error: { message: error.message } },
+      { status: 400 },
+    );
+  }
+  // Storage infrastructure is unavailable; never leak the SDK message.
+  if (error instanceof BlobStorageNotConfiguredError) {
+    return NextResponse.json(
+      {
+        error: {
+          message: "Layanan penyimpanan file belum dikonfigurasi.",
+        },
+      },
+      { status: 503 },
+    );
+  }
+  if (error instanceof BlobStorageUnavailableError) {
+    return NextResponse.json(
+      { error: { message: "Layanan penyimpanan file sedang tidak tersedia." } },
+      { status: 502 },
     );
   }
   return null;

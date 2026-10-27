@@ -1,4 +1,5 @@
 import {
+  bigint,
   check,
   index,
   integer,
@@ -192,12 +193,24 @@ export const programKerjaPics = pgTable(
 export type PgProgramKerjaPic = typeof programKerjaPics.$inferSelect;
 export type NewPgProgramKerjaPic = typeof programKerjaPics.$inferInsert;
 
+// Template & Form (revised V1): every record has EXACTLY ONE source.
+//   source_type = 'link'   -> file_url holds the external http(s) link
+//   source_type = 'upload' -> blob_pathname/file_name describe the uploaded file
+// file_url is therefore nullable and link-only; the CHECK constraint below makes
+// impossible combinations unrepresentable, so no reader ever has to guess.
+// blob_pathname is the single storage identity (no duplicate blob URL column)
+// and is never exposed in API responses.
 export const templateForms = pgTable(
   "template_forms",
   {
     id: uuid("id").primaryKey().defaultRandom(),
     name: text("name").notNull(),
-    fileUrl: text("file_url").notNull(),
+    sourceType: text("source_type").notNull().default("link"),
+    fileUrl: text("file_url"),
+    fileName: text("file_name"),
+    fileMimeType: text("file_mime_type"),
+    fileSizeBytes: bigint("file_size_bytes", { mode: "number" }),
+    blobPathname: text("blob_pathname"),
     uploaderPicUserId: uuid("uploader_pic_user_id")
       .notNull()
       .references(() => users.id, { onDelete: "no action" }),
@@ -208,6 +221,31 @@ export const templateForms = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
+    check(
+      "template_forms_source_type_check",
+      sql`${table.sourceType} in ('link', 'upload')`,
+    ),
+    check(
+      "template_forms_source_integrity_check",
+      sql`(
+        (${table.sourceType} = 'link'
+          and ${table.fileUrl} is not null
+          and ${table.blobPathname} is null)
+        or
+        (${table.sourceType} = 'upload'
+          and ${table.fileUrl} is null
+          and ${table.blobPathname} is not null
+          and ${table.fileName} is not null)
+      )`,
+    ),
+    check(
+      "template_forms_file_size_check",
+      sql`${table.fileSizeBytes} is null or ${table.fileSizeBytes} > 0`,
+    ),
+    // One stored object cannot be claimed by two records.
+    uniqueIndex("template_forms_blob_pathname_unique")
+      .on(table.blobPathname)
+      .where(sql`${table.blobPathname} is not null`),
     index("template_forms_uploader_pic_user_id_idx").on(table.uploaderPicUserId),
     index("template_forms_created_by_idx").on(table.createdBy),
   ],

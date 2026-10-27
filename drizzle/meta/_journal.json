@@ -43,6 +43,13 @@
       "when": 1792982930155,
       "tag": "0005_groovy_marvel_apes",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793083846568,
+      "tag": "0006_colorful_prism",
+      "breakpoints": true
     }
   ]
 }

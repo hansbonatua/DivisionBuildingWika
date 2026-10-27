@@ -10,7 +10,14 @@ import { HEAD_OFFICE_ROLE } from "@/lib/users/roles";
 export type TemplateFormRow = {
   id: string;
   name: string;
-  fileUrl: string;
+  sourceType: string;
+  // Null for upload rows: file_url is link-only.
+  fileUrl: string | null;
+  fileName: string | null;
+  fileMimeType: string | null;
+  fileSizeBytes: number | null;
+  // Internal storage identity. Never part of an API response.
+  blobPathname: string | null;
   uploaderPicUserId: string;
   uploaderPicName: string;
   createdBy: string;
@@ -26,7 +33,12 @@ export type TemplateFormPicOptionRow = {
 const templateFormColumns = {
   id: templateForms.id,
   name: templateForms.name,
+  sourceType: templateForms.sourceType,
   fileUrl: templateForms.fileUrl,
+  fileName: templateForms.fileName,
+  fileMimeType: templateForms.fileMimeType,
+  fileSizeBytes: templateForms.fileSizeBytes,
+  blobPathname: templateForms.blobPathname,
   uploaderPicUserId: templateForms.uploaderPicUserId,
   uploaderPicName: users.name,
   createdBy: templateForms.createdBy,
@@ -71,7 +83,17 @@ export async function insertTemplateForm(
 export async function updateTemplateFormRow(
   id: string,
   patch: Partial<
-    Pick<NewPgTemplateForm, "name" | "fileUrl" | "uploaderPicUserId">
+    Pick<
+      NewPgTemplateForm,
+      | "name"
+      | "sourceType"
+      | "fileUrl"
+      | "fileName"
+      | "fileMimeType"
+      | "fileSizeBytes"
+      | "blobPathname"
+      | "uploaderPicUserId"
+    >
   >,
 ): Promise<boolean> {
   const rows = await getPgDb()
@@ -88,6 +110,19 @@ export async function deleteTemplateFormRow(id: string): Promise<boolean> {
     .where(eq(templateForms.id, id))
     .returning({ id: templateForms.id });
   return rows.length > 0;
+}
+
+// Storage-reference check used by orphan cleanup: a pathname claimed by any row
+// must never be deleted from storage.
+export async function findTemplateFormRowByBlobPathname(
+  pathname: string,
+): Promise<{ id: string } | null> {
+  const rows = await getPgDb()
+    .select({ id: templateForms.id })
+    .from(templateForms)
+    .where(eq(templateForms.blobPathname, pathname))
+    .limit(1);
+  return rows[0] ?? null;
 }
 
 export async function listHeadOfficePicOptions(): Promise<

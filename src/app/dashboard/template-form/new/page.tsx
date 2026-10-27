@@ -34,8 +34,7 @@ export default function NewTemplateFormPage() {
           Tambah Template &amp; Form
         </h1>
         <p className="mt-1 max-w-3xl text-base text-primary/70">
-          Tambahkan tautan template atau form yang digunakan pada WIBEX Building
-          Division.
+          Tambahkan Template &amp; Form melalui tautan atau upload file.
         </p>
       </div>
 
