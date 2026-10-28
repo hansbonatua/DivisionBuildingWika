@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { getPermittedActor, mapPermissionError } from "@/lib/auth/require-permission";
+import { mapCmsImageError } from "@/lib/cms/error-response";
 import { updateGreenBuildingSchema } from "@/lib/green-buildings/green-building.schema";
 import * as greenBuildingService from "@/lib/green-buildings/green-building.service";
 import { serializeGreenBuildingCertificateDocument } from "@/lib/green-buildings/green-building.types";
@@ -73,6 +74,8 @@ export async function PATCH(request: Request, context: RouteContext) {
   } catch (error) {
     const mapped = mapPermissionError(error);
     if (mapped) return mapped;
+    const cmsImageError = mapCmsImageError(error);
+    if (cmsImageError) return cmsImageError;
     console.error("PATCH /api/green-buildings/[id] failed", error);
     return NextResponse.json({ error: { message: "Internal server error" } }, { status: 500 });
   }
@@ -94,6 +97,8 @@ export async function DELETE(_request: Request, context: RouteContext) {
   } catch (error) {
     const mapped = mapPermissionError(error);
     if (mapped) return mapped;
+    const cmsImageError = mapCmsImageError(error);
+    if (cmsImageError) return cmsImageError;
     console.error("DELETE /api/green-buildings/[id] failed", error);
     return NextResponse.json({ error: { message: "Internal server error" } }, { status: 500 });
   }

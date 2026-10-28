@@ -53,7 +53,12 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
         location: values.location,
         progress: values.progress,
         description: values.description,
-        imageUrl: values.imageUrl,
+        // Unchanged image ⇒ the API keeps the stored ownership metadata and
+        // never touches the Blob object. Changed image ⇒ the API re-verifies a
+        // fresh upload and deletes the previous CMS-owned object after saving.
+        imageUrl: values.image.imageUrl,
+        imageSource: values.image.imageSource,
+        blobPathname: values.image.blobPathname,
         imageAlt: values.imageAlt,
         status: values.status,
       }),
@@ -157,9 +162,13 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
               location: project.location,
               progress: project.progress,
               description: project.description,
-              imageUrl: project.imageUrl,
               imageAlt: project.imageAlt,
               status: project.status,
+            }}
+            initialImage={{
+              imageUrl: project.imageUrl,
+              source: project.imageSource ?? "external",
+              blobPathname: project.blobPathname ?? null,
             }}
             submitLabel="Perbarui Konten Proyek"
             onSubmit={handlePatch}

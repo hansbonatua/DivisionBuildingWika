@@ -2,12 +2,18 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import SocialPostForm, { type SocialPostFormValues } from "@/components/dashboard/social-media/SocialPostForm";
+import SocialPostForm, {
+  type SocialPostFormValues,
+  type SocialPostImageValues,
+} from "@/components/dashboard/social-media/SocialPostForm";
 
 export default function AddSocialPostPage() {
   const router = useRouter();
 
-  async function handleCreate(values: SocialPostFormValues): Promise<void> {
+  async function handleCreate(
+    values: SocialPostFormValues,
+    image: SocialPostImageValues,
+  ): Promise<void> {
     const response = await fetch("/api/social-posts", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -17,7 +23,10 @@ export default function AddSocialPostPage() {
         caption: values.caption,
         url: values.url,
         type: values.type,
-        imageUrl: values.imageUrl,
+        // Landing image (upload / external / none) — never the Instagram URL.
+        imageUrl: image.imageUrl,
+        imageSource: image.imageSource,
+        blobPathname: image.blobPathname,
         imageAlt: values.imageAlt,
         status: values.status,
       }),
@@ -51,7 +60,9 @@ export default function AddSocialPostPage() {
         </nav>
         <h1 className="text-2xl font-bold tracking-tight text-primary">Tambah Post</h1>
         <p className="mt-1 max-w-3xl text-base text-primary/70">
-          Buat postingan Instagram baru. Status awal: Draft.
+          Kurasi satu postingan Instagram: tempel tautan postingan aslinya, lalu unggah
+          gambarnya ke WIBEX agar tetap tampil meskipun CDN Instagram berubah.
+          Status awal: Draft.
         </p>
       </div>
 

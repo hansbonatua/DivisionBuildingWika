@@ -8,9 +8,6 @@ export default function AddHeroPage() {
   const router = useRouter();
 
   async function handleCreate(values: HeroFormValues): Promise<void> {
-    if (values.image.startsWith("blob:")) {
-      throw new Error("Gunakan URL gambar yang dapat disimpan. Upload file permanen belum tersedia.");
-    }
     const response = await fetch("/api/heroes", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -19,7 +16,11 @@ export default function AddHeroPage() {
         projectName: values.project,
         location: values.location,
         status: values.status,
-        imageUrl: values.image,
+        // The image is already in the public CMS store when it was uploaded;
+        // the API re-verifies the object before writing this row.
+        imageUrl: values.image.imageUrl,
+        imageSource: values.image.imageSource,
+        blobPathname: values.image.blobPathname,
         description: values.description,
         imageAlt: values.imageAlt,
       }),
@@ -53,7 +54,8 @@ export default function AddHeroPage() {
         </nav>
         <h1 className="text-2xl font-bold tracking-tight text-primary">Tambah Slide Hero</h1>
         <p className="mt-1 max-w-3xl text-base text-primary/70">
-          Buat slide hero baru untuk landing page WIBEX. Demo: data tidak disimpan permanen.
+          Buat slide hero baru untuk landing page WIBEX. Gambar dapat diunggah langsung atau dipakai
+          dari URL yang sudah ada.
         </p>
       </div>
 

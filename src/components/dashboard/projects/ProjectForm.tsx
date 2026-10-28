@@ -3,6 +3,19 @@
 import { useRef, useState } from "react";
 import Link from "next/link";
 import { CATEGORY_OPTIONS } from "@/lib/demo/projects";
+import {
+  CMS_IMAGE_ACCEPT_ATTRIBUTE,
+  CMS_IMAGE_FORMAT_HINT,
+  CMS_PROJECT_IMAGE_GUIDANCE,
+  formatCmsImageSize,
+  type CmsImageSourceType,
+} from "@/lib/cms/image-source";
+import {
+  useCmsImageField,
+  type CmsImageSubmission,
+} from "@/lib/cms/use-cms-image-field";
+import CmsImageSourceSelector from "@/components/dashboard/cms/CmsImageSourceSelector";
+import CmsUploadProgress from "@/components/dashboard/cms/CmsUploadProgress";
 
 export type ProjectFormValues = {
   title: string;
@@ -10,16 +23,25 @@ export type ProjectFormValues = {
   location: string;
   progress: number;
   description: string;
-  imageUrl: string;
+  // Resolved by the shared CMS image hook: the page only forwards it to the API.
+  image: CmsImageSubmission;
   imageAlt: string;
   status: "Active" | "Draft";
 };
 
-export type ProjectFormData = ProjectFormValues;
+// Initial data carries the text fields only; the image is described separately
+// so the edit page cannot accidentally seed a stale URL into the upload path.
+export type ProjectFormData = Omit<ProjectFormValues, "image">;
 
 type ProjectFormProps = {
   mode: "add" | "edit";
   initialData?: ProjectFormData;
+  // Stored image of the record being edited (absent on create).
+  initialImage?: {
+    imageUrl: string;
+    source: CmsImageSourceType;
+    blobPathname: string | null;
+  };
   submitLabel: string;
   onSubmit: (values: ProjectFormValues) => void | Promise<void>;
 };
@@ -29,7 +51,16 @@ const STATUS_OPTIONS = [
   { value: "Draft", label: "Draft" },
 ] as const;
 
-export default function ProjectForm({ mode, initialData, submitLabel, onSubmit }: ProjectFormProps) {
+const textInputClass =
+  "h-10 w-full rounded-lg border border-outline/60 bg-white px-3.5 text-sm font-semibold text-primary focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20 disabled:cursor-not-allowed disabled:opacity-60";
+
+export default function ProjectForm({
+  mode,
+  initialData,
+  initialImage,
+  submitLabel,
+  onSubmit,
+}: ProjectFormProps) {
   const [formTitle, setFormTitle] = useState(initialData?.title ?? "");
   const [formCategory, setFormCategory] = useState(
     initialData && CATEGORY_OPTIONS.includes(initialData.category)
@@ -39,46 +70,53 @@ export default function ProjectForm({ mode, initialData, submitLabel, onSubmit }
   const [formLocation, setFormLocation] = useState(initialData?.location ?? "");
   const [formProgress, setFormProgress] = useState(initialData?.progress ?? 0);
   const [formDescription, setFormDescription] = useState(initialData?.description ?? "");
-  const [formImageUrl, setFormImageUrl] = useState(initialData?.imageUrl ?? "");
   const [formImageAlt, setFormImageAlt] = useState(initialData?.imageAlt ?? "");
   const [formStatus, setFormStatus] = useState<"Active" | "Draft">(
     initialData?.status ?? "Active",
   );
-  const [previewFile, setPreviewFile] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const busyRef = useRef(false);
+
+  // Shared CMS image state machine (source mode, pending file, upload, cleanup).
+  // On create it defaults to Upload Gambar; on edit it mirrors the stored source.
+  const image = useCmsImageField({
+    module: "projects",
+    initial: initialImage ?? null,
+  });
+
+  const busy = image.uploading || submitting;
 
   function handleFileChange(event: React.ChangeEvent<HTMLInputElement>): void {
     const file = event.target.files?.[0];
+    // Allow re-selecting the same file after a failed attempt.
+    event.target.value = "";
     if (!file) {
       return;
     }
-    if (previewFile?.startsWith("blob:")) {
-      URL.revokeObjectURL(previewFile);
-    }
-    // Preview-only: object URLs are never sent to the API (see handleSubmit).
-    setPreviewFile(URL.createObjectURL(file));
-  }
-
-  function handleRemovePreview(): void {
-    if (previewFile?.startsWith("blob:")) {
-      URL.revokeObjectURL(previewFile);
-    }
-    setPreviewFile(null);
+    setFormError(null);
+    image.selectFile(file);
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
-    if (!formTitle.trim() || !formCategory.trim() || !formLocation.trim() || !formImageUrl.trim()) {
-      setFormError("Lengkapi title, category, location, dan URL gambar project.");
+    if (busyRef.current) {
       return;
     }
-    if (formImageUrl.trim().startsWith("blob:")) {
-      setFormError("Upload file permanen belum tersedia. Gunakan URL/path gambar.");
+    if (!formTitle.trim() || !formCategory.trim() || !formLocation.trim()) {
+      setFormError("Lengkapi nama proyek, kategori, dan lokasi proyek.");
       return;
     }
     setFormError(null);
+    busyRef.current = true;
+
+    const submission = await image.resolveSubmission();
+    if (!submission) {
+      busyRef.current = false;
+      return;
+    }
+
     setSubmitting(true);
     try {
       await onSubmit({
@@ -87,18 +125,26 @@ export default function ProjectForm({ mode, initialData, submitLabel, onSubmit }
         location: formLocation.trim(),
         progress: Number.isFinite(formProgress) ? formProgress : 0,
         description: formDescription.trim(),
-        imageUrl: formImageUrl.trim(),
+        image: submission,
         imageAlt: formImageAlt.trim(),
         status: formStatus,
       });
     } catch (error) {
+      // The upload already succeeded but the record was not written: remove the
+      // freshly uploaded object so it does not become an orphan.
+      await image.cleanupOrphan(submission);
       setFormError(error instanceof Error ? error.message : "Gagal menyimpan project.");
     } finally {
       setSubmitting(false);
+      busyRef.current = false;
     }
   }
 
-  const canvasSrc = previewFile ?? (formImageUrl.startsWith("blob:") ? "" : formImageUrl);
+  const fileInfoLabel = image.currentFileInfo
+    ? image.currentFileInfo.bytes !== null
+      ? `${image.currentFileInfo.name} • ${formatCmsImageSize(image.currentFileInfo.bytes)}`
+      : `${image.currentFileInfo.name} • tersimpan`
+    : null;
 
   return (
     <form onSubmit={(e) => void handleSubmit(e)} className="space-y-6">
@@ -122,7 +168,7 @@ export default function ProjectForm({ mode, initialData, submitLabel, onSubmit }
                 type="text"
                 value={formTitle}
                 onChange={(e) => setFormTitle(e.target.value)}
-                className="h-10 w-full rounded-lg border border-outline/60 bg-white px-3.5 text-sm font-semibold text-primary focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
+                className={textInputClass}
               />
               <span className="mt-1 block text-[11px] text-primary/50">
                 Maksimal 160 karakter untuk headline optimal.
@@ -136,7 +182,7 @@ export default function ProjectForm({ mode, initialData, submitLabel, onSubmit }
                 id="projectCategory"
                 value={formCategory}
                 onChange={(e) => setFormCategory(e.target.value)}
-                className="h-10 w-full rounded-lg border border-outline/60 bg-white px-3 text-sm text-primary focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
+                className={textInputClass}
               >
                 {CATEGORY_OPTIONS.map((option) => (
                   <option key={option}>{option}</option>
@@ -177,7 +223,7 @@ export default function ProjectForm({ mode, initialData, submitLabel, onSubmit }
                 id="projectStatus"
                 value={formStatus}
                 onChange={(e) => setFormStatus(e.target.value as "Active" | "Draft")}
-                className="h-10 w-full rounded-lg border border-outline/60 bg-white px-3 text-sm text-primary focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
+                className={textInputClass}
               >
                 {STATUS_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -265,123 +311,178 @@ export default function ProjectForm({ mode, initialData, submitLabel, onSubmit }
           <h3 className="text-lg font-bold text-primary">Media Upload</h3>
         </div>
         <div className="space-y-4 p-5">
-          <div>
-            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-              <div>
+          <CmsImageSourceSelector
+            name="projectImageSource"
+            value={image.sourceMode}
+            onChange={image.changeSource}
+            disabled={busy}
+            guidance={CMS_PROJECT_IMAGE_GUIDANCE}
+          />
+
+          {image.sourceMode === "upload" ? (
+            <div>
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                 <span className="text-xs font-bold text-primary">
                   Media Visual Utama Proyek (Thumbnail)
                 </span>
-                <p className="text-[11px] text-primary/50">
-                  Rekomendasi rasio 16:9, resolusi minimal 2400x1350px (WebP / Ultra-HD JPG maks 5MB).
-                </p>
+                <span className="text-[11px] text-primary/50">{CMS_IMAGE_FORMAT_HINT}</span>
               </div>
-              <div className="flex gap-2">
+              <div className="relative aspect-[16/9] max-h-72 overflow-hidden rounded-lg border border-outline bg-slate-900">
+                {image.previewSrc ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={image.previewSrc}
+                    alt={`Pratinjau media ${formTitle || "proyek"}`}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-slate-500">
+                    <span className="text-xs">Belum ada media.</span>
+                  </div>
+                )}
+                <div className="absolute inset-0 flex items-end bg-gradient-to-t from-black/80 via-black/20 to-transparent p-4 text-white">
+                  <div className="flex w-full items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <span className="rounded-lg bg-secondary px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider">
+                        Foto Utama Aktif
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
                 <input
                   ref={fileInputRef}
+                  id="projectImageFile"
                   type="file"
-                  accept=".jpg,.jpeg,.png,.webp"
+                  accept={CMS_IMAGE_ACCEPT_ATTRIBUTE}
                   onChange={handleFileChange}
-                  className="hidden"
-                  aria-label={mode === "add" ? "Pratinjau foto proyek" : "Ganti pratinjau foto"}
+                  disabled={busy}
+                  className="sr-only"
+                  aria-label={mode === "add" ? "Pilih gambar proyek" : "Ganti gambar proyek"}
                 />
                 <button
                   type="button"
+                  disabled={busy}
                   onClick={() => fileInputRef.current?.click()}
-                  className="flex items-center gap-1 rounded-lg bg-secondary px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-primary"
+                  className="flex items-center gap-1 rounded-lg bg-secondary px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-primary disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                     <polyline points="17 8 12 3 7 8" />
                     <line x1="12" x2="12" y1="3" y2="15" />
                   </svg>
-                  <span>Pratinjau Foto</span>
+                  <span>{mode === "add" ? "Pilih Gambar" : "Ganti Gambar"}</span>
                 </button>
-                {previewFile ? (
+                {image.pendingFile ? (
                   <button
                     type="button"
-                    onClick={handleRemovePreview}
-                    className="rounded-lg border border-outline/70 bg-white px-3 py-1.5 text-xs font-semibold text-slate-500 transition-colors hover:bg-slate-50"
+                    disabled={busy}
+                    onClick={image.clearPending}
+                    className="rounded-lg border border-outline/70 bg-white px-3 py-1.5 text-xs font-semibold text-red-700 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    Hapus Pratinjau
+                    Batalkan
                   </button>
                 ) : null}
+                {fileInfoLabel ? (
+                  <span className="min-w-0 max-w-full truncate text-[11px] text-primary/60">
+                    {fileInfoLabel}
+                  </span>
+                ) : (
+                  <span className="text-[11px] text-primary/50">
+                    Gambar diunggah saat Anda menekan simpan.
+                  </span>
+                )}
               </div>
             </div>
-            <div className="group relative aspect-[16/9] max-h-72 overflow-hidden rounded-lg border border-outline bg-slate-900">
-              {canvasSrc ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={canvasSrc} alt={`Pratinjau media ${formTitle || "proyek"}`} className="h-full w-full object-cover" />
-              ) : (
-                <div className="flex h-full w-full items-center justify-center text-slate-500">
-                  <span className="text-xs">Belum ada media.</span>
-                </div>
-              )}
-              <div className="absolute inset-0 flex items-end bg-gradient-to-t from-black/80 via-black/20 to-transparent p-4 text-white">
-                <div className="flex w-full items-center justify-between gap-2">
-                  <div className="min-w-0">
-                    <span className="rounded-lg bg-secondary px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider">
-                      Foto Utama Aktif
-                    </span>
+          ) : (
+            <div>
+              <div className="relative aspect-[16/9] max-h-72 overflow-hidden rounded-lg border border-outline bg-slate-900">
+                {image.previewSrc ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={image.previewSrc}
+                    alt={`Pratinjau media ${formTitle || "proyek"}`}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-slate-500">
+                    <span className="text-xs">Belum ada media.</span>
                   </div>
-                </div>
+                )}
+              </div>
+              <div className="mt-3">
+                <label htmlFor="projectImageUrl" className="mb-1.5 block text-xs font-bold text-primary">
+                  URL Gambar Project <span className="text-red-700">*</span>
+                </label>
+                <input
+                  id="projectImageUrl"
+                  type="text"
+                  placeholder="misal: /asset/hero/7.jpg atau https://..."
+                  value={image.urlValue}
+                  onChange={(e) => image.setUrlValue(e.target.value)}
+                  disabled={busy}
+                  className={textInputClass}
+                />
+                <p className="mt-1 text-[11px] text-primary/50">
+                  Gunakan URL gambar yang sudah ada. Path lokal seperti{" "}
+                  <code>/asset/hero/7.jpg</code> tetap didukung.
+                </p>
               </div>
             </div>
-            <div className="mt-3">
-              <label htmlFor="projectImageUrl" className="mb-1.5 block text-xs font-bold text-primary">
-                URL Gambar Project <span className="text-red-700">*</span>
-              </label>
-              <input
-                id="projectImageUrl"
-                type="text"
-                placeholder="misal: /asset/hero/7.jpg atau https://..."
-                value={formImageUrl}
-                onChange={(e) => setFormImageUrl(e.target.value)}
-                className="h-10 w-full rounded-lg border border-outline/60 bg-white px-3.5 text-sm font-semibold text-primary focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
-              />
-              <p className="mt-1 text-[11px] text-primary/50">
-                Nilai inilah yang tersimpan. Pratinjau file lokal di atas tidak tersimpan.
-              </p>
-            </div>
-            <div className="mt-3">
-              <label htmlFor="projectImageAlt" className="mb-1.5 block text-xs font-bold text-primary">
-                Alt Text Gambar
-              </label>
-              <input
-                id="projectImageAlt"
-                type="text"
-                placeholder="Deskripsi gambar untuk aksesibilitas."
-                value={formImageAlt}
-                onChange={(e) => setFormImageAlt(e.target.value)}
-                className="h-10 w-full rounded-lg border border-outline/60 bg-white px-3.5 text-sm font-semibold text-primary focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
-              />
-            </div>
+          )}
+
+          {image.uploading ? (
+            <CmsUploadProgress percent={image.uploadPercent} label="Mengunggah gambar proyek..." />
+          ) : null}
+
+          <div>
+            <label htmlFor="projectImageAlt" className="mb-1.5 block text-xs font-bold text-primary">
+              Alt Text Gambar
+            </label>
+            <input
+              id="projectImageAlt"
+              type="text"
+              placeholder="Deskripsi gambar untuk aksesibilitas."
+              value={formImageAlt}
+              onChange={(e) => setFormImageAlt(e.target.value)}
+              className={textInputClass}
+            />
           </div>
         </div>
       </div>
 
-      {formError ? (
+      {formError ?? image.error ? (
         <p role="alert" className="rounded-lg border border-red-300 bg-red-50 px-4 py-2.5 text-xs font-semibold text-red-700">
-          {formError}
+          {formError ?? image.error}
         </p>
       ) : null}
 
       <div className="flex flex-wrap items-center justify-end gap-3">
         <Link
           href="/dashboard/projects"
-          className="rounded-lg border border-outline bg-surface px-5 py-2.5 text-xs font-bold text-primary transition-colors hover:bg-background"
+          aria-disabled={busy}
+          onClick={(event) => {
+            if (busy) event.preventDefault();
+          }}
+          className={`rounded-lg border border-outline bg-surface px-5 py-2.5 text-xs font-bold text-primary transition-colors hover:bg-background ${
+            busy ? "pointer-events-none opacity-60" : ""
+          }`}
         >
           Batal
         </Link>
         <button
           type="submit"
-          disabled={submitting}
+          disabled={busy}
           className="flex items-center gap-2 rounded-lg bg-primary px-6 py-2.5 text-xs font-bold text-white shadow transition-all hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-60"
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
             <polyline points="22 4 12 14.01 9 11.01" />
           </svg>
-          <span>{submitting ? "Menyimpan..." : submitLabel}</span>
+          <span>
+            {image.uploading ? "Mengunggah..." : submitting ? "Menyimpan..." : submitLabel}
+          </span>
         </button>
       </div>
     </form>

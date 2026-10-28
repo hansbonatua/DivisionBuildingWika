@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { getPermittedActor, mapPermissionError } from "@/lib/auth/require-permission";
+import { mapCmsImageError } from "@/lib/cms/error-response";
 import { updateSocialPostSchema } from "@/lib/social-posts/social-post.schema";
 import * as socialPostService from "@/lib/social-posts/social-post.service";
 import { serializeSocialPostDocument } from "@/lib/social-posts/social-post.types";
@@ -73,6 +74,10 @@ export async function PATCH(request: Request, context: RouteContext) {
   } catch (error) {
     const mapped = mapPermissionError(error);
     if (mapped) return mapped;
+    // Uploaded-image verification and CMS store failures are client/storage
+    // problems, never an opaque 500.
+    const cmsImageError = mapCmsImageError(error);
+    if (cmsImageError) return cmsImageError;
     console.error("PATCH /api/social-posts/[id] failed", error);
     return NextResponse.json({ error: { message: "Internal server error" } }, { status: 500 });
   }

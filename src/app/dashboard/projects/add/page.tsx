@@ -17,7 +17,11 @@ export default function AddProjectPage() {
         location: values.location,
         progress: values.progress,
         description: values.description,
-        imageUrl: values.imageUrl,
+        // The image is already in the public CMS store when it was uploaded;
+        // the API re-verifies the object before writing this row.
+        imageUrl: values.image.imageUrl,
+        imageSource: values.image.imageSource,
+        blobPathname: values.image.blobPathname,
         imageAlt: values.imageAlt,
         status: values.status,
       }),

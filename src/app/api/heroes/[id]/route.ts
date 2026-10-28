@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { getPermittedActor, mapPermissionError } from "@/lib/auth/require-permission";
+import { mapCmsImageError } from "@/lib/cms/error-response";
 import { updateHeroSchema } from "@/lib/heroes/hero.schema";
 import * as heroService from "@/lib/heroes/hero.service";
 import { serializeHeroDocument } from "@/lib/heroes/hero.types";
@@ -73,6 +74,8 @@ export async function PATCH(request: Request, context: RouteContext) {
   } catch (error) {
     const mapped = mapPermissionError(error);
     if (mapped) return mapped;
+    const cmsImageError = mapCmsImageError(error);
+    if (cmsImageError) return cmsImageError;
     console.error("PATCH /api/heroes/[id] failed", error);
     return NextResponse.json({ error: { message: "Internal server error" } }, { status: 500 });
   }
@@ -94,6 +97,8 @@ export async function DELETE(_request: Request, context: RouteContext) {
   } catch (error) {
     const mapped = mapPermissionError(error);
     if (mapped) return mapped;
+    const cmsImageError = mapCmsImageError(error);
+    if (cmsImageError) return cmsImageError;
     console.error("DELETE /api/heroes/[id] failed", error);
     return NextResponse.json({ error: { message: "Internal server error" } }, { status: 500 });
   }

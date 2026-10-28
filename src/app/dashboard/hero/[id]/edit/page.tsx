@@ -106,7 +106,12 @@ export default function EditHeroPage({ params }: { params: Promise<{ id: string 
         projectName: values.project,
         location: values.location,
         status: values.status,
-        imageUrl: values.image,
+        // Unchanged image ⇒ the API keeps the stored ownership metadata and
+        // never touches the Blob object. Changed image ⇒ the API re-verifies a
+        // fresh upload and deletes the previous CMS-owned object after saving.
+        imageUrl: values.image.imageUrl,
+        imageSource: values.image.imageSource,
+        blobPathname: values.image.blobPathname,
         description: values.description,
         imageAlt: values.imageAlt,
       }),
@@ -157,8 +162,8 @@ export default function EditHeroPage({ params }: { params: Promise<{ id: string 
           <HeroStatusBadge badge={adapted.badge} active={adapted.badgeActive} />
         </div>
         <p className="mt-1 max-w-3xl text-base text-primary/70">
-          Slide #{activeIndex + 1} ({shortTitle(hero.title)}) — ID #{hero._id}. Demo: perubahan tidak disimpan
-          permanen.
+          Slide #{activeIndex + 1} ({shortTitle(hero.title)}) — ID #{hero._id}. Sumber gambar:{" "}
+          {hero.imageSource === "upload" ? "unggahan CMS" : "URL"}.
         </p>
       </div>
 
@@ -168,6 +173,11 @@ export default function EditHeroPage({ params }: { params: Promise<{ id: string 
             <HeroForm
               mode="edit"
               initialData={adapted}
+              initialImage={{
+                imageUrl: hero.imageUrl,
+                source: hero.imageSource ?? "external",
+                blobPathname: hero.blobPathname ?? null,
+              }}
               submitLabel="Publish"
               onSubmit={handlePatch}
             />

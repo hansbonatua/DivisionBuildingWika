@@ -1,4 +1,5 @@
 import type { ObjectId } from "mongodb";
+import type { CmsImageSourceType } from "@/lib/cms/image-source";
 
 export type PortfolioProjectStatus = "Active" | "Draft";
 
@@ -10,6 +11,11 @@ export type PortfolioProjectDocument = {
   progress: number;
   status: PortfolioProjectStatus;
   imageUrl: string;
+  // Image ownership metadata (optional, additive — Mongo needs no migration).
+  // Absent on every legacy document, which is read as "external" and is
+  // therefore never auto-deleted.
+  imageSource?: CmsImageSourceType;
+  blobPathname?: string | null;
   imageAlt: string;
   description: string;
   sortOrder: number;
@@ -19,7 +25,8 @@ export type PortfolioProjectDocument = {
 
 export type NewPortfolioProjectDocument = Omit<PortfolioProjectDocument, "_id">;
 
-// Public landing payload: display fields only, no ids or timestamps.
+// Public landing payload: display fields only, no ids, timestamps or storage
+// metadata. `blobPathname` and `imageSource` must never reach this projection.
 export type PortfolioProjectPublic = {
   title: string;
   category: string;

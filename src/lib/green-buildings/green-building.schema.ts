@@ -1,4 +1,12 @@
 import { z } from "zod";
+import { CMS_IMAGE_SOURCE_TYPES } from "@/lib/cms/image-source";
+
+// Image ownership metadata, identical to Hero / Portfolio: `imageUrl` stays the
+// only render field, while these two optional fields let cleanup tell a CMS
+// object from a hot-linked URL. Legacy documents have neither and are treated
+// as external.
+const imageSourceSchema = z.enum(CMS_IMAGE_SOURCE_TYPES);
+const blobPathnameSchema = z.string().trim().min(1).max(400);
 
 export const createGreenBuildingSchema = z.object({
   projectName: z.string().trim().min(1, "Project name wajib diisi").max(160),
@@ -10,6 +18,8 @@ export const createGreenBuildingSchema = z.object({
   score: z.number().min(0).max(100).default(0),
   description: z.string().trim().max(500).default(""),
   imageUrl: z.string().trim().min(1, "Image URL wajib diisi"),
+  imageSource: imageSourceSchema.optional(),
+  blobPathname: blobPathnameSchema.nullable().optional(),
   imageAlt: z.string().trim().max(200).default(""),
   status: z.enum(["Verified", "Pending", "Expired"]).default("Pending"),
   publishStatus: z.enum(["Draft", "Published", "Archived"]).default("Draft"),
@@ -30,6 +40,8 @@ export const updateGreenBuildingSchema = z
     score: z.number().min(0).max(100).optional(),
     description: z.string().trim().max(500).optional(),
     imageUrl: z.string().trim().min(1, "Image URL wajib diisi").optional(),
+    imageSource: imageSourceSchema.optional(),
+    blobPathname: blobPathnameSchema.nullable().optional(),
     imageAlt: z.string().trim().max(200).optional(),
     status: z.enum(["Verified", "Pending", "Expired"]).optional(),
     publishStatus: z.enum(["Draft", "Published", "Archived"]).optional(),

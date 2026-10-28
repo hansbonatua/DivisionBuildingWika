@@ -3,7 +3,10 @@
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import CertificateForm, { type CertificateFormValues } from "@/components/dashboard/green-building/CertificateForm";
+import CertificateForm, {
+  type CertificateFormDraft,
+  type CertificateFormValues,
+} from "@/components/dashboard/green-building/CertificateForm";
 import CertificatePreview from "@/components/dashboard/green-building/CertificatePreview";
 import CertificateStatusBadge from "@/components/dashboard/green-building/CertificateStatusBadge";
 import type { GreenBuildingApiItem } from "@/components/dashboard/green-building/green-building-api.types";
@@ -14,7 +17,7 @@ export default function EditCertificatePage({ params }: { params: Promise<{ id: 
   const [certificate, setCertificate] = useState<GreenBuildingApiItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [liveValues, setLiveValues] = useState<CertificateFormValues | null>(null);
+  const [liveValues, setLiveValues] = useState<CertificateFormDraft | null>(null);
   const [livePreview, setLivePreview] = useState<string | null>(null);
 
   async function loadCertificate(): Promise<void> {
@@ -58,7 +61,12 @@ export default function EditCertificatePage({ params }: { params: Promise<{ id: 
         certificateNumber: values.certificateNumber,
         score: values.score,
         description: values.description,
-        imageUrl: values.imageUrl,
+        // Unchanged image ⇒ the API keeps the stored ownership metadata and
+        // never touches the Blob object. Changed image ⇒ the API re-verifies a
+        // fresh upload and deletes the previous CMS-owned object after saving.
+        imageUrl: values.image.imageUrl,
+        imageSource: values.image.imageSource,
+        blobPathname: values.image.blobPathname,
         imageAlt: values.imageAlt,
         status: values.status,
         publishStatus: values.publishStatus,
@@ -132,7 +140,7 @@ export default function EditCertificatePage({ params }: { params: Promise<{ id: 
     );
   }
 
-  const previewImage = livePreview ?? liveValues?.imageUrl ?? certificate.imageUrl;
+  const previewImage = livePreview ?? certificate.imageUrl;
 
   return (
     <div className="space-y-6">
@@ -171,10 +179,14 @@ export default function EditCertificatePage({ params }: { params: Promise<{ id: 
               certificateNumber: certificate.certificateNumber,
               score: certificate.score,
               description: certificate.description,
-              imageUrl: certificate.imageUrl,
               imageAlt: certificate.imageAlt,
               status: certificate.status,
               publishStatus: certificate.publishStatus,
+            }}
+            initialImage={{
+              imageUrl: certificate.imageUrl,
+              source: certificate.imageSource ?? "external",
+              blobPathname: certificate.blobPathname ?? null,
             }}
             submitLabel="Simpan Sertifikat"
             onSubmit={handlePatch}

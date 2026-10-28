@@ -68,6 +68,20 @@ export async function deleteById(id: string): Promise<boolean> {
   return result.deletedCount === 1;
 }
 
+// True when any Hero document still points at this stored CMS image pathname.
+// Used by the orphan-cleanup helper before an object may be deleted.
+export async function existsByBlobPathname(pathname: string): Promise<boolean> {
+  if (typeof pathname !== "string" || pathname.length === 0) {
+    return false;
+  }
+  const collection = await getCollection();
+  const found = await collection.findOne(
+    { blobPathname: pathname },
+    { projection: { _id: 1 } },
+  );
+  return found !== null;
+}
+
 export async function getMaxSortOrder(): Promise<number | null> {
   const collection = await getCollection();
   const top = await collection.find({}).sort({ sortOrder: -1 }).limit(1).toArray();

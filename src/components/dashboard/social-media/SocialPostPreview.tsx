@@ -27,14 +27,33 @@ export default function SocialPostPreview({
           </div>
           <span className="truncate text-sm font-bold text-primary">{account || "-"}</span>
         </div>
-        <div className="relative aspect-[16/10] w-full bg-slate-100">
+        <div className="relative flex aspect-[16/10] w-full items-center justify-center bg-slate-100">
           {image.trim().startsWith("/") ? (
             <Image src={image} alt="Preview postingan" fill sizes="(max-width: 1024px) 100vw, 33vw" className="object-cover" />
           ) : image.trim().startsWith("http://") || image.trim().startsWith("https://") ? (
             // Remote URLs bypass next/image so no remotePatterns config is needed.
             // eslint-disable-next-line @next/next/no-img-element
             <img src={image} alt="Preview postingan" className="h-full w-full object-cover" />
-          ) : null}
+          ) : (
+            // "Tanpa Gambar": mirrors the landing glyph fallback, so the editor
+            // sees exactly what a curated post without an image will look like.
+            <svg
+              width="40"
+              height="40"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+              className="text-secondary"
+            >
+              <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
+              <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+              <line x1="17.5" x2="17.51" y1="6.5" y2="6.5" />
+            </svg>
+          )}
         </div>
         <div className="p-4">
           <p className="text-sm leading-relaxed text-primary/70">{caption || "-"}</p>

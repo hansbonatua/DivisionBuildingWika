@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { getPermittedActor, mapPermissionError } from "@/lib/auth/require-permission";
+import { mapCmsImageError } from "@/lib/cms/error-response";
 import { createHeroSchema } from "@/lib/heroes/hero.schema";
 import * as heroService from "@/lib/heroes/hero.service";
 import { serializeHeroDocument } from "@/lib/heroes/hero.types";
@@ -52,6 +53,10 @@ export async function POST(request: Request) {
   } catch (error) {
     const mapped = mapPermissionError(error);
     if (mapped) return mapped;
+    // Uploaded-image verification and CMS store failures are client/storage
+    // problems, never an opaque 500.
+    const cmsImageError = mapCmsImageError(error);
+    if (cmsImageError) return cmsImageError;
     console.error("POST /api/heroes failed", error);
     return NextResponse.json({ error: { message: "Internal server error" } }, { status: 500 });
   }

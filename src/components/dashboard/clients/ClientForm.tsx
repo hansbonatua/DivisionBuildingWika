@@ -2,33 +2,59 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import {
+  CMS_CLIENT_LOGO_GUIDANCE,
+  CMS_IMAGE_ACCEPT_ATTRIBUTE,
+  CMS_IMAGE_FORMAT_HINT,
+  CMS_LOGO_SOURCE_LABELS,
+  cmsImageFileExtension,
+  formatCmsImageSize,
+  type CmsImageSourceType,
+} from "@/lib/cms/image-source";
+import {
+  useCmsImageField,
+  type CmsImageSubmission,
+} from "@/lib/cms/use-cms-image-field";
+import CmsImageSourceSelector from "@/components/dashboard/cms/CmsImageSourceSelector";
+import CmsUploadProgress from "@/components/dashboard/cms/CmsUploadProgress";
 
 export type ClientFormValues = {
   name: string;
   shortName: string;
   category: string;
   link: string;
-  logoUrl: string;
   logoAlt: string;
   status: "active" | "hidden";
+  // Resolved by the shared CMS image hook: the page only forwards it to the API.
+  logo: CmsImageSubmission;
 };
 
-export type ClientFormData = {
+// Initial data carries the text fields only; the logo is described separately
+// so the edit page cannot accidentally seed a stale URL into the upload path.
+export type ClientFormData = Omit<ClientFormValues, "logo">;
+
+// What the side preview panel renders while the form is being edited.
+export type ClientFormLiveValues = {
   name: string;
   shortName: string;
-  category: string;
   link: string;
-  logoUrl: string;
-  logoAlt: string;
   status: "active" | "hidden";
+  previewLogo: string | null;
+  logoFormat: string;
 };
 
 type ClientFormProps = {
   mode: "add" | "edit";
   initialData?: ClientFormData;
+  // Stored logo of the record being edited (absent on create).
+  initialImage?: {
+    imageUrl: string;
+    source: CmsImageSourceType;
+    blobPathname: string | null;
+  };
   submitLabel: string;
   onSubmit: (values: ClientFormValues) => void | Promise<void>;
-  onValuesChange?: (values: ClientFormValues & { previewLogo: string | null }) => void;
+  onValuesChange?: (values: ClientFormLiveValues) => void;
 };
 
 const STATUS_OPTIONS = [
@@ -37,11 +63,24 @@ const STATUS_OPTIONS = [
 ] as const;
 
 const inputClass =
-  "w-full rounded border border-outline bg-surface py-2 px-3.5 text-xs font-medium text-primary placeholder:text-primary/40 focus:border-secondary focus:outline-none focus:ring-1 focus:ring-secondary";
+  "w-full rounded border border-outline bg-surface py-2 px-3.5 text-xs font-medium text-primary placeholder:text-primary/40 focus:border-secondary focus:outline-none focus:ring-1 focus:ring-secondary disabled:cursor-not-allowed disabled:opacity-60";
+
+// Checkerboard backdrop so a transparent PNG/WEBP logo is visible on any theme.
+const CHECKERBOARD_STYLE = {
+  backgroundImage:
+    "repeating-conic-gradient(#f1f5f9 0% 25%, #ffffff 0% 50%)",
+  backgroundSize: "12px 12px",
+} as const;
+
+function formatFromUrl(url: string): string {
+  const extension = cmsImageFileExtension(url.split("?")[0] ?? "");
+  return extension ? extension.slice(1).toUpperCase() : "IMG";
+}
 
 export default function ClientForm({
   mode,
   initialData,
+  initialImage,
   submitLabel,
   onSubmit,
   onValuesChange,
@@ -50,60 +89,88 @@ export default function ClientForm({
   const [formShortName, setFormShortName] = useState(initialData?.shortName ?? "");
   const [formCategory, setFormCategory] = useState(initialData?.category ?? "");
   const [formLink, setFormLink] = useState(initialData?.link ?? "");
-  const [formLogoUrl, setFormLogoUrl] = useState(initialData?.logoUrl ?? "");
   const [formLogoAlt, setFormLogoAlt] = useState(initialData?.logoAlt ?? "");
   const [formStatus, setFormStatus] = useState<"active" | "hidden">(initialData?.status ?? "active");
-  const [previewFile, setPreviewFile] = useState<string | null>(null);
-  const [logoFormat, setLogoFormat] = useState("SVG");
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const busyRef = useRef(false);
+
+  // Shared CMS image state machine (source mode, pending file, upload, cleanup).
+  // On create it defaults to Upload Logo; on edit it mirrors the stored source.
+  const image = useCmsImageField({
+    module: "clients",
+    initial: initialImage ?? null,
+  });
+
+  const busy = image.uploading || submitting;
+
+  const pendingExtension = image.pendingFile
+    ? cmsImageFileExtension(image.pendingFile.name)
+    : null;
+  const logoFormat = pendingExtension
+    ? pendingExtension.slice(1).toUpperCase()
+    : image.sourceMode === "external"
+      ? formatFromUrl(image.urlValue)
+      : "UPLOAD";
 
   useEffect(() => {
     onValuesChange?.({
       name: formName,
       shortName: formShortName,
-      category: formCategory,
       link: formLink,
-      logoUrl: formLogoUrl,
-      logoAlt: formLogoAlt,
       status: formStatus,
-      previewLogo: previewFile,
+      previewLogo: image.previewSrc || null,
+      logoFormat,
     });
-  }, [formName, formShortName, formCategory, formLink, formLogoUrl, formLogoAlt, formStatus, previewFile, onValuesChange]);
+  }, [
+    formName,
+    formShortName,
+    formLink,
+    formStatus,
+    image.previewSrc,
+    logoFormat,
+    onValuesChange,
+  ]);
 
   function handleFileChange(event: React.ChangeEvent<HTMLInputElement>): void {
     const file = event.target.files?.[0];
+    // Allow re-selecting the same file after a failed attempt.
+    event.target.value = "";
     if (!file) {
       return;
     }
-    if (previewFile?.startsWith("blob:")) {
-      URL.revokeObjectURL(previewFile);
-    }
-    setLogoFormat(file.name.split(".").pop()?.toUpperCase() ?? "IMG");
-    // Preview-only: object URLs are never sent to the API (see handleSubmit).
-    setPreviewFile(URL.createObjectURL(file));
-  }
-
-  function handleRemovePreview(): void {
-    if (previewFile?.startsWith("blob:")) {
-      URL.revokeObjectURL(previewFile);
-    }
-    setPreviewFile(null);
-    setLogoFormat("SVG");
+    setFormError(null);
+    image.selectFile(file);
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
-    if (!formName.trim() || !formLogoUrl.trim()) {
-      setFormError("Lengkapi nama instansi dan URL logo.");
+    if (busyRef.current) {
       return;
     }
-    if (formLogoUrl.trim().startsWith("blob:")) {
-      setFormError("Gunakan URL logo yang dapat disimpan. Upload file permanen belum tersedia.");
+    if (!formName.trim()) {
+      setFormError("Lengkapi nama instansi.");
       return;
     }
     setFormError(null);
+    busyRef.current = true;
+
+    const submission = await image.resolveSubmission();
+    if (!submission) {
+      busyRef.current = false;
+      return;
+    }
+    if (
+      submission.imageSource === "external" &&
+      submission.imageUrl.startsWith("blob:")
+    ) {
+      // A browser object URL is never persistable — it dies with the page.
+      image.setError("Gunakan URL logo yang dapat disimpan.");
+      busyRef.current = false;
+      return;
+    }
+
     setSubmitting(true);
     try {
       await onSubmit({
@@ -111,18 +178,26 @@ export default function ClientForm({
         shortName: formShortName.trim(),
         category: formCategory.trim(),
         link: formLink.trim(),
-        logoUrl: formLogoUrl.trim(),
         logoAlt: formLogoAlt.trim(),
         status: formStatus,
+        logo: submission,
       });
     } catch (error) {
+      // The upload already succeeded but the record was not written: remove the
+      // freshly uploaded object so it does not become an orphan.
+      await image.cleanupOrphan(submission);
       setFormError(error instanceof Error ? error.message : "Gagal menyimpan data client.");
     } finally {
       setSubmitting(false);
+      busyRef.current = false;
     }
   }
 
-  const canvasSrc = previewFile ?? (formLogoUrl.startsWith("blob:") ? "" : formLogoUrl);
+  const fileInfoLabel = image.currentFileInfo
+    ? image.currentFileInfo.bytes !== null
+      ? `${image.currentFileInfo.name} • ${formatCmsImageSize(image.currentFileInfo.bytes)}`
+      : `${image.currentFileInfo.name} • tersimpan`
+    : null;
 
   return (
     <form onSubmit={(e) => void handleSubmit(e)} className="space-y-5 p-5">
@@ -136,6 +211,7 @@ export default function ClientForm({
           placeholder="cth. Kementerian Pekerjaan Umum dan Perumahan Rakyat"
           value={formName}
           onChange={(e) => setFormName(e.target.value)}
+          disabled={busy}
           className={inputClass}
         />
       </div>
@@ -151,6 +227,7 @@ export default function ClientForm({
             placeholder="cth. Kementerian PUPR"
             value={formShortName}
             onChange={(e) => setFormShortName(e.target.value)}
+            disabled={busy}
             className={inputClass}
           />
         </div>
@@ -164,21 +241,52 @@ export default function ClientForm({
             placeholder="cth. Kementerian RI"
             value={formCategory}
             onChange={(e) => setFormCategory(e.target.value)}
+            disabled={busy}
             className={inputClass}
           />
         </div>
       </div>
 
       <div>
-        <label className="mb-1.5 block text-xs font-bold text-primary">
-          Logo Instansi (Img-Logo) <span className="text-red-700">*</span>
-        </label>
-        <div className="flex flex-col items-center gap-4 rounded-lg border border-outline bg-surface p-4 sm:flex-row">
-          <div className="relative flex h-20 w-36 flex-col items-center justify-center rounded border border-outline/60 bg-surface p-2 shadow-sm">
-            <div className="flex h-full items-center justify-center overflow-hidden">
-              {canvasSrc ? (
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+          <span className="block text-xs font-bold text-primary">
+            Logo Instansi <span className="text-red-700">*</span>
+          </span>
+          <span className="text-[11px] text-primary/50">{CMS_IMAGE_FORMAT_HINT}</span>
+        </div>
+
+        <CmsImageSourceSelector
+          name="clientLogoSource"
+          label="Sumber Logo"
+          labels={CMS_LOGO_SOURCE_LABELS}
+          value={image.sourceMode}
+          onChange={image.changeSource}
+          disabled={busy}
+          guidance={CMS_CLIENT_LOGO_GUIDANCE}
+        />
+
+        {mode === "edit" && image.hasStoredImage && !image.pendingFile ? (
+          <p className="mt-3 text-[11px] font-semibold text-primary/60">
+            Logo saat ini
+            {image.storedSource === "upload"
+              ? " — tersimpan di penyimpanan publik"
+              : " — dari URL"}
+          </p>
+        ) : null}
+
+        <div className="mt-3 flex flex-col items-center gap-4 rounded-lg border border-outline bg-surface p-4 sm:flex-row">
+          <div
+            className="relative flex h-20 w-36 shrink-0 flex-col items-center justify-center rounded border border-outline/60 p-2 shadow-sm"
+            style={CHECKERBOARD_STYLE}
+          >
+            <div className="flex h-full w-full items-center justify-center overflow-hidden">
+              {image.previewSrc ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={canvasSrc} alt="Pratinjau logo" className="h-full w-full object-contain" />
+                <img
+                  src={image.previewSrc}
+                  alt={`Pratinjau logo ${formShortName || formName || "instansi"}`}
+                  className="h-full w-full object-contain"
+                />
               ) : (
                 <div className="flex flex-col items-center justify-center text-center">
                   <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="text-secondary">
@@ -199,73 +307,96 @@ export default function ClientForm({
               {logoFormat}
             </span>
           </div>
-          <div className="flex-1 space-y-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".png,.svg,.jpg,.jpeg"
-                onChange={handleFileChange}
-                className="hidden"
-                aria-label={mode === "add" ? "Unggah logo instansi" : "Ganti logo instansi"}
-              />
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="inline-flex items-center gap-1 rounded border border-secondary bg-surface px-3 py-1.5 text-xs font-bold text-secondary transition-colors hover:bg-background"
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242" />
-                  <path d="M12 12v9" />
-                  <path d="m16 16-4-4-4 4" />
-                </svg>
-                <span>{mode === "add" ? "Unggah Logo" : "Unggah / Ganti Logo"}</span>
-              </button>
-              <button
-                type="button"
-                onClick={handleRemovePreview}
-                className="inline-flex items-center gap-1 rounded border border-red-700/30 px-3 py-1.5 text-xs font-bold text-red-700 transition-colors hover:bg-red-50"
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M3 6h18" />
-                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-                  <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                </svg>
-                <span>Hapus</span>
-              </button>
+
+          {image.sourceMode === "upload" ? (
+            <div className="min-w-0 w-full flex-1 space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  ref={fileInputRef}
+                  id="clientLogoFile"
+                  type="file"
+                  accept={CMS_IMAGE_ACCEPT_ATTRIBUTE}
+                  onChange={handleFileChange}
+                  disabled={busy}
+                  className="sr-only"
+                  aria-label={mode === "add" ? "Pilih logo instansi" : "Ganti logo instansi"}
+                />
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => fileInputRef.current?.click()}
+                  className="inline-flex items-center gap-1 rounded border border-secondary bg-surface px-3 py-1.5 text-xs font-bold text-secondary transition-colors hover:bg-background disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242" />
+                    <path d="M12 12v9" />
+                    <path d="m16 16-4-4-4 4" />
+                  </svg>
+                  <span>{mode === "add" ? "Pilih Logo" : "Ganti Logo"}</span>
+                </button>
+                {image.pendingFile ? (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={image.clearPending}
+                    className="inline-flex items-center gap-1 rounded border border-red-700/30 px-3 py-1.5 text-xs font-bold text-red-700 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <span>Batalkan</span>
+                  </button>
+                ) : null}
+              </div>
+              {fileInfoLabel ? (
+                <p className="min-w-0 max-w-full truncate text-[11px] text-primary/60">
+                  {fileInfoLabel}
+                </p>
+              ) : (
+                <p className="text-[11px] leading-tight text-primary/50">
+                  Logo diunggah ke penyimpanan publik saat Anda menekan simpan.
+                </p>
+              )}
             </div>
-            <p className="text-[11px] leading-tight text-primary/50">
-              Format yang didukung: PNG, SVG, JPG (Rekomendasi 400x160 px, Max 1.5MB). Pratinjau file
-              bersifat lokal; yang tersimpan adalah URL di bawah.
-            </p>
+          ) : (
+            <div className="min-w-0 w-full flex-1 space-y-2">
+              <label htmlFor="clientLogoUrl" className="block text-xs font-bold text-primary">
+                URL Logo <span className="text-red-700">*</span>
+              </label>
+              <input
+                id="clientLogoUrl"
+                type="text"
+                placeholder="misal: /asset/partners/PUPR.png atau https://..."
+                value={image.urlValue}
+                onChange={(e) => image.setUrlValue(e.target.value)}
+                disabled={busy}
+                className={inputClass}
+              />
+              <p className="text-[11px] leading-tight text-primary/50">
+                Path lokal seperti <code>/asset/partners/PUPR.png</code> tetap didukung
+                (termasuk SVG yang sudah ada).
+              </p>
+            </div>
+          )}
+        </div>
+
+        {image.uploading ? (
+          <div className="mt-3">
+            <CmsUploadProgress percent={image.uploadPercent} label="Mengunggah logo..." />
           </div>
-        </div>
-        <div className="mt-3">
-          <label htmlFor="clientLogoUrl" className="mb-1.5 block text-xs font-bold text-primary">
-            URL Logo <span className="text-red-700">*</span>
-          </label>
-          <input
-            id="clientLogoUrl"
-            type="text"
-            placeholder="misal: /asset/partners/PUPR.png atau https://..."
-            value={formLogoUrl}
-            onChange={(e) => setFormLogoUrl(e.target.value)}
-            className={inputClass}
-          />
-        </div>
-        <div className="mt-3">
-          <label htmlFor="clientLogoAlt" className="mb-1.5 block text-xs font-bold text-primary">
-            Alt Text Logo
-          </label>
-          <input
-            id="clientLogoAlt"
-            type="text"
-            placeholder="Deskripsi logo untuk aksesibilitas."
-            value={formLogoAlt}
-            onChange={(e) => setFormLogoAlt(e.target.value)}
-            className={inputClass}
-          />
-        </div>
+        ) : null}
+      </div>
+
+      <div>
+        <label htmlFor="clientLogoAlt" className="mb-1.5 block text-xs font-bold text-primary">
+          Alt Text Logo
+        </label>
+        <input
+          id="clientLogoAlt"
+          type="text"
+          placeholder="Deskripsi logo untuk aksesibilitas."
+          value={formLogoAlt}
+          onChange={(e) => setFormLogoAlt(e.target.value)}
+          disabled={busy}
+          className={inputClass}
+        />
       </div>
 
       <div>
@@ -279,7 +410,8 @@ export default function ClientForm({
             placeholder="https://..."
             value={formLink}
             onChange={(e) => setFormLink(e.target.value)}
-            className="w-full rounded border border-outline bg-surface py-2 pl-8 pr-3.5 text-xs font-medium text-primary focus:border-secondary focus:outline-none focus:ring-1 focus:ring-secondary"
+            disabled={busy}
+            className="w-full rounded border border-outline bg-surface py-2 pl-8 pr-3.5 text-xs font-medium text-primary focus:border-secondary focus:outline-none focus:ring-1 focus:ring-secondary disabled:cursor-not-allowed disabled:opacity-60"
           />
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="absolute left-2.5 top-1/2 -translate-y-1/2 text-primary/50">
             <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
@@ -296,32 +428,42 @@ export default function ClientForm({
           id="clientStatus"
           value={formStatus}
           onChange={(e) => setFormStatus(e.target.value as "active" | "hidden")}
+          disabled={busy}
           className={inputClass}
         >
-          <option value="active">Aktif</option>
-          <option value="hidden">Nonaktif</option>
+          {STATUS_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
         </select>
       </div>
 
-      {formError ? (
+      {formError ?? image.error ? (
         <p role="alert" className="rounded-lg border border-red-300 bg-red-50 px-3.5 py-2.5 text-xs font-semibold text-red-700">
-          {formError}
+          {formError ?? image.error}
         </p>
       ) : null}
 
       <div className="flex items-center justify-end gap-2 border-t border-outline/40 pt-4">
         <Link
           href="/dashboard/clients"
-          className="rounded border border-outline px-3.5 py-1.5 text-xs font-bold text-primary transition-colors hover:bg-background"
+          aria-disabled={busy}
+          onClick={(event) => {
+            if (busy) event.preventDefault();
+          }}
+          className={`rounded border border-outline px-3.5 py-1.5 text-xs font-bold text-primary transition-colors hover:bg-background ${
+            busy ? "pointer-events-none opacity-60" : ""
+          }`}
         >
           Batal
         </Link>
         <button
           type="submit"
-          disabled={submitting}
+          disabled={busy}
           className="rounded bg-secondary px-4 py-1.5 text-xs font-bold text-white shadow-sm transition-all hover:bg-primary disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {submitting ? "Menyimpan..." : submitLabel}
+          {image.uploading ? "Mengunggah..." : submitting ? "Menyimpan..." : submitLabel}
         </button>
       </div>
     </form>

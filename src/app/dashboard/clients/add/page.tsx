@@ -16,7 +16,11 @@ export default function AddClientPage() {
         shortName: values.shortName,
         category: values.category,
         link: values.link,
-        logoUrl: values.logoUrl,
+        // The logo is already in the public CMS store when it was uploaded;
+        // the API re-verifies the object before writing this row.
+        logoUrl: values.logo.imageUrl,
+        imageSource: values.logo.imageSource,
+        blobPathname: values.logo.blobPathname,
         logoAlt: values.logoAlt,
         status: "active",
       }),

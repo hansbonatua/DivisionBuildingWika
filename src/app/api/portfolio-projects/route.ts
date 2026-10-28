@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { getPermittedActor, mapPermissionError } from "@/lib/auth/require-permission";
+import { mapCmsImageError } from "@/lib/cms/error-response";
 import { createPortfolioProjectSchema } from "@/lib/portfolio-projects/portfolio-project.schema";
 import * as portfolioProjectService from "@/lib/portfolio-projects/portfolio-project.service";
 import { serializePortfolioProjectDocument } from "@/lib/portfolio-projects/portfolio-project.types";
@@ -53,6 +54,10 @@ export async function POST(request: Request) {
   } catch (error) {
     const mapped = mapPermissionError(error);
     if (mapped) return mapped;
+    // Uploaded-image verification and CMS store failures are client/storage
+    // problems, never an opaque 500.
+    const cmsImageError = mapCmsImageError(error);
+    if (cmsImageError) return cmsImageError;
     console.error("POST /api/portfolio-projects failed", error);
     return NextResponse.json({ error: { message: "Internal server error" } }, { status: 500 });
   }

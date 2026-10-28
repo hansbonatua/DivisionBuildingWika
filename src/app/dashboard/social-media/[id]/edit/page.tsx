@@ -3,10 +3,24 @@
 import { use, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import SocialPostForm, { type SocialPostFormValues } from "@/components/dashboard/social-media/SocialPostForm";
+import type { CmsImageSelectionType } from "@/lib/cms/image-source";
+import SocialPostForm, {
+  type SocialPostFormValues,
+  type SocialPostImageValues,
+} from "@/components/dashboard/social-media/SocialPostForm";
 import SocialPostPreview from "@/components/dashboard/social-media/SocialPostPreview";
 import SocialPostStatusBadge from "@/components/dashboard/social-media/SocialPostStatusBadge";
 import type { SocialPostApiItem } from "@/components/dashboard/social-media/social-post-api.types";
+
+// Legacy rows predate `imageSource`: one with an imageUrl was always an external
+// image, one without was published without an image. Mirrors the server rule in
+// social-post.service.ts so an untouched legacy row is never rewritten.
+function storedImageSource(post: SocialPostApiItem): CmsImageSelectionType {
+  if (post.imageSource) {
+    return post.imageSource;
+  }
+  return post.imageUrl.trim().length > 0 ? "external" : "none";
+}
 
 export default function EditSocialPostPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -15,12 +29,15 @@ export default function EditSocialPostPage({ params }: { params: Promise<{ id: s
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [liveValues, setLiveValues] = useState<SocialPostFormValues | null>(null);
-  const [livePreview, setLivePreview] = useState<string | null>(null);
+  const [liveImageUrl, setLiveImageUrl] = useState<string | null>(null);
 
-  const handleValuesChange = useCallback((values: SocialPostFormValues, preview: string | null) => {
-    setLiveValues(values);
-    setLivePreview(preview);
-  }, []);
+  const handleValuesChange = useCallback(
+    (values: SocialPostFormValues, imageUrl: string) => {
+      setLiveValues(values);
+      setLiveImageUrl(imageUrl);
+    },
+    [],
+  );
 
   async function loadPost(): Promise<void> {
     setLoading(true);
@@ -50,7 +67,10 @@ export default function EditSocialPostPage({ params }: { params: Promise<{ id: s
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  async function handlePatch(values: SocialPostFormValues): Promise<void> {
+  async function handlePatch(
+    values: SocialPostFormValues,
+    image: SocialPostImageValues,
+  ): Promise<void> {
     const response = await fetch(`/api/social-posts/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -60,7 +80,10 @@ export default function EditSocialPostPage({ params }: { params: Promise<{ id: s
         caption: values.caption,
         url: values.url,
         type: values.type,
-        imageUrl: values.imageUrl,
+        // Landing image (upload / external / none) — never the Instagram URL.
+        imageUrl: image.imageUrl,
+        imageSource: image.imageSource,
+        blobPathname: image.blobPathname,
         imageAlt: values.imageAlt,
         status: values.status,
       }),
@@ -133,14 +156,13 @@ export default function EditSocialPostPage({ params }: { params: Promise<{ id: s
     );
   }
 
-  const previewImage = livePreview ?? liveValues?.imageUrl ?? post.imageUrl;
+  const previewImage = liveImageUrl ?? post.imageUrl;
   const preview = liveValues ?? {
     platform: post.platform,
     account: post.account,
     caption: post.caption,
     url: post.url,
     type: post.type,
-    imageUrl: post.imageUrl,
     imageAlt: post.imageAlt,
     status: post.status,
   };
@@ -167,7 +189,7 @@ export default function EditSocialPostPage({ params }: { params: Promise<{ id: s
       </div>
 
       <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
-        <div className="overflow-hidden rounded-lg border border-outline bg-surface shadow-sm lg:col-span-2">
+        <div className="min-w-0 overflow-hidden rounded-lg border border-outline bg-surface shadow-sm lg:col-span-2">
           <div className="flex items-center gap-2 border-b border-outline p-4">
             <h2 className="text-lg font-bold text-primary">Edit Instagram Post #{post.sortOrder}</h2>
           </div>
@@ -179,9 +201,11 @@ export default function EditSocialPostPage({ params }: { params: Promise<{ id: s
               caption: post.caption,
               url: post.url,
               type: post.type,
-              imageUrl: post.imageUrl,
               imageAlt: post.imageAlt,
               status: post.status,
+              imageUrl: post.imageUrl,
+              imageSource: storedImageSource(post),
+              blobPathname: post.blobPathname ?? null,
             }}
             submitLabel="Simpan Postingan"
             onSubmit={handlePatch}

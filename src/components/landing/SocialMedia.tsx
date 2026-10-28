@@ -150,6 +150,19 @@ function ExternalLinkIcon() {
   );
 }
 
+// Curated Instagram feed.
+//
+// The CMS is a MANUAL selection of original Instagram posts — there is no Graph
+// API call, OAuth handshake or feed sync anywhere in this component. Each card
+// shows an image WIBEX owns (or a URL the editor typed) and links out to the
+// original post.
+//
+// Glyph fallback rule: a post is rendered with the Instagram glyph whenever it
+// has no usable image — either `imageSource: "none"` on the record or simply a
+// missing/unsupported `imageUrl`. The public payload deliberately does not carry
+// `imageSource`, so the decision is made from the URL alone. No broken image is
+// ever rendered.
+
 type SocialPublicPayload = {
   platform?: unknown;
   account?: unknown;
@@ -311,6 +324,8 @@ export default function SocialMedia() {
                       </div>
                     )
                   ) : (
+                    // Curated without an image: glyph fallback, never a broken
+                    // <img>. Layout is kept as it was before the curated feed.
                     <InstagramGlyph />
                   );
                   return (
@@ -341,7 +356,7 @@ export default function SocialMedia() {
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-2 rounded-lg border border-outline/50 px-4 py-2 text-xs font-semibold text-secondary transition-colors hover:bg-secondary hover:text-white"
                       >
-                        <span>View this post on Instagram</span>
+                        <span>Lihat di Instagram</span>
                         <ExternalLinkIcon />
                       </a>
                     </div>

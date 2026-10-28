@@ -3,17 +3,13 @@
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import ClientForm, { type ClientFormValues } from "@/components/dashboard/clients/ClientForm";
+import ClientForm, {
+  type ClientFormLiveValues,
+  type ClientFormValues,
+} from "@/components/dashboard/clients/ClientForm";
 import ClientPreview from "@/components/dashboard/clients/ClientPreview";
 import ClientStatusBadge from "@/components/dashboard/clients/ClientStatusBadge";
 import type { ClientApiItem } from "@/components/dashboard/clients/client-api.types";
-
-type LiveValues = ClientFormValues & { previewLogo: string | null };
-
-function formatFromUrl(url: string): string {
-  const ext = url.split("?")[0].split(".").pop() ?? "";
-  return ext.length > 0 && ext.length <= 5 ? ext.toUpperCase() : "IMG";
-}
 
 export default function EditClientPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -21,7 +17,7 @@ export default function EditClientPage({ params }: { params: Promise<{ id: strin
   const [client, setClient] = useState<ClientApiItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [liveValues, setLiveValues] = useState<LiveValues | null>(null);
+  const [liveValues, setLiveValues] = useState<ClientFormLiveValues | null>(null);
 
   async function loadClient(): Promise<void> {
     setLoading(true);
@@ -60,7 +56,12 @@ export default function EditClientPage({ params }: { params: Promise<{ id: strin
         shortName: values.shortName,
         category: values.category,
         link: values.link,
-        logoUrl: values.logoUrl,
+        // Unchanged logo ⇒ the API keeps the stored ownership metadata and
+        // never touches the Blob object. Changed logo ⇒ the API re-verifies a
+        // fresh upload and deletes the previous CMS-owned object after saving.
+        logoUrl: values.logo.imageUrl,
+        imageSource: values.logo.imageSource,
+        blobPathname: values.logo.blobPathname,
         logoAlt: values.logoAlt,
         status: values.status,
       }),
@@ -133,8 +134,9 @@ export default function EditClientPage({ params }: { params: Promise<{ id: strin
     );
   }
 
-  const previewLogo = liveValues?.previewLogo ?? null;
-  const previewLogoUrl = liveValues?.logoUrl ?? client.logoUrl;
+  const previewLogo = liveValues?.previewLogo ?? client.logoUrl;
+  const logoFormat =
+    liveValues?.logoFormat ?? (client.imageSource === "upload" ? "UPLOAD" : "IMG");
 
   return (
     <div className="space-y-6">
@@ -169,9 +171,13 @@ export default function EditClientPage({ params }: { params: Promise<{ id: strin
               shortName: client.shortName,
               category: client.category,
               link: client.link,
-              logoUrl: client.logoUrl,
               logoAlt: client.logoAlt,
               status: client.status,
+            }}
+            initialImage={{
+              imageUrl: client.logoUrl,
+              source: client.imageSource ?? "external",
+              blobPathname: client.blobPathname ?? null,
             }}
             submitLabel="Update & Publish"
             onSubmit={handlePatch}
@@ -185,8 +191,8 @@ export default function EditClientPage({ params }: { params: Promise<{ id: strin
           <ClientPreview
             shortName={liveValues?.shortName || liveValues?.name || client.shortName}
             link={liveValues?.link ?? client.link}
-            logo={previewLogo ?? previewLogoUrl}
-            logoFormat={previewLogo ? "UPLOAD" : formatFromUrl(previewLogoUrl)}
+            logo={previewLogo}
+            logoFormat={logoFormat}
             visible={(liveValues?.status ?? client.status) === "active"}
             slotLabel={`#${client.sortOrder}`}
             clientId={client._id}

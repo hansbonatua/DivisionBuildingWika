@@ -1,11 +1,17 @@
 // Client-safe Hero API DTO. No MongoDB driver types leak into client bundles.
 
+import type { CmsImageSourceType } from "@/lib/cms/image-source";
+
 export type HeroApiItem = {
   _id: string;
   title: string;
   projectName: string;
   location: string;
   imageUrl: string;
+  // Admin-only management metadata: which source the image came from and, for
+  // uploads, the internal CMS storage path. Never part of /api/heroes/public.
+  imageSource?: CmsImageSourceType;
+  blobPathname?: string | null;
   imageAlt: string;
   description: string;
   status: "active" | "standby";

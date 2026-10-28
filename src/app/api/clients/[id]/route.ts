@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { getPermittedActor, mapPermissionError } from "@/lib/auth/require-permission";
+import { mapCmsImageError } from "@/lib/cms/error-response";
 import { updateClientSchema } from "@/lib/clients/client.schema";
 import * as clientService from "@/lib/clients/client.service";
 import { serializeClientDocument } from "@/lib/clients/client.types";
@@ -73,6 +74,10 @@ export async function PATCH(request: Request, context: RouteContext) {
   } catch (error) {
     const mapped = mapPermissionError(error);
     if (mapped) return mapped;
+    // Uploaded-logo verification and CMS store failures are client/storage
+    // problems, never an opaque 500.
+    const cmsImageError = mapCmsImageError(error);
+    if (cmsImageError) return cmsImageError;
     console.error("PATCH /api/clients/[id] failed", error);
     return NextResponse.json({ error: { message: "Internal server error" } }, { status: 500 });
   }
