@@ -21,38 +21,15 @@ type HeroPublicPayload = {
   title?: unknown;
 };
 
-const FALLBACK_HERO_SLIDES: HeroSlide[] = [
-  {
-    src: "/asset/hero/2.jpg",
-    alt: "Istana Negara IKN Nusantara — featured national project",
-    project: "Istana Negara IKN Nusantara",
-    location: "Penajam Paser Utara, Nusantara",
-  },
-  {
-    src: "/asset/hero/3.jpg",
-    alt: "Commercial superstructure by WIKA Building Division",
-    project: "Commercial Superstructure",
-    location: "Jakarta, Indonesia",
-  },
-  {
-    src: "/asset/hero/4.jpg",
-    alt: "Transit and connectivity hub construction",
-    project: "Transit & Connectivity Hub",
-    location: "Balikpapan Bay Corridor",
-  },
-  {
-    src: "/asset/hero/5.jpg",
-    alt: "Green terminal expansion project",
-    project: "Green Terminal Expansion",
-    location: "Java Hub, Indonesia",
-  },
-  {
-    src: "/asset/hero/6.jpg",
-    alt: "Renewable utility works site",
-    project: "Renewable Utility Works",
-    location: "North Kalimantan",
-  },
-];
+// Neutral branded presentation used when the CMS has no active Hero.
+//
+// It carries NO project name, location or featured label: the landing must never
+// present a fabricated project record. Only the division's own static branding
+// (see Navbar/Footer alt text) plus a site-owned photograph are shown.
+const NEUTRAL_HERO = {
+  src: "/asset/hero/2.jpg",
+  alt: "PT Wijaya Karya (Persero) Tbk. — Building Division",
+} as const;
 
 function formatCounter(index: number, total: number): string {
   const pad = (n: number): string => String(n).padStart(2, "0");
@@ -78,8 +55,9 @@ function toLandingSlide(item: HeroPublicPayload): HeroSlide | null {
 }
 
 export default function Hero() {
-  // Fallback-first render keeps SSR/hydration deterministic; API swaps in when valid.
-  const [slides, setSlides] = useState<HeroSlide[]>(FALLBACK_HERO_SLIDES);
+  // Empty-first render keeps SSR/hydration deterministic; the CMS feed fills in
+  // when it answers. Until then (and on failure) the neutral presentation shows.
+  const [slides, setSlides] = useState<HeroSlide[]>([]);
   const [current, setCurrent] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -92,6 +70,10 @@ export default function Hero() {
 
   const startAutoplay = useCallback((): void => {
     stopAutoplay();
+    // Nothing to rotate: the neutral presentation and a single slide need no timer.
+    if (slides.length <= 1) {
+      return;
+    }
     timerRef.current = setInterval(() => {
       setCurrent((prev) => (prev + 1) % slides.length);
     }, HERO_INTERVAL_MS);
@@ -114,20 +96,24 @@ export default function Hero() {
         return response.json() as Promise<{ data?: unknown }>;
       })
       .then((body) => {
-        if (cancelled || !Array.isArray(body.data)) {
+        if (cancelled) {
           return;
         }
-        const mapped = body.data
-          .map((item) => toLandingSlide(item as HeroPublicPayload))
-          .filter((slide): slide is HeroSlide => slide !== null);
-        if (mapped.length > 0) {
-          setSlides(mapped);
-          setCurrent(0);
-        }
+        // An empty feed is a valid answer: the neutral presentation stays.
+        const mapped = Array.isArray(body.data)
+          ? body.data
+              .map((item) => toLandingSlide(item as HeroPublicPayload))
+              .filter((slide): slide is HeroSlide => slide !== null)
+          : [];
+        setSlides(mapped);
+        setCurrent(0);
       })
       .catch(() => {
-        // Silent fallback: static slides remain. No user-facing error on landing.
-        console.warn("Landing hero uses static fallback (public API unavailable).");
+        // Network/API failure keeps the neutral presentation: no fake project is
+        // substituted and the landing stays free of user-facing error text.
+        if (!cancelled) {
+          setSlides([]);
+        }
       });
     return () => {
       cancelled = true;
@@ -135,16 +121,23 @@ export default function Hero() {
   }, []);
 
   function goNext(): void {
+    if (slides.length === 0) {
+      return;
+    }
     setCurrent((prev) => (prev + 1) % slides.length);
     startAutoplay();
   }
 
   function goPrev(): void {
+    if (slides.length === 0) {
+      return;
+    }
     setCurrent((prev) => (prev - 1 + slides.length) % slides.length);
     startAutoplay();
   }
 
-  const activeSlide = slides[current] ?? slides[0];
+  const hasSlides = slides.length > 0;
+  const activeSlide = hasSlides ? (slides[current] ?? slides[0]) : null;
 
   return (
     <>
@@ -153,7 +146,8 @@ export default function Hero() {
         className="relative flex aspect-video min-h-[40svh] w-full max-w-full flex-col justify-between overflow-hidden bg-primary max-[360px]:min-w-[100vw] md:aspect-auto md:min-h-svh"
       >
         <div className="absolute inset-0 z-0 max-w-full">
-          {slides.map((slide, index) => (
+          {hasSlides ? (
+            slides.map((slide, index) => (
             <div
               key={`${slide.src}-${index}`}
               aria-hidden={index !== current}
@@ -181,7 +175,19 @@ export default function Hero() {
                 />
               )}
             </div>
-          ))}
+            ))
+          ) : (
+            <div className="absolute inset-0">
+              <Image
+                src={NEUTRAL_HERO.src}
+                alt={NEUTRAL_HERO.alt}
+                fill
+                sizes="100vw"
+                priority
+                className="object-cover object-[center_30%]"
+              />
+            </div>
+          )}
           <div className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-t from-primary/30 via-primary/10 to-transparent" />
         </div>
         <div className="relative z-10 flex-1" />
@@ -190,34 +196,71 @@ export default function Hero() {
       <div className="relative z-10 w-full max-w-full border-y border-outline/30 bg-primary py-4">
         <div className="mx-auto flex w-full max-w-7xl flex-col items-center justify-between gap-4 px-6 md:flex-row lg:px-8">
           <div className="flex flex-wrap items-center gap-6 text-white md:gap-10">
-            <div className="flex items-center gap-3">
-              <svg
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-                className="shrink-0 text-white/80"
-              >
-                <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
-                <circle cx="12" cy="10" r="3" />
-              </svg>
-              <div>
-                <div className="text-[11px] font-bold uppercase tracking-wider text-white/60">
-                  Featured Project
+            {activeSlide ? (
+              <>
+                <div className="flex items-center gap-3">
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                    className="shrink-0 text-white/80"
+                  >
+                    <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
+                    <circle cx="12" cy="10" r="3" />
+                  </svg>
+                  <div>
+                    <div className="text-[11px] font-bold uppercase tracking-wider text-white/60">
+                      Featured Project
+                    </div>
+                    <div className="text-sm font-semibold text-white">{activeSlide.project}</div>
+                  </div>
                 </div>
-                <div className="text-sm font-semibold text-white">{activeSlide.project}</div>
+                {activeSlide.location ? (
+                  <>
+                    <div className="hidden h-8 w-px bg-white/20 sm:block" />
+                    <div>
+                      <div className="text-[11px] font-bold uppercase tracking-wider text-white/60">
+                        Location
+                      </div>
+                      <div className="text-xs font-medium text-white">{activeSlide.location}</div>
+                    </div>
+                  </>
+                ) : null}
+              </>
+            ) : (
+              <div className="flex items-center gap-3">
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                  className="shrink-0 text-white/80"
+                >
+                  <path d="M3 21h18" />
+                  <path d="M5 21V8l7-4 7 4v13" />
+                  <path d="M9 21v-6h6v6" />
+                </svg>
+                <div>
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-white/60">
+                    Division Building WIKA
+                  </div>
+                  <div className="text-sm font-semibold text-white">
+                    Precision Engineering &amp; Institutional Development
+                  </div>
+                </div>
               </div>
-            </div>
-            <div className="hidden h-8 w-px bg-white/20 sm:block" />
-            <div>
-              <div className="text-[11px] font-bold uppercase tracking-wider text-white/60">Location</div>
-              <div className="text-xs font-medium text-white">{activeSlide.location}</div>
-            </div>
+            )}
           </div>
 
           <div className="flex flex-wrap items-center gap-4 text-white">
@@ -241,10 +284,12 @@ export default function Hero() {
                 <path d="m12 5 7 7-7 7" />
               </svg>
             </Link>
-            <span className="font-mono text-xs tracking-wider text-white/80">
-              {formatCounter(current, slides.length)}
-            </span>
-            <div className="flex items-center space-x-1.5">
+            {hasSlides ? (
+              <>
+                <span className="font-mono text-xs tracking-wider text-white/80">
+                  {formatCounter(current, slides.length)}
+                </span>
+                <div className="flex items-center space-x-1.5">
               <button
                 type="button"
                 aria-label="Previous Project"
@@ -297,7 +342,9 @@ export default function Hero() {
                   <path d="m9 18 6-6-6-6" />
                 </svg>
               </button>
-            </div>
+                </div>
+              </>
+            ) : null}
           </div>
         </div>
       </div>

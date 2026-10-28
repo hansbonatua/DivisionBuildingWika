@@ -13,83 +13,36 @@ type SocialPost = {
   permalink: string;
 };
 
+// One Instagram account holding the posts the CMS curated for it.
+// `profileUrl` is derived from the handle: the CMS does not store it.
 type SocialAccount = {
   handle: string;
-  description: string;
   profileUrl: string;
   posts: SocialPost[];
 };
 
-const FALLBACK_SOCIAL_POSTS: SocialAccount[] = [
-  {
-    handle: "@wika.building",
-    description: "Project Execution & Engineering Field Highlights",
-    profileUrl: "https://www.instagram.com/wika.building/",
-    posts: [
-      {
-        platform: "instagram",
-        account: "@wika.building",
-        caption: "",
-        url: "https://www.instagram.com/p/Ddsj3YCkb7r/",
-        type: "Image",
-        imageUrl: "",
-        permalink: "https://www.instagram.com/p/Ddsj3YCkb7r/",
-      },
-      {
-        platform: "instagram",
-        account: "@wika.building",
-        caption: "",
-        url: "https://www.instagram.com/p/DdoAuNlKuS6/",
-        type: "Image",
-        imageUrl: "",
-        permalink: "https://www.instagram.com/p/DdoAuNlKuS6/",
-      },
-      {
-        platform: "instagram",
-        account: "@wika.building",
-        caption: "",
-        url: "https://www.instagram.com/p/Ddl9xInIygJ/",
-        type: "Image",
-        imageUrl: "",
-        permalink: "https://www.instagram.com/p/Ddl9xInIygJ/",
-      },
-    ],
-  },
-  {
-    handle: "@ptwijayakarya",
-    description: "Corporate Governance & Stakeholder Relations",
-    profileUrl: "https://www.instagram.com/ptwijayakarya/",
-    posts: [
-      {
-        platform: "instagram",
-        account: "@ptwijayakarya",
-        caption: "",
-        url: "https://www.instagram.com/p/DcNyStaEZjr/",
-        type: "Image",
-        imageUrl: "",
-        permalink: "https://www.instagram.com/p/DcNyStaEZjr/",
-      },
-      {
-        platform: "instagram",
-        account: "@ptwijayakarya",
-        caption: "",
-        url: "https://www.instagram.com/p/DdquoBqB2ac/",
-        type: "Image",
-        imageUrl: "",
-        permalink: "https://www.instagram.com/p/DdquoBqB2ac/",
-      },
-      {
-        platform: "instagram",
-        account: "@ptwijayakarya",
-        caption: "",
-        url: "https://www.instagram.com/p/DdoJwbGTdgS/",
-        type: "Image",
-        imageUrl: "",
-        permalink: "https://www.instagram.com/p/DdoJwbGTdgS/",
-      },
-    ],
-  },
-];
+type LoadState = "loading" | "ready" | "error";
+
+function profileUrlForHandle(handle: string): string {
+  return `https://www.instagram.com/${handle.replace(/^@/, "")}/`;
+}
+
+function groupByAccount(posts: SocialPost[]): SocialAccount[] {
+  const grouped = new Map<string, SocialPost[]>();
+  for (const post of posts) {
+    const bucket = grouped.get(post.account);
+    if (bucket) {
+      bucket.push(post);
+    } else {
+      grouped.set(post.account, [post]);
+    }
+  }
+  return Array.from(grouped, ([handle, accountPosts]) => ({
+    handle,
+    profileUrl: profileUrlForHandle(handle),
+    posts: accountPosts,
+  }));
+}
 
 function CameraIcon() {
   return (
@@ -197,8 +150,10 @@ function toLandingPost(item: SocialPublicPayload): SocialPost | null {
 }
 
 export default function SocialMedia() {
-  // Fallback-first render keeps SSR/hydration deterministic; API swaps in when valid.
-  const [accounts, setAccounts] = useState<SocialAccount[]>(FALLBACK_SOCIAL_POSTS);
+  // Empty-first render keeps SSR/hydration deterministic; the curated CMS feed
+  // fills in. No Instagram post, caption or permalink is ever invented.
+  const [accounts, setAccounts] = useState<SocialAccount[]>([]);
+  const [status, setStatus] = useState<LoadState>("loading");
 
   useEffect(() => {
     let cancelled = false;
@@ -210,35 +165,23 @@ export default function SocialMedia() {
         return response.json() as Promise<{ data?: unknown }>;
       })
       .then((body) => {
-        if (cancelled || !Array.isArray(body.data)) {
+        if (cancelled) {
           return;
         }
-        const byAccount = new Map<string, SocialPost[]>();
-        for (const item of body.data) {
-          const parsed = toLandingPost(item as SocialPublicPayload);
-          if (!parsed) {
-            continue;
-          }
-          const list = byAccount.get(parsed.account) ?? [];
-          list.push(parsed);
-          byAccount.set(parsed.account, list);
-        }
-        if (byAccount.size === 0) {
-          return;
-        }
-        setAccounts((prev) =>
-          prev.map((account) => {
-            const apiPosts = byAccount.get(account.handle);
-            if (!apiPosts || apiPosts.length === 0) {
-              return account;
-            }
-            return { ...account, posts: apiPosts };
-          }),
-        );
+        const parsed = Array.isArray(body.data)
+          ? body.data
+              .map((item) => toLandingPost(item as SocialPublicPayload))
+              .filter((post): post is SocialPost => post !== null)
+          : [];
+        setAccounts(groupByAccount(parsed));
+        setStatus("ready");
       })
       .catch(() => {
-        // Silent fallback: static posts remain. No user-facing error on landing.
-        console.warn("Landing social media uses static fallback (public API unavailable).");
+        // No invented posts and no raw error text: a neutral empty state.
+        if (!cancelled) {
+          setAccounts([]);
+          setStatus("error");
+        }
       });
     return () => {
       cancelled = true;
@@ -269,6 +212,23 @@ export default function SocialMedia() {
           </div>
         </div>
 
+        {status === "loading" ? (
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3" aria-busy="true">
+            {[0, 1, 2].map((slot) => (
+              <div key={slot} className="h-80 animate-pulse rounded-2xl bg-background" />
+            ))}
+          </div>
+        ) : accounts.length === 0 ? (
+          <div className="flex min-h-[220px] flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-outline/60 bg-background/40 px-6 py-12 text-center">
+            <InstagramGlyph />
+            <p className="text-sm font-semibold text-primary">
+              {status === "error"
+                ? "Unggahan media sosial sedang tidak dapat dimuat."
+                : "Belum ada unggahan media sosial yang ditampilkan."}
+            </p>
+            <p className="text-xs text-primary/60">Silakan kembali lagi nanti.</p>
+          </div>
+        ) : (
         <div className="space-y-12">
           {accounts.map((account) => (
             <div key={account.handle}>
@@ -278,7 +238,6 @@ export default function SocialMedia() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <span className="text-lg font-bold text-primary">{account.handle}</span>
-                  <span className="ml-2 text-xs text-primary/50">{account.description}</span>
                 </div>
                 <a
                   href={account.profileUrl}
@@ -366,6 +325,7 @@ export default function SocialMedia() {
             </div>
           ))}
         </div>
+        )}
       </div>
     </section>
   );

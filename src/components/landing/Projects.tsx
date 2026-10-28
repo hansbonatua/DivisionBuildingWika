@@ -12,51 +12,9 @@ type Project = {
   alt: string;
 };
 
-const FALLBACK_PROJECTS: Project[] = [
-  {
-    title: "Lorem Ipsum Construction Project",
-    category: "Building",
-    meta: "Lorem Ipsum • Dolor Sit Amet",
-    description:
-      "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer nec odio praesent libero sed cursus ante dapibus diam.",
-    image: "/asset/hero/7.jpg",
-    alt: "Lorem Ipsum Project 1",
-  },
-  {
-    title: "Dolor Sit Amet Infrastructure",
-    category: "Infrastructure",
-    meta: "Consectetur • Adipiscing Elit",
-    description:
-      "Sed nisi nulla quis sem at nibh elementum imperdiet duis sagittis ipsum. Praesent mauris fusce nec tellus sed augue.",
-    image: "/asset/hero/14.jpg",
-    alt: "Lorem Ipsum Project 2",
-  },
-  {
-    title: "Consectetur Engineering Development",
-    category: "Airport",
-    meta: "Sed Do • Eiusmod Tempor",
-    description:
-      "Sed dignissim lacinia nunc curabitur tortor pellentesque nibh. Aenean quam in scelerisque sem at dolor maecenas.",
-    image: "/asset/hero/10.jpg",
-    alt: "Lorem Ipsum Project 3",
-  },
-  {
-    title: "Modern Building Solution",
-    category: "Energy",
-    meta: "Ut Labore • Et Dolore",
-    description:
-      "Maecenas mattis sed convallis tristique sem proin. Nulla quis lorem ut libero malesuada feugiat donec sodales.",
-    image: "/asset/hero/8.jpg",
-    alt: "Lorem Ipsum Project 4",
-  },
-];
-
 const SLIDER_GAP_PX = 24;
 
-// Generic display copy for API-fed cards with an empty description.
-// Deterministic by design — no business facts are derived from record fields.
-const API_CARD_DESCRIPTION =
-  "Strategic national project delivered to sovereign engineering benchmarks.";
+type LoadState = "loading" | "ready" | "error";
 
 type PortfolioPublicPayload = {
   title?: unknown;
@@ -77,10 +35,8 @@ function toLandingProject(item: PortfolioPublicPayload): Project | null {
   const category = typeof item.category === "string" && item.category.length > 0 ? item.category : "Project";
   const location = typeof item.location === "string" ? item.location : "";
   const imageAlt = typeof item.imageAlt === "string" && item.imageAlt.length > 0 ? item.imageAlt : item.title;
-  const description =
-    typeof item.description === "string" && item.description.trim().length > 0
-      ? item.description
-      : API_CARD_DESCRIPTION;
+  // No invented copy: an empty description simply renders no paragraph.
+  const description = typeof item.description === "string" ? item.description.trim() : "";
   return {
     title: item.title,
     category,
@@ -92,8 +48,10 @@ function toLandingProject(item: PortfolioPublicPayload): Project | null {
 }
 
 export default function Projects() {
-  // Fallback-first render keeps SSR/hydration deterministic; API swaps in when valid.
-  const [projects, setProjects] = useState<Project[]>(FALLBACK_PROJECTS);
+  // Empty-first render keeps SSR/hydration deterministic; the CMS feed fills in.
+  // Nothing is invented while the request is in flight or when it fails.
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [status, setStatus] = useState<LoadState>("loading");
   const sliderRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -106,19 +64,23 @@ export default function Projects() {
         return response.json() as Promise<{ data?: unknown }>;
       })
       .then((body) => {
-        if (cancelled || !Array.isArray(body.data)) {
+        if (cancelled) {
           return;
         }
-        const mapped = body.data
-          .map((item) => toLandingProject(item as PortfolioPublicPayload))
-          .filter((project): project is Project => project !== null);
-        if (mapped.length > 0) {
-          setProjects(mapped);
-        }
+        const mapped = Array.isArray(body.data)
+          ? body.data
+              .map((item) => toLandingProject(item as PortfolioPublicPayload))
+              .filter((project): project is Project => project !== null)
+          : [];
+        setProjects(mapped);
+        setStatus("ready");
       })
       .catch(() => {
-        // Silent fallback: static projects remain. No user-facing error on landing.
-        console.warn("Landing projects use static fallback (public API unavailable).");
+        // No invented cards and no raw error text: a neutral empty state.
+        if (!cancelled) {
+          setProjects([]);
+          setStatus("error");
+        }
       });
     return () => {
       cancelled = true;
@@ -153,7 +115,8 @@ export default function Projects() {
           </div>
         </div>
 
-        <div className="mb-6 flex items-center justify-end gap-2">
+        {projects.length > 0 ? (
+          <div className="mb-6 flex items-center justify-end gap-2">
           <button
             type="button"
             aria-label="Previous projects"
@@ -194,8 +157,28 @@ export default function Projects() {
               <path d="m9 18 6-6-6-6" />
             </svg>
           </button>
-        </div>
+          </div>
+        ) : null}
 
+        {status === "loading" ? (
+          <div className="flex gap-6" aria-busy="true">
+            {[0, 1, 2].map((slot) => (
+              <div
+                key={slot}
+                className="h-72 w-full animate-pulse rounded-xl bg-background md:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)]"
+              />
+            ))}
+          </div>
+        ) : projects.length === 0 ? (
+          <div className="flex min-h-[220px] flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-outline/60 bg-background/40 px-6 py-12 text-center">
+            <p className="text-sm font-semibold text-primary">
+              {status === "error"
+                ? "Data proyek sedang tidak dapat dimuat."
+                : "Belum ada proyek yang ditampilkan."}
+            </p>
+            <p className="text-xs text-primary/60">Silakan kembali lagi nanti.</p>
+          </div>
+        ) : (
         <div
           ref={sliderRef}
           className="flex snap-x snap-mandatory gap-6 overflow-x-auto scroll-smooth pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
@@ -255,12 +238,15 @@ export default function Projects() {
                   <h3 className="mb-2 text-lg font-bold text-primary transition-colors group-hover:text-secondary">
                     {project.title}
                   </h3>
-                  <p className="line-clamp-2 text-sm text-primary/70">{project.description}</p>
+                  {project.description ? (
+                    <p className="line-clamp-2 text-sm text-primary/70">{project.description}</p>
+                  ) : null}
                 </div>
               </div>
             </article>
           ))}
         </div>
+        )}
       </div>
     </section>
   );

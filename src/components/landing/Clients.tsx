@@ -16,23 +16,9 @@ type ClientPublicPayload = {
   logoAlt?: unknown;
 };
 
-const FALLBACK_CLIENTS: Client[] = [
-  { name: "Kementerian PUPR", label: "KEMENTERIAN PEKERJAAN UMUM", logo: "/asset/partners/PUPR.png" },
-  { name: "Otorita IKN", label: "OTORITA IKN", logo: "/asset/partners/Otorita IKN.webp" },
-  { name: "Angkasa Pura", label: "ANGKASA PURA", logo: "/asset/partners/Angkasa Pura.png" },
-  { name: "InJourney", label: "INJOURNEY", logo: "/asset/partners/Logo_InJourney.png" },
-  { name: "Kemenkes", label: "KEMENKES", logo: "/asset/partners/Kemenkes.png" },
-  { name: "Kemendikdasmen", label: "KEMDIKTISAINTEK", logo: "/asset/partners/kemendikdasmen.jpg" },
-  { name: "Bank Mandiri", label: "BANK MANDIRI", logo: "/asset/partners/Copy of 01-Mandiri Master Brand Logo.png" },
-  { name: "YKEP", label: "YAYASAN KARTIKA EKA PAKSI", logo: "/asset/partners/LOGO_YKEP.png" },
-  {
-    name: "Danantara Indonesia",
-    label: "DANANTARA INDONESIA",
-    logo: "/asset/partners/Danantara_Indonesia_Logo_vector (Color).png",
-  },
-];
-
 const MOBILE_COLS = 2;
+
+type LoadState = "loading" | "ready" | "error";
 const DESKTOP_COLS = 4;
 
 function toLandingClient(item: ClientPublicPayload): Client | null {
@@ -53,8 +39,10 @@ function toLandingClient(item: ClientPublicPayload): Client | null {
 }
 
 export default function Clients() {
-  // Fallback-first render keeps SSR/hydration deterministic; API swaps in when valid.
-  const [clients, setClients] = useState<Client[]>(FALLBACK_CLIENTS);
+  // Empty-first render keeps SSR/hydration deterministic; the CMS feed fills in.
+  // No partner logo or name is ever invented.
+  const [clients, setClients] = useState<Client[]>([]);
+  const [status, setStatus] = useState<LoadState>("loading");
 
   useEffect(() => {
     let cancelled = false;
@@ -66,19 +54,23 @@ export default function Clients() {
         return response.json() as Promise<{ data?: unknown }>;
       })
       .then((body) => {
-        if (cancelled || !Array.isArray(body.data)) {
+        if (cancelled) {
           return;
         }
-        const mapped = body.data
-          .map((item) => toLandingClient(item as ClientPublicPayload))
-          .filter((client): client is Client => client !== null);
-        if (mapped.length > 0) {
-          setClients(mapped);
-        }
+        const mapped = Array.isArray(body.data)
+          ? body.data
+              .map((item) => toLandingClient(item as ClientPublicPayload))
+              .filter((client): client is Client => client !== null)
+          : [];
+        setClients(mapped);
+        setStatus("ready");
       })
       .catch(() => {
-        // Silent fallback: static clients remain. No user-facing error on landing.
-        console.warn("Landing clients use static fallback (public API unavailable).");
+        // No invented logos and no raw error text: a neutral empty state.
+        if (!cancelled) {
+          setClients([]);
+          setStatus("error");
+        }
       });
     return () => {
       cancelled = true;
@@ -103,6 +95,22 @@ export default function Clients() {
           </p>
         </div>
 
+        {status === "loading" ? (
+          <div className="grid grid-cols-2 items-stretch justify-center gap-6 md:grid-cols-4" aria-busy="true">
+            {[0, 1, 2, 3].map((slot) => (
+              <div key={slot} className="h-[150px] animate-pulse rounded-xl bg-background" />
+            ))}
+          </div>
+        ) : clients.length === 0 ? (
+          <div className="flex min-h-[180px] flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-outline/60 bg-background/40 px-6 py-12 text-center">
+            <p className="text-sm font-semibold text-primary">
+              {status === "error"
+                ? "Data klien sedang tidak dapat dimuat."
+                : "Belum ada klien yang ditampilkan."}
+            </p>
+            <p className="text-xs text-primary/60">Silakan kembali lagi nanti.</p>
+          </div>
+        ) : (
         <div className="grid grid-cols-2 items-stretch justify-center gap-6 md:grid-cols-4">
           {clients.map((client, index) => {
             const isLast = index === clients.length - 1;
@@ -148,6 +156,7 @@ export default function Clients() {
             );
           })}
         </div>
+        )}
       </div>
     </section>
   );

@@ -14,20 +14,7 @@ const CERT_DELAY_MS = 3500;
 const SNAP_MS = 520;
 const DRAG_THRESHOLD_PX = 50;
 
-const FALLBACK_GREEN_BUILDINGS: Certificate[] = [
-  { image: "/asset/hero/1-IKN.jpg", alt: "Lorem Ipsum Certificate 01", name: "Lorem Ipsum Certificate Name 01", score: 91 },
-  { image: "/asset/hero/9.jpg", alt: "Lorem Ipsum Certificate 02", name: "Lorem Ipsum Certificate Name 02", score: 93 },
-  { image: "/asset/hero/11.jpg", alt: "Lorem Ipsum Certificate 03", name: "Lorem Ipsum Certificate Name 03", score: 95 },
-  { image: "/asset/hero/12.jpg", alt: "Lorem Ipsum Certificate 04", name: "Lorem Ipsum Certificate Name 04", score: 92 },
-  { image: "/asset/hero/13.jpg", alt: "Lorem Ipsum Certificate 05", name: "Lorem Ipsum Certificate Name 05", score: 94 },
-  { image: "/asset/hero/7.jpg", alt: "Lorem Ipsum Certificate 06", name: "Lorem Ipsum Certificate Name 06", score: 96 },
-  { image: "/asset/hero/8.jpg", alt: "Lorem Ipsum Certificate 07", name: "Lorem Ipsum Certificate Name 07", score: 93 },
-  { image: "/asset/hero/10.jpg", alt: "Lorem Ipsum Certificate 08", name: "Lorem Ipsum Certificate Name 08", score: 95 },
-  { image: "/asset/hero/14.jpg", alt: "Lorem Ipsum Certificate 09", name: "Lorem Ipsum Certificate Name 09", score: 97 },
-  { image: "/asset/hero/2.jpg", alt: "Lorem Ipsum Certificate 10", name: "Lorem Ipsum Certificate Name 10", score: 92 },
-  { image: "/asset/hero/3.jpg", alt: "Lorem Ipsum Certificate 11", name: "Lorem Ipsum Certificate Name 11", score: 94 },
-  { image: "/asset/hero/4.jpg", alt: "Lorem Ipsum Certificate 12", name: "Lorem Ipsum Certificate Name 12", score: 96 },
-];
+type LoadState = "loading" | "ready" | "error";
 
 type GreenBuildingPublicPayload = {
   projectName?: unknown;
@@ -55,8 +42,10 @@ function toLandingCertificate(item: GreenBuildingPublicPayload): Certificate | n
 }
 
 export default function GreenBuilding() {
-  // Fallback-first render keeps SSR/hydration deterministic; API swaps in when valid.
-  const [certificates, setCertificates] = useState<Certificate[]>(FALLBACK_GREEN_BUILDINGS);
+  // Empty-first render keeps SSR/hydration deterministic; the CMS feed fills in.
+  // No certificate, project name or score is ever invented.
+  const [certificates, setCertificates] = useState<Certificate[]>([]);
+  const [status, setStatus] = useState<LoadState>("loading");
   const TOTAL = certificates.length;
   const [perView, setPerView] = useState(3);
   const [trackPos, setTrackPos] = useState(3);
@@ -78,11 +67,15 @@ export default function GreenBuilding() {
 
   const startAutoplay = useCallback((): void => {
     stopAutoplay();
+    // Nothing to rotate with zero or one certificate.
+    if (certificates.length <= 1) {
+      return;
+    }
     timerRef.current = setInterval(() => {
       setAnimate(true);
       setTrackPos((prev) => prev + 1);
     }, CERT_DELAY_MS);
-  }, [stopAutoplay]);
+  }, [stopAutoplay, certificates.length]);
 
   useEffect(() => {
     const viewport = viewportRef.current;
@@ -115,19 +108,23 @@ export default function GreenBuilding() {
         return response.json() as Promise<{ data?: unknown }>;
       })
       .then((body) => {
-        if (cancelled || !Array.isArray(body.data)) {
+        if (cancelled) {
           return;
         }
-        const mapped = body.data
-          .map((item) => toLandingCertificate(item as GreenBuildingPublicPayload))
-          .filter((cert): cert is Certificate => cert !== null);
-        if (mapped.length > 0) {
-          setCertificates(mapped);
-        }
+        const mapped = Array.isArray(body.data)
+          ? body.data
+              .map((item) => toLandingCertificate(item as GreenBuildingPublicPayload))
+              .filter((cert): cert is Certificate => cert !== null)
+          : [];
+        setCertificates(mapped);
+        setStatus("ready");
       })
       .catch(() => {
-        // Silent fallback: static certificates remain. No user-facing error on landing.
-        console.warn("Landing green building uses static fallback (public API unavailable).");
+        // No invented certificates and no raw error text: a neutral empty state.
+        if (!cancelled) {
+          setCertificates([]);
+          setStatus("error");
+        }
       });
     return () => {
       cancelled = true;
@@ -173,7 +170,8 @@ export default function GreenBuilding() {
     [perView, certificates, TOTAL],
   );
 
-  const real = ((trackPos - perView) % TOTAL + TOTAL) % TOTAL;
+  // Guard the modulo: an empty feed has no index to normalise.
+  const real = TOTAL === 0 ? 0 : ((trackPos - perView) % TOTAL + TOTAL) % TOTAL;
   const centerOffset = 50 - 50 / perView;
   const baseShift = -(trackPos * (100 / perView)) + centerOffset;
   const viewportWidth = viewportRef.current?.clientWidth ?? 0;
@@ -268,6 +266,23 @@ export default function GreenBuilding() {
           </p>
         </div>
 
+        {status === "loading" ? (
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-3" aria-busy="true">
+            {[0, 1, 2].map((slot) => (
+              <div key={slot} className="h-80 animate-pulse rounded-2xl bg-surface" />
+            ))}
+          </div>
+        ) : certificates.length === 0 ? (
+          <div className="flex min-h-[220px] flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-outline/60 bg-surface/60 px-6 py-12 text-center">
+            <p className="text-sm font-semibold text-primary">
+              {status === "error"
+                ? "Data sertifikat sedang tidak dapat dimuat."
+                : "Belum ada sertifikat yang ditampilkan."}
+            </p>
+            <p className="text-xs text-primary/60">Silakan kembali lagi nanti.</p>
+          </div>
+        ) : (
+        <>
         <div
           ref={viewportRef}
           onPointerDown={handlePointerDown}
@@ -330,40 +345,33 @@ export default function GreenBuilding() {
                         />
                       )}
                       <span className="absolute left-3 top-3 rounded-md border border-outline/30 bg-surface/90 px-2.5 py-1 text-[11px] font-bold text-secondary backdrop-blur-sm">
-                        Lorem
+                        Green Building
                       </span>
                     </div>
                     <div className="flex flex-1 flex-col gap-2 p-5">
-                      <div className="flex items-center justify-between">
-                        <span className="inline-flex items-center gap-1 text-xs font-bold text-secondary">
-                          <svg
-                            width="16"
-                            height="16"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            aria-hidden="true"
-                          >
-                            <circle cx="12" cy="8" r="6" />
-                            <path d="M15.5 13 17 22l-5-3-5 3 1.5-9" />
-                          </svg>
-                          Lorem Ipsum
-                        </span>
-                        <span className="text-xs text-primary/50">Year: 2026</span>
+                      <div className="flex items-center gap-1 text-xs font-bold text-secondary">
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          aria-hidden="true"
+                        >
+                          <circle cx="12" cy="8" r="6" />
+                          <path d="M15.5 13 17 22l-5-3-5 3 1.5-9" />
+                        </svg>
+                        <span>Sertifikat</span>
                       </div>
                       <h4 className="text-lg font-bold text-primary">{item.cert.name}</h4>
-                      <p className="text-xs font-semibold text-secondary">Lorem Ipsum Certification</p>
-                      <p className="text-sm leading-relaxed text-primary/70">
-                        Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut
-                        labore et dolore magna aliqua.
-                      </p>
-                      <div className="mt-auto flex items-center justify-between border-t border-outline/20 pt-3 text-xs">
-                        <span className="text-primary/50">Score: {item.cert.score}/100</span>
-                        <span className="font-semibold text-secondary">Verified</span>
-                      </div>
+                      {item.cert.score > 0 ? (
+                        <div className="mt-auto border-t border-outline/20 pt-3 text-xs text-primary/50">
+                          Score: {item.cert.score}/100
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                 </div>
@@ -433,6 +441,8 @@ export default function GreenBuilding() {
             </button>
           </div>
         </div>
+        </>
+        )}
       </div>
     </section>
   );
