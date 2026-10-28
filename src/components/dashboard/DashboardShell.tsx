@@ -17,7 +17,12 @@ export default function DashboardShell({
     <div className="flex min-h-screen w-full max-w-full flex-col overflow-x-clip bg-surface text-primary antialiased">
       <DashboardHeader sidebarOpen={sidebarOpen} onToggleSidebar={() => setSidebarOpen((prev) => !prev)} user={user} />
       <div className="flex min-h-0 flex-1">
-        <DashboardSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} userRole={user?.role} />
+        <DashboardSidebar
+          open={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+          userRole={user?.role}
+          mslAccess={user?.mslAccess}
+        />
         {sidebarOpen ? (
           <button
             type="button"

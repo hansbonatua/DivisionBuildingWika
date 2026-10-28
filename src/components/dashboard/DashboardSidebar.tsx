@@ -11,6 +11,7 @@ import {
 } from "@/lib/engineering-database/access";
 import { canManageCms } from "@/lib/cms/access";
 import { canViewMasterProject } from "@/lib/master-project/access";
+import { canViewMsl } from "@/lib/msl/access";
 import { canViewProgramKerja } from "@/lib/program-kerja/access";
 import { canViewTemplateForm } from "@/lib/template-form/access";
 import { canManageUsers } from "@/lib/users/access";
@@ -25,6 +26,9 @@ type DashboardSidebarProps = {
   open: boolean;
   onClose: () => void;
   userRole?: string;
+  // Management-only MSL capability, carried from the server layout through
+  // DashboardShell. Never read from the browser; only used for visibility.
+  mslAccess?: boolean;
 };
 
 function MenuIcon({ children }: { children: React.ReactNode }) {
@@ -180,6 +184,21 @@ const engineeringDatabaseCategoryIcon = (
   </MenuIcon>
 );
 
+// MSL Engineering lives inside the Engineering Databases group (never as a
+// top-level menu). Visibility is decided by canViewMsl — Admin, Head Office and
+// Management with the capability; the page/API guards stay authoritative.
+const mslMenuItem: SidebarItem = {
+  label: "MSL Engineering",
+  href: "/dashboard/engineering-database/msl",
+  icon: (
+    <MenuIcon>
+      <circle cx="12" cy="12" r="9" />
+      <circle cx="12" cy="12" r="5" />
+      <circle cx="12" cy="12" r="1" />
+    </MenuIcon>
+  ),
+};
+
 const engineeringDatabaseMenu: SidebarItem[] = [
   {
     label: "Summary Report",
@@ -200,7 +219,12 @@ const engineeringDatabaseMenu: SidebarItem[] = [
   })),
 ];
 
-export default function DashboardSidebar({ open, onClose, userRole }: DashboardSidebarProps) {
+export default function DashboardSidebar({
+  open,
+  onClose,
+  userRole,
+  mslAccess,
+}: DashboardSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
@@ -208,6 +232,7 @@ export default function DashboardSidebar({ open, onClose, userRole }: DashboardS
   const showTemplateForm = canViewTemplateForm(userRole ?? "");
   const showMasterProject = canViewMasterProject(userRole ?? "");
   const showEngineeringDatabase = canViewEngineeringDatabase(userRole ?? "");
+  const showMsl = canViewMsl({ role: userRole ?? "", mslAccess: mslAccess === true });
   // Landing Page Manager and User Directory are Admin-only, resolved through the
   // central permission layer (CMS_MANAGE / USER_MANAGE) rather than a local
   // `role === "Admin"` literal.
@@ -217,7 +242,8 @@ export default function DashboardSidebar({ open, onClose, userRole }: DashboardS
     showProgramKerja ||
     showTemplateForm ||
     showMasterProject ||
-    showEngineeringDatabase;
+    showEngineeringDatabase ||
+    showMsl;
   const landingRoutes = landingSubMenu.map((item) => item.href);
   const isLandingRoute = landingRoutes.some(
     (route) => pathname === route || pathname.startsWith(`${route}/`),
@@ -480,7 +506,7 @@ export default function DashboardSidebar({ open, onClose, userRole }: DashboardS
                   ) : null}
                 </div>
               ) : null}
-              {showEngineeringDatabase ? (
+              {showEngineeringDatabase || showMsl ? (
                 <div className="mt-1">
                   <div className="px-1">
                     <button
@@ -521,7 +547,9 @@ export default function DashboardSidebar({ open, onClose, userRole }: DashboardS
                         className="ml-4 space-y-1 border-l-2 border-slate-100 pl-3"
                         aria-label="Engineering Databases"
                       >
-                        {engineeringDatabaseMenu.map(renderItem)}
+                        {(showMsl ? [mslMenuItem] : [])
+                          .concat(showEngineeringDatabase ? engineeringDatabaseMenu : [])
+                          .map(renderItem)}
                       </nav>
                     </div>
                   ) : null}
