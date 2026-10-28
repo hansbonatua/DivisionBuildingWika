@@ -401,3 +401,98 @@ export const loginAttempts = pgTable(
 
 export type PgLoginAttempt = typeof loginAttempts.$inferSelect;
 export type NewPgLoginAttempt = typeof loginAttempts.$inferInsert;
+
+// ---------------------------------------------------------------------------
+// MSL Engineering (V1): assessment foundation.
+//
+// A project carries at most ONE assessment (UNIQUE project_id, not
+// UNIQUE(project_id, year)): the year is never duplicated here, it is always
+// derived from master_projects.year, the single source of truth.
+//
+// The three components are the ONLY stored inputs. MSL score and MSL category
+// are deliberately NOT columns — they are derived on the fly from the
+// components (see @/lib/msl/score), so there is exactly one place where the
+// formula and the category bands live.
+//
+// numeric(3,2) holds 1.00–5.00 exactly and matches the application contract of
+// at most two decimals; the CHECK constraints make the range a database
+// guarantee, not just a validation promise.
+// RESTRICT on project_id: deleting a Master Project that an assessment still
+// describes is refused (surfaced as 409 by the Master Project delete flow)
+// instead of silently discarding completed MSL work.
+export const mslAssessments = pgTable(
+  "msl_assessments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => masterProjects.id, { onDelete: "restrict" }),
+    engineeringValue: numeric("engineering_value", { precision: 3, scale: 2 }).notNull(),
+    metodeKerja: numeric("metode_kerja", { precision: 3, scale: 2 }).notNull(),
+    engineeringExecution: numeric("engineering_execution", {
+      precision: 3,
+      scale: 2,
+    }).notNull(),
+    remarks: text("remarks"),
+    createdBy: uuid("created_by")
+      .notNull()
+      .references(() => users.id, { onDelete: "no action" }),
+    updatedBy: uuid("updated_by")
+      .notNull()
+      .references(() => users.id, { onDelete: "no action" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    // The UNIQUE constraint also provides the project_id lookup index, so no
+    // redundant index is added for it.
+    unique("msl_assessments_project_unique").on(table.projectId),
+    index("msl_assessments_created_by_idx").on(table.createdBy),
+    index("msl_assessments_updated_by_idx").on(table.updatedBy),
+    check(
+      "msl_assessments_engineering_value_check",
+      sql`${table.engineeringValue} >= 1 AND ${table.engineeringValue} <= 5`,
+    ),
+    check(
+      "msl_assessments_metode_kerja_check",
+      sql`${table.metodeKerja} >= 1 AND ${table.metodeKerja} <= 5`,
+    ),
+    check(
+      "msl_assessments_engineering_execution_check",
+      sql`${table.engineeringExecution} >= 1 AND ${table.engineeringExecution} <= 5`,
+    ),
+  ],
+);
+
+export type PgMslAssessment = typeof mslAssessments.$inferSelect;
+export type NewPgMslAssessment = typeof mslAssessments.$inferInsert;
+
+// One annual note per calendar year, covering the whole MSL picture for that
+// year (never one note per project, so there is no project foreign key).
+// A NULL note means "never written yet" and is distinct from an empty text.
+export const mslYearNotes = pgTable(
+  "msl_year_notes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    year: integer("year").notNull(),
+    note: text("note"),
+    createdBy: uuid("created_by")
+      .notNull()
+      .references(() => users.id, { onDelete: "no action" }),
+    updatedBy: uuid("updated_by")
+      .notNull()
+      .references(() => users.id, { onDelete: "no action" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    // Serves both the one-note-per-year rule and the by-year lookup.
+    unique("msl_year_notes_year_unique").on(table.year),
+    index("msl_year_notes_created_by_idx").on(table.createdBy),
+    index("msl_year_notes_updated_by_idx").on(table.updatedBy),
+    check("msl_year_notes_year_check", sql`${table.year} >= 2000`),
+  ],
+);
+
+export type PgMslYearNote = typeof mslYearNotes.$inferSelect;
+export type NewPgMslYearNote = typeof mslYearNotes.$inferInsert;
