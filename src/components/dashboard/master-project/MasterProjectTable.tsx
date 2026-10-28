@@ -12,6 +12,7 @@ type MasterProjectApiItem = {
   id: string;
   name: string;
   location: string;
+  year?: number;
   pic?: { id?: string; name?: string } | null;
 };
 
@@ -43,6 +44,9 @@ function TableSkeleton() {
           </td>
           <td className="px-4 py-4">
             <div className="h-3 w-40 animate-pulse rounded bg-slate-100" />
+          </td>
+          <td className="px-4 py-4">
+            <div className="h-3 w-12 animate-pulse rounded bg-slate-100" />
           </td>
           <td className="px-4 py-4">
             <div className="h-3 w-32 animate-pulse rounded bg-slate-100" />
@@ -291,7 +295,7 @@ export default function MasterProjectTable({
                   Daftar Master Project
                 </h2>
                 <p className="mt-0.5 text-xs text-primary/50">
-                  Nama, lokasi, dan PIC untuk setiap project.
+                  Nama, lokasi, tahun, dan PIC untuk setiap project.
                 </p>
               </div>
               <div className="flex items-center gap-3 text-xs font-semibold text-primary/60">
@@ -303,7 +307,7 @@ export default function MasterProjectTable({
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[760px] border-collapse text-xs">
+              <table className="w-full min-w-[860px] border-collapse text-xs">
                 <thead>
                   <tr>
                     <th scope="col" className={`${headerCell} w-16`}>
@@ -314,6 +318,9 @@ export default function MasterProjectTable({
                     </th>
                     <th scope="col" className={headerCell}>
                       Lokasi Proyek
+                    </th>
+                    <th scope="col" className={`${headerCell} w-20`}>
+                      Tahun
                     </th>
                     <th scope="col" className={headerCell}>
                       PIC
@@ -329,7 +336,7 @@ export default function MasterProjectTable({
                   ) : rows.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={5}
+                        colSpan={6}
                         className="px-4 py-10 text-center text-xs font-medium text-primary/60"
                       >
                         <p className="text-sm font-medium text-primary/70">
@@ -355,6 +362,11 @@ export default function MasterProjectTable({
                           </td>
                           <td className={`${bodyCell} min-w-44`}>
                             {displayText(item.location)}
+                          </td>
+                          <td className={`${bodyCell} tabular-nums text-primary/70`}>
+                            {typeof item.year === "number"
+                              ? item.year
+                              : EMPTY_VALUE}
                           </td>
                           <td className={`${bodyCell} min-w-40`}>
                             {displayText(item.pic?.name)}

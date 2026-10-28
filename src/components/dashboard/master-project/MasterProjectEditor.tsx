@@ -9,6 +9,9 @@ type MasterProjectEditorMode = "create" | "edit";
 type MasterProjectInitial = {
   name: string;
   location: string;
+  // Held as a string because it backs a number input; converted to an integer
+  // only when the payload is built.
+  year: string;
   picUserId: string;
 };
 
@@ -16,6 +19,7 @@ type MasterProjectDetail = {
   id: string;
   name: string;
   location: string;
+  year?: number;
   pic?: { id?: string; name?: string } | null;
 };
 
@@ -34,6 +38,7 @@ type ApiErrorBody = {
 const EMPTY_INITIAL: MasterProjectInitial = {
   name: "",
   location: "",
+  year: "",
   picUserId: "",
 };
 
@@ -210,6 +215,7 @@ export default function MasterProjectEditor({
           setInitial({
             name: detail.name,
             location: detail.location,
+            year: typeof detail.year === "number" ? String(detail.year) : "",
             picUserId: detail.pic?.id ?? "",
           });
         }
@@ -330,6 +336,7 @@ function MasterProjectFields({
   const router = useRouter();
   const [formName, setFormName] = useState(initial.name);
   const [formLocation, setFormLocation] = useState(initial.location);
+  const [formYear, setFormYear] = useState(initial.year);
   const [formPicUserId, setFormPicUserId] = useState(initial.picUserId);
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -364,6 +371,21 @@ function MasterProjectFields({
       setFormError("Lokasi Proyek maksimal 200 karakter.");
       return;
     }
+    const yearText = formYear.trim();
+    if (yearText === "") {
+      setFormError("Tahun wajib diisi.");
+      return;
+    }
+    // Integer only: no "2026.5", no "2026abc". Number() would accept both.
+    if (!/^\d{4}$/.test(yearText)) {
+      setFormError("Tahun harus berupa angka 4 digit.");
+      return;
+    }
+    const year = Number(yearText);
+    if (!Number.isInteger(year) || year < 2000) {
+      setFormError("Tahun minimal 2000.");
+      return;
+    }
     if (formPicUserId === "") {
       setFormError("Pilih PIC.");
       return;
@@ -382,6 +404,7 @@ function MasterProjectFields({
         body: JSON.stringify({
           name,
           location,
+          year,
           picUserId: formPicUserId,
         }),
       });
@@ -454,6 +477,32 @@ function MasterProjectFields({
               placeholder="cth. Jakarta"
               className={inputClass}
             />
+          </div>
+
+          <div>
+            <label
+              htmlFor="masterProjectYear"
+              className="mb-1.5 block text-xs font-semibold text-slate-700"
+            >
+              Tahun <span className="text-red-700">*</span>
+            </label>
+            <input
+              id="masterProjectYear"
+              type="number"
+              required
+              inputMode="numeric"
+              min={2000}
+              step={1}
+              value={formYear}
+              disabled={submitting}
+              onChange={(event) => setFormYear(event.target.value)}
+              placeholder="cth. 2026"
+              className={inputClass}
+            />
+            <p className="mt-1.5 text-[11px] text-primary/50">
+              Satu proyek hanya memiliki satu tahun. Tahun dipakai untuk
+              pengelompokan project, termasuk MSL Engineering.
+            </p>
           </div>
 
           <div>

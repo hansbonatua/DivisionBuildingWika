@@ -11,6 +11,7 @@ export type MasterProjectRow = {
   id: string;
   name: string;
   location: string;
+  year: number;
   picUserId: string;
   picName: string;
   createdBy: string;
@@ -24,13 +25,14 @@ export type MasterProjectPicOptionRow = {
 };
 
 export type MasterProjectMutableData = Partial<
-  Pick<NewPgMasterProject, "name" | "location" | "picUserId">
+  Pick<NewPgMasterProject, "name" | "location" | "year" | "picUserId">
 >;
 
 const masterProjectColumns = {
   id: masterProjects.id,
   name: masterProjects.name,
   location: masterProjects.location,
+  year: masterProjects.year,
   picUserId: masterProjects.picUserId,
   picName: users.name,
   createdBy: masterProjects.createdBy,

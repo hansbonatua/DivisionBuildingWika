@@ -33,6 +33,9 @@ export type MasterProjectItem = {
   id: string;
   name: string;
   location: string;
+  // Canonical single year. Consumers (e.g. MSL Engineering) read it from here
+  // and never keep their own copy.
+  year: number;
   pic: { id: string; name: string };
   createdAt: string;
   updatedAt: string;
@@ -148,6 +151,7 @@ function toItem(row: MasterProjectRow): MasterProjectItem {
     id: row.id,
     name: row.name,
     location: row.location,
+    year: row.year,
     pic: { id: row.picUserId, name: row.picName },
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
@@ -219,6 +223,7 @@ export async function createMasterProject(
     const id = await insertMasterProject({
       name: input.name,
       location: input.location,
+      year: input.year,
       picUserId: input.picUserId,
       createdBy: actor.id,
     });
@@ -255,6 +260,7 @@ export async function updateMasterProject(
   const patch: MasterProjectMutableData = {};
   if (input.name !== undefined) patch.name = input.name;
   if (input.location !== undefined) patch.location = input.location;
+  if (input.year !== undefined) patch.year = input.year;
   if (input.picUserId !== undefined) patch.picUserId = input.picUserId;
 
   try {
@@ -287,7 +293,7 @@ export async function deleteMasterProject(
   } catch (error) {
     if (isForeignKeyViolation(error)) {
       throw new MasterProjectConflictError(
-        "Master Project tidak dapat dihapus karena masih digunakan oleh data Engineering Database",
+        "Master Project tidak dapat dihapus karena masih digunakan oleh data Engineering Database atau MSL Engineering",
       );
     }
     throw error;

@@ -255,12 +255,19 @@ export const templateForms = pgTable(
 export type PgTemplateForm = typeof templateForms.$inferSelect;
 export type NewPgTemplateForm = typeof templateForms.$inferInsert;
 
+// Canonical project directory. A project belongs to EXACTLY ONE year: there is
+// deliberately no start_year/end_year pair and no project↔year join table, so
+// "the year of a project" has a single source of truth for every consumer
+// (Master Project itself and MSL Engineering). year is editable through the
+// normal edit flow. It is NOT part of the (name, location) identity: the same
+// name+location in another year is still the same duplicate project.
 export const masterProjects = pgTable(
   "master_projects",
   {
     id: uuid("id").primaryKey().defaultRandom(),
     name: text("name").notNull(),
     location: text("location").notNull(),
+    year: integer("year").notNull(),
     picUserId: uuid("pic_user_id")
       .notNull()
       .references(() => users.id, { onDelete: "no action" }),
@@ -273,6 +280,9 @@ export const masterProjects = pgTable(
   (table) => [
     index("master_projects_pic_user_id_idx").on(table.picUserId),
     index("master_projects_created_by_idx").on(table.createdBy),
+    // Year is the MSL Engineering list/filter key, so it is indexed on its own.
+    index("master_projects_year_idx").on(table.year),
+    check("master_projects_year_check", sql`${table.year} >= 2000`),
     uniqueIndex("master_projects_name_location_ci_unique").on(
       sql`lower(btrim(${table.name}))`,
       sql`lower(btrim(${table.location}))`,

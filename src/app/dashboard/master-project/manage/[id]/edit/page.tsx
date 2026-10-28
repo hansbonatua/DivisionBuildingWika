@@ -40,7 +40,7 @@ export default async function EditMasterProjectPage({
           Edit Master Project
         </h1>
         <p className="mt-1 max-w-3xl text-base text-primary/70">
-          Perbarui nama, lokasi, dan PIC Master Project.
+          Perbarui nama, lokasi, tahun, dan PIC Master Project.
         </p>
       </div>
 
