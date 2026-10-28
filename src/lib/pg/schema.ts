@@ -1,5 +1,6 @@
 import {
   bigint,
+  boolean,
   check,
   index,
   integer,
@@ -343,3 +344,43 @@ export const engineeringDatabaseEntries = pgTable(
 
 export type PgEngineeringDatabaseEntry = typeof engineeringDatabaseEntries.$inferSelect;
 export type NewPgEngineeringDatabaseEntry = typeof engineeringDatabaseEntries.$inferInsert;
+
+// ---------------------------------------------------------------------------
+// Authentication security: login attempt ledger (V1 brute-force protection).
+//
+// One row per credential attempt, used only to evaluate the temporary lockout
+// and to answer "was this login a success or a failure, and when?".
+//
+// Privacy: the identity is stored as a SHA-256 hash of the normalized NIP
+// (`identity_hash`), never as the raw NIP, so the ledger cannot be read as a
+// list of real employee numbers. Nothing else about the credential is stored —
+// no password, no password hash, no session token, no IP address.
+//
+// Growth is bounded by the policy itself: failures stop being written once an
+// identity is locked (5 per 15 minutes), so a guessing run cannot inflate the
+// table. Rows are never mutated, only inserted, which keeps the trail honest.
+export const loginAttempts = pgTable(
+  "login_attempts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    // SHA-256(nip.trim()) as lowercase hex — 64 chars, fixed width.
+    identityHash: text("identity_hash").notNull(),
+    succeeded: boolean("succeeded").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    // Serves the recent-failure lookup exactly: filter by identity, filter by
+    // outcome, then range-scan the window. Column order matches that query.
+    index("login_attempts_identity_hash_succeeded_created_at_idx").on(
+      table.identityHash,
+      table.succeeded,
+      table.createdAt,
+    ),
+    // Retention / housekeeping scans (oldest first or newest first) without
+    // touching the identity index.
+    index("login_attempts_created_at_idx").on(table.createdAt),
+  ],
+);
+
+export type PgLoginAttempt = typeof loginAttempts.$inferSelect;
+export type NewPgLoginAttempt = typeof loginAttempts.$inferInsert;
