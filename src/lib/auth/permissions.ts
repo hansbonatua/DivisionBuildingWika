@@ -40,6 +40,9 @@ export const PERMISSIONS = {
   ENGINEERING_DATABASE_VIEW: "ENGINEERING_DATABASE_VIEW",
   ENGINEERING_DATABASE_MANAGE: "ENGINEERING_DATABASE_MANAGE",
 
+  MSL_VIEW: "MSL_VIEW",
+  MSL_MANAGE: "MSL_MANAGE",
+
   DASHBOARD_SASAA_VIEW: "DASHBOARD_SASAA_VIEW",
 } as const;
 
@@ -47,7 +50,7 @@ export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
 
 // Non-Admin role mapping for every permission. Admin is intentionally absent:
 // it is granted centrally by the super-application shortcut in hasPermission()
-// instead of being repeated in 14 arrays (and therefore impossible to forget).
+// instead of being repeated in 16 arrays (and therefore impossible to forget).
 //
 // CMS_MANAGE and USER_MANAGE are Admin-only by construction (empty role lists)
 // and are enforced across sidebar, dashboard tiles, page guards, API routes and
@@ -72,6 +75,14 @@ const NON_ADMIN_PERMISSION_ROLES: Record<Permission, readonly UserRole[]> = {
 
   ENGINEERING_DATABASE_VIEW: [HEAD_OFFICE_ROLE, PROJECT_ROLE, MANAGEMENT_ROLE],
   ENGINEERING_DATABASE_MANAGE: [HEAD_OFFICE_ROLE, PROJECT_ROLE],
+
+  // MSL Engineering: Head Office is a ROLE-level read-only viewer. Management
+  // is deliberately absent from both lists — a Management user is eligible only
+  // through the per-user `users.msl_access` capability, resolved by
+  // @/lib/msl/access (never by the role map). Project has no access at all and
+  // Admin gets both via the super-application shortcut.
+  MSL_VIEW: [HEAD_OFFICE_ROLE],
+  MSL_MANAGE: [],
 
   DASHBOARD_SASAA_VIEW: [HEAD_OFFICE_ROLE, MANAGEMENT_ROLE],
 };

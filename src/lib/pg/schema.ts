@@ -30,6 +30,13 @@ export const users = pgTable(
     photoUrl: text("photo_url"),
     role: text("role").notNull().default("Project"),
     status: text("status").notNull().default("active"),
+    // Per-user capability for MSL Engineering. Deliberately NOT a role: only a
+    // Management user can hold it, and it is forced back to false whenever the
+    // resulting role is anything else (enforced on the service layer, see
+    // @/lib/users/service). Admin/Head Office eligibility comes from the role
+    // permission map instead, so they never need this flag. Default false means
+    // every existing user is unaffected by its introduction.
+    mslAccess: boolean("msl_access").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },

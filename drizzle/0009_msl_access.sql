@@ -1,0 +1,1 @@
+ALTER TABLE "users" ADD COLUMN "msl_access" boolean DEFAULT false NOT NULL;

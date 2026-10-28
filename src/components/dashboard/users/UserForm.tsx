@@ -14,6 +14,9 @@ export type UserFormValues = {
   position: string;
   role: UserRole;
   status: "active" | "suspended";
+  // Management-only capability. Always submitted (false for every other role)
+  // so the backend never has to guess; the server is still authoritative.
+  mslAccess: boolean;
   password: string;
 };
 
@@ -29,6 +32,7 @@ export type UserFormInitialData = {
   position?: string;
   role?: string;
   status?: string;
+  mslAccess?: boolean;
 };
 
 type UserFormProps = {
@@ -64,6 +68,7 @@ export default function UserForm({
   const [formStatus, setFormStatus] = useState<"active" | "suspended">(
     initialData?.status === "suspended" ? "suspended" : "active",
   );
+  const [formMslAccess, setFormMslAccess] = useState(initialData?.mslAccess === true);
   const [formPassword, setFormPassword] = useState("");
   const initialPhotoUrl =
     initialData?.photoUrl && !initialData.photoUrl.startsWith("blob:")
@@ -117,6 +122,7 @@ export default function UserForm({
         position: formPosition,
         role: formRole,
         status: formStatus,
+        mslAccess: formRole === "Management" ? formMslAccess : false,
         password: formPassword,
       });
     } catch (error) {
@@ -285,6 +291,11 @@ export default function UserForm({
               onChange={(e) => {
                 if (isUserRole(e.target.value)) {
                   setFormRole(e.target.value);
+                  // Capability is Management-only: leaving the role clears the
+                  // toggle state instead of carrying a hidden `true` along.
+                  if (e.target.value !== "Management") {
+                    setFormMslAccess(false);
+                  }
                 }
               }}
               className={inputClass}
@@ -295,6 +306,42 @@ export default function UserForm({
             </select>
           )}
         </div>
+        {formRole === "Management" ? (
+          <div>
+            <label htmlFor="u_msl" className="mb-1.5 block text-xs font-semibold text-slate-700">
+              MSL Engineering Access
+            </label>
+            <button
+              id="u_msl"
+              type="button"
+              role="switch"
+              aria-checked={formMslAccess}
+              onClick={() => setFormMslAccess((prev) => !prev)}
+              className={`inline-flex h-10 w-full items-center justify-between rounded-lg border px-3.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-secondary/20 ${
+                formMslAccess
+                  ? "border-secondary/40 bg-blue-50 text-secondary"
+                  : "border-outline/60 bg-white text-slate-500"
+              }`}
+            >
+              <span>{formMslAccess ? "Aktif" : "Nonaktif"}</span>
+              <span
+                aria-hidden="true"
+                className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${
+                  formMslAccess ? "bg-secondary" : "bg-slate-300"
+                }`}
+              >
+                <span
+                  className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${
+                    formMslAccess ? "translate-x-4" : "translate-x-0"
+                  }`}
+                />
+              </span>
+            </button>
+            <p className="mt-1 text-[11px] text-slate-400">
+              Hanya tersedia untuk role Management. Admin selalu memiliki akses penuh.
+            </p>
+          </div>
+        ) : null}
         <div>
           <label htmlFor="u_password" className="mb-1.5 block text-xs font-semibold text-slate-700">
             Password {mode === "add" ? <span className="text-red-700">*</span> : null}

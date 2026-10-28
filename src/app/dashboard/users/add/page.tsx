@@ -19,6 +19,7 @@ export default function AddUserPage() {
         position: values.position,
         role: values.role,
         status: values.status,
+        mslAccess: values.mslAccess,
         password: values.password,
         photoUrl: values.photo,
       }),

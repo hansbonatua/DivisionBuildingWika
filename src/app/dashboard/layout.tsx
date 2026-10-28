@@ -3,7 +3,9 @@ import { requireUser, UnauthenticatedError } from "@/lib/auth/current-user";
 import DashboardShell from "@/components/dashboard/DashboardShell";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
-  let user: { name: string; role: string };
+  // `mslAccess` is carried to the shell so the future MSL sidebar entry can be
+  // derived without another server round-trip or a layout refactor.
+  let user: { name: string; role: string; mslAccess: boolean };
   try {
     user = await requireUser();
   } catch (error) {
@@ -13,6 +15,6 @@ export default async function DashboardLayout({ children }: { children: React.Re
     throw error;
   }
   return (
-    <DashboardShell user={{ name: user.name, role: user.role }}>{children}</DashboardShell>
+    <DashboardShell user={user}>{children}</DashboardShell>
   );
 }

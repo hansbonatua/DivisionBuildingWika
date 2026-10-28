@@ -12,7 +12,7 @@ import {
 } from "@/lib/users/repository";
 import { hashPassword } from "@/lib/auth/password";
 import { deleteUserSessions } from "@/lib/auth/session";
-import { ADMIN_ROLE } from "@/lib/users/roles";
+import { ADMIN_ROLE, MANAGEMENT_ROLE } from "@/lib/users/roles";
 import { assertCanManageUsers } from "@/lib/users/access";
 import { isForeignKeyViolation } from "@/lib/pg/errors";
 import type {
@@ -159,6 +159,10 @@ export async function createSafeUser(
       position: input.position,
       role: input.role,
       status: input.status,
+      // Capability is Management-only. Any payload that tries to enable it for
+      // another role is accepted but normalised to false, so no non-Management
+      // user can ever be persisted with msl_access = true.
+      mslAccess: input.role === MANAGEMENT_ROLE && input.mslAccess,
       passwordHash,
       photoUrl: input.photoUrl ?? null,
     });
@@ -244,6 +248,19 @@ export async function updateSafeUser(
   if (input.position !== undefined) patch.position = input.position;
   if (input.role !== undefined) patch.role = input.role;
   if (input.photoUrl !== undefined) patch.photoUrl = input.photoUrl;
+  // Capability is resolved against the RESULTING role, not the current one:
+  //   Management -> Management (flag omitted)   => unchanged
+  //   anything   -> Management + mslAccess      => supplied value
+  //   Management -> anything else               => forced false (no stale flag)
+  //   non-Management + mslAccess: true          => ignored (stays false)
+  const resultingRole = input.role ?? existing.role;
+  if (resultingRole === MANAGEMENT_ROLE) {
+    if (input.mslAccess !== undefined) {
+      patch.mslAccess = input.mslAccess;
+    }
+  } else if (existing.mslAccess) {
+    patch.mslAccess = false;
+  }
   const newPassword = input.password;
   if (newPassword !== undefined) {
     patch.passwordHash = await hashPassword(newPassword);

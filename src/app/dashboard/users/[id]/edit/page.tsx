@@ -53,6 +53,7 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
       position: values.position,
       role: values.role,
       status: values.status,
+      mslAccess: values.mslAccess,
       photoUrl: values.photo,
     };
     if (values.password) {
