@@ -64,9 +64,35 @@ export default function MslEngineeringPage({ canManage }: { canManage: boolean }
   const [noteSaved, setNoteSaved] = useState("");
   const [savingNote, setSavingNote] = useState(false);
 
+  const [pdfMenuOpen, setPdfMenuOpen] = useState(false);
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const pdfMenuRef = useRef<HTMLDivElement | null>(null);
+
   const hasLoadedRef = useRef(false);
   // Guard against a slow earlier request overwriting a newer result.
   const requestIdRef = useRef(0);
+
+  useEffect(() => {
+    if (!pdfMenuOpen) {
+      return;
+    }
+    function handlePointerDown(event: MouseEvent): void {
+      if (pdfMenuRef.current && !pdfMenuRef.current.contains(event.target as Node)) {
+        setPdfMenuOpen(false);
+      }
+    }
+    function handleKeyDown(event: KeyboardEvent): void {
+      if (event.key === "Escape") {
+        setPdfMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [pdfMenuOpen]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -372,6 +398,38 @@ export default function MslEngineeringPage({ canManage }: { canManage: boolean }
     }
   }
 
+  async function handlePdf(action: "view" | "download"): Promise<void> {
+    if (pdfBusy || !view) {
+      return;
+    }
+    // Snapshot what is currently on screen: the selected year, its rows and the
+    // SAVED annual note (never an unsaved draft). No request is made here — the
+    // PDF is built entirely from data already loaded through GET /api/msl.
+    const source = { year: view.year, rows: view.rows, note: noteSaved };
+    setPdfBusy(true);
+    setPdfMenuOpen(false);
+    setFeedback(null);
+    try {
+      const pdfModule = await import("./mslExportPdf");
+      const logoDataUrl = await pdfModule.loadWibexLogoDataUrl();
+      if (action === "view") {
+        pdfModule.viewMslPdf(source, logoDataUrl);
+      } else {
+        pdfModule.downloadMslPdf(source, logoDataUrl);
+      }
+    } catch {
+      setFeedback({
+        kind: "error",
+        message:
+          action === "view"
+            ? "Gagal menyiapkan pratinjau PDF."
+            : "Gagal mengunduh PDF MSL Engineering.",
+      });
+    } finally {
+      setPdfBusy(false);
+    }
+  }
+
   const emptyMessage = `Belum ada Master Project untuk tahun ${selectedYear ?? ""}.`;
 
   return (
@@ -391,6 +449,75 @@ export default function MslEngineeringPage({ canManage }: { canManage: boolean }
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
+          <div ref={pdfMenuRef} className="relative">
+            <button
+              type="button"
+              disabled={pdfBusy || view === null}
+              title={view === null ? "Tunggu data selesai dimuat" : "PDF"}
+              aria-expanded={pdfMenuOpen}
+              aria-haspopup="menu"
+              aria-label="Menu PDF MSL Engineering"
+              onClick={() => setPdfMenuOpen((prev) => !prev)}
+              className="inline-flex h-10 items-center gap-2 rounded-lg border border-outline bg-white px-4 text-xs font-bold text-slate-600 shadow-sm transition-colors hover:bg-slate-50 hover:text-primary disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" x2="12" y1="15" y2="3" />
+              </svg>
+              <span>{pdfBusy ? "Menyiapkan PDF..." : "PDF"}</span>
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+                className={`transition-transform duration-200 ${pdfMenuOpen ? "rotate-180" : ""}`}
+              >
+                <path d="m6 9 6 6 6-6" />
+              </svg>
+            </button>
+            {pdfMenuOpen ? (
+              <div
+                role="menu"
+                aria-label="Menu PDF MSL Engineering"
+                className="absolute right-0 top-full z-50 mt-2 w-52 overflow-hidden rounded-xl border border-outline/60 bg-white py-2 shadow-lg"
+              >
+                <button
+                  type="button"
+                  role="menuitem"
+                  disabled={pdfBusy}
+                  onClick={() => void handlePdf("view")}
+                  className="flex w-full items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 hover:text-primary disabled:opacity-60"
+                >
+                  <span>View PDF</span>
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  disabled={pdfBusy}
+                  onClick={() => void handlePdf("download")}
+                  className="flex w-full items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 hover:text-primary disabled:opacity-60"
+                >
+                  <span>Download PDF</span>
+                </button>
+              </div>
+            ) : null}
+          </div>
           <label
             htmlFor="msl-year"
             className="text-[11px] font-bold uppercase tracking-wide text-primary/60"

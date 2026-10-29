@@ -28,9 +28,12 @@ const stats: Stat[] = [
 ];
 
 const missions: string[] = [
-  "Lorem ipsum dolor, sit amet consectetur adipisicing elit. Perferendis, deleniti!.",
-  "Lorem ipsum dolor sit amet consectetur adipisicing elit. Labore, voluptatibus?.",
-  "Lorem ipsum, dolor sit amet consectetur adipisicing elit. Accusantium, reprehenderit!.",
+  "Memberikan layanan dan produk EPC yang terintegrasi dan berkelanjutan berdasarkan prinsip kualitas, keselamatan, kesehatan, dan lingkungan yang berstandar global", 
+  "Mengimplementasikan budaya belajar dan inovasi untuk menyediakan solusi terbaik bagi stakeholder, serta memastikan tingkat kepuasan yang tinggi",
+  "Berkomitmen untuk menjalankan proses bisnis dengan standar kualitas tertinggi dan penggunaan teknologi terbaik",
+  "Memperkuat ketahanan dan pertumbuhan finasial dengan mengoptimalkan pemanfaatan sumber daya untuk mencapai profitabilitas yang berkelanjutan.",
+  "Mengimplementasikan pengelolaan lingkungan, tanggung jawab sosial, praktek etis, transparansi, akuntabilitas, dan inovsi berkelanjutan dalam semua aspek operasi perusahaan.",
+  "Membangun sumber daya manusia yang berintegritas dan profesional berbasis budaya perusahaan",
 ];
 
 export default function About() {
@@ -141,7 +144,7 @@ export default function About() {
                   <h4 className="text-lg font-bold text-primary">Visi</h4>
                 </div>
                 <p className="text-sm leading-relaxed text-primary/70">
-                  Lorem ipsum dolor, sit amet consectetur adipisicing elit. Illo, quas..
+                  Menjadi Perusahaan Terpercaya di Bidang Infrastruktur dan EPC yang berkelanjutan
                 </p>
               </div>
               <div className="rounded-xl border border-outline/50 bg-surface p-5 shadow-sm">
