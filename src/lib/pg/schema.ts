@@ -511,3 +511,62 @@ export const mslYearNotes = pgTable(
 
 export type PgMslYearNote = typeof mslYearNotes.$inferSelect;
 export type NewPgMslYearNote = typeof mslYearNotes.$inferInsert;
+
+// ---------------------------------------------------------------------------
+// Struktur Organisasi (V1): exactly ONE active organization chart.
+//
+// Singleton by construction, not by convention: `singleton` is always true and
+// is constrained twice — CHECK (singleton) rejects `false`, UNIQUE (singleton)
+// rejects a second row. "No chart yet" is therefore the absence of a row, which
+// is why the table has no `is_active`/version/valid-from columns and no history:
+// replacing the chart overwrites this single row.
+//
+// Storage identity is `blob_pathname` (inside the PUBLIC CMS store namespace
+// `cms/organization/`), never a duplicated blob URL: ownership detection and
+// orphan cleanup compare the pathname, so a hot-linked external URL can never be
+// mistaken for an object this module is allowed to delete. `image_url` remains
+// the single render field the viewer reads.
+//
+// Actor convention (see program_kerja_monthly.ri_updated_by): `created_by` is
+// authorship and is NOT NULL + NO ACTION, so deleting the first uploader is
+// refused while the row exists. `updated_by` is a last-touch pointer and is
+// nullable + SET NULL, so deleting the most recent updater never fails and
+// never pins a user to this global row.
+export const organizationStructure = pgTable(
+  "organization_structure",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    // The only permitted value is `true`; see the two constraints below.
+    singleton: boolean("singleton").notNull().default(true),
+    imageUrl: text("image_url").notNull(),
+    blobPathname: text("blob_pathname").notNull(),
+    // Server-derived display name (final pathname segment), never client input.
+    fileName: text("file_name"),
+    createdBy: uuid("created_by")
+      .notNull()
+      .references(() => users.id, { onDelete: "no action" }),
+    updatedBy: uuid("updated_by").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    // CHECK + UNIQUE together make a second row unrepresentable.
+    uniqueIndex("organization_structure_singleton_unique").on(table.singleton),
+    check("organization_structure_singleton_check", sql`${table.singleton}`),
+    check(
+      "organization_structure_image_url_check",
+      sql`length(btrim(${table.imageUrl})) > 0`,
+    ),
+    check(
+      "organization_structure_blob_pathname_check",
+      sql`length(btrim(${table.blobPathname})) > 0`,
+    ),
+    // Referencing-column index so the RESTRICT check on user delete is a lookup.
+    index("organization_structure_created_by_idx").on(table.createdBy),
+  ],
+);
+
+export type PgOrganizationStructure = typeof organizationStructure.$inferSelect;
+export type NewPgOrganizationStructure = typeof organizationStructure.$inferInsert;

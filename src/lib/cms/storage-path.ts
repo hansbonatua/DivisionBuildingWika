@@ -13,8 +13,9 @@ import {
 // - the client can never choose a path outside this namespace.
 //
 // AUTHORIZED upload namespaces: hero (Phase A), projects + green-building
-// (Phase B), clients (Phase C), social (Phase D). Every CMS surface that owns
-// landing images is now enabled; any other `cms/*` path stays rejected.
+// (Phase B), clients (Phase C), social (Phase D) and organization (Struktur
+// Organisasi). Any other `cms/*` path stays rejected, and the PRIVATE
+// Template & Form namespace (`template-form/*`) is never part of this module.
 //
 // Pure module (no Blob SDK import) so it is safe to validate in any layer,
 // including the browser, before a token is requested.
@@ -28,6 +29,12 @@ export const CMS_GREEN_BUILDING_PREFIX = "cms/green-building/";
 export const CMS_CLIENTS_PREFIX = "cms/clients/";
 export const CMS_SOCIAL_PREFIX = "cms/social/";
 
+// Struktur Organisasi: exactly one organization chart, not landing content. It
+// lives in the same PUBLIC store because the dashboard viewer renders the image
+// directly; a private object would need a second download proxy. No public
+// landing route reads this namespace — only the authenticated dashboard does.
+export const CMS_ORGANIZATION_PREFIX = "cms/organization/";
+
 // Modules that may create uploads today.
 export const CMS_UPLOAD_MODULES = [
   "hero",
@@ -35,6 +42,7 @@ export const CMS_UPLOAD_MODULES = [
   "green-building",
   "clients",
   "social",
+  "organization",
 ] as const;
 
 export type CmsUploadModule = (typeof CMS_UPLOAD_MODULES)[number];
@@ -45,6 +53,7 @@ export const CMS_UPLOAD_PREFIX_BY_MODULE: Record<CmsUploadModule, string> = {
   "green-building": CMS_GREEN_BUILDING_PREFIX,
   clients: CMS_CLIENTS_PREFIX,
   social: CMS_SOCIAL_PREFIX,
+  organization: CMS_ORGANIZATION_PREFIX,
 };
 
 const UUID_SEGMENT_RE =
@@ -130,6 +139,11 @@ export function isCmsSocialBlobPathname(pathname: string): boolean {
   return splitSegments(pathname, CMS_SOCIAL_PREFIX) !== null;
 }
 
+/** True only for a well-formed pathname inside the Struktur Organisasi namespace. */
+export function isCmsOrganizationBlobPathname(pathname: string): boolean {
+  return splitSegments(pathname, CMS_ORGANIZATION_PREFIX) !== null;
+}
+
 /**
  * True only for a pathname the upload route may mint a token for.
  *
@@ -144,7 +158,8 @@ export function isCmsUploadPathname(pathname: string): boolean {
     isCmsProjectsBlobPathname(pathname) ||
     isCmsGreenBuildingBlobPathname(pathname) ||
     isCmsClientsBlobPathname(pathname) ||
-    isCmsSocialBlobPathname(pathname)
+    isCmsSocialBlobPathname(pathname) ||
+    isCmsOrganizationBlobPathname(pathname)
   );
 }
 
@@ -162,7 +177,8 @@ export function isCmsBlobPathname(pathname: string): boolean {
     splitSegments(pathname, CMS_PROJECTS_PREFIX) !== null ||
     splitSegments(pathname, CMS_GREEN_BUILDING_PREFIX) !== null ||
     splitSegments(pathname, CMS_CLIENTS_PREFIX) !== null ||
-    isCmsSocialBlobPathname(pathname)
+    isCmsSocialBlobPathname(pathname) ||
+    isCmsOrganizationBlobPathname(pathname)
   );
 }
 

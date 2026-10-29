@@ -43,6 +43,9 @@ export const PERMISSIONS = {
   MSL_VIEW: "MSL_VIEW",
   MSL_MANAGE: "MSL_MANAGE",
 
+  ORGANIZATION_STRUCTURE_VIEW: "ORGANIZATION_STRUCTURE_VIEW",
+  ORGANIZATION_STRUCTURE_MANAGE: "ORGANIZATION_STRUCTURE_MANAGE",
+
   DASHBOARD_SASAA_VIEW: "DASHBOARD_SASAA_VIEW",
 } as const;
 
@@ -50,7 +53,8 @@ export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
 
 // Non-Admin role mapping for every permission. Admin is intentionally absent:
 // it is granted centrally by the super-application shortcut in hasPermission()
-// instead of being repeated in 16 arrays (and therefore impossible to forget).
+// instead of being repeated in every role array (and therefore impossible to
+// forget).
 //
 // CMS_MANAGE and USER_MANAGE are Admin-only by construction (empty role lists)
 // and are enforced across sidebar, dashboard tiles, page guards, API routes and
@@ -83,6 +87,12 @@ const NON_ADMIN_PERMISSION_ROLES: Record<Permission, readonly UserRole[]> = {
   // Admin gets both via the super-application shortcut.
   MSL_VIEW: [HEAD_OFFICE_ROLE],
   MSL_MANAGE: [],
+
+  // Struktur Organisasi: an internal reference image. Every canonical role may
+  // read it; replacing or removing it is Admin-only by construction (empty role
+  // list), exactly like CMS_MANAGE and USER_MANAGE.
+  ORGANIZATION_STRUCTURE_VIEW: [HEAD_OFFICE_ROLE, PROJECT_ROLE, MANAGEMENT_ROLE],
+  ORGANIZATION_STRUCTURE_MANAGE: [],
 
   DASHBOARD_SASAA_VIEW: [HEAD_OFFICE_ROLE, MANAGEMENT_ROLE],
 };

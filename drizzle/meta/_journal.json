@@ -85,6 +85,13 @@
       "when": 1793289600000,
       "tag": "0011_msl_monthly_assessment",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1793376000000,
+      "tag": "0012_organization_structure",
+      "breakpoints": true
     }
   ]
 }
