@@ -460,10 +460,11 @@ export default function MslEngineeringPage({ canManage }: { canManage: boolean }
     if (pdfBusy || !view) {
       return;
     }
-    // Snapshot what is currently on screen: the selected year, its rows and the
-    // SAVED annual note (never an unsaved draft). No request is made here — the
-    // PDF is built entirely from data already loaded through GET /api/msl.
-    const source = { year: view.year, rows: view.rows, note: noteSaved };
+    // Snapshot what is currently on screen: the selected year AND month, that
+    // month's rows and the SAVED annual note (never an unsaved draft). No request
+    // is made here — the PDF is built entirely from data already loaded through
+    // GET /api/msl, so the export can never mix two months.
+    const source = { year: view.year, month: view.month, rows: view.rows, note: noteSaved };
     setPdfBusy(true);
     setPdfMenuOpen(false);
     setFeedback(null);

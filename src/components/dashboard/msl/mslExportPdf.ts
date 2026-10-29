@@ -5,6 +5,7 @@ import {
   MSL_CATEGORY_LEGEND,
   formatMslScore,
 } from "@/lib/msl/score";
+import { formatMslPeriod, mslMonthToken } from "@/lib/msl/period";
 import type { MslYearRowDto } from "./msl-api.types";
 
 // MSL Engineering PDF export.
@@ -19,8 +20,13 @@ import type { MslYearRowDto } from "./msl-api.types";
 // the display helpers (formatMslScore, MSL_CATEGORY_LABELS) are reused so the
 // PDF can never disagree with the table.
 
+// The export period is the period currently on screen: a year (from Master
+// Project) plus the selected month. `month` is the assessment period, so the
+// PDF can never mix two months — the rows below already belong to it.
+// The annual note stays YEAR-scoped on purpose and is printed as such.
 export type MslPdfSource = {
   year: number;
+  month: number;
   rows: MslYearRowDto[];
   note: string | null;
 };
@@ -77,8 +83,15 @@ function exportStamp(date: Date): string {
   return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}-${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`;
 }
 
-export function mslPdfFileName(year: number, now: Date = new Date()): string {
-  return `MSL-Engineering-${year}-${exportStamp(now)}.pdf`;
+// Period-aware, filesystem-safe name: MSL-Engineering-2026-09-20261029-130000.pdf
+// The month is the zero-padded numeric token (never a localised month name, so
+// the file sorts correctly and survives any filesystem/locale).
+export function mslPdfFileName(
+  year: number,
+  month: number,
+  now: Date = new Date(),
+): string {
+  return `MSL-Engineering-${year}-${mslMonthToken(month)}-${exportStamp(now)}.pdf`;
 }
 
 function currentY(doc: jsPDF, fallback: number): number {
@@ -165,14 +178,21 @@ function tableBody(source: MslPdfSource): CellInput[][] {
   });
 }
 
-function drawNoteSection(doc: jsPDF, note: string | null, startY: number): number {
+function drawNoteSection(
+  doc: jsPDF,
+  note: string | null,
+  year: number,
+  startY: number,
+): number {
   const pageWidth = doc.internal.pageSize.getWidth();
   let y = ensureSpace(doc, startY + 4, 26);
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
   doc.setTextColor(...NAVY_FILL);
-  doc.text("Note Akhir Tahun", MARGIN, y);
+  // Year, never the month: the annual note is one per year and must not read as
+  // a September-only note.
+  doc.text(`Note Akhir Tahun ${year}`, MARGIN, y);
   doc.setDrawColor(ACCENT[0], ACCENT[1], ACCENT[2]);
   doc.setLineWidth(0.5);
   doc.line(MARGIN, y + 1.8, MARGIN + 12, y + 1.8);
@@ -195,17 +215,18 @@ function drawNoteSection(doc: jsPDF, note: string | null, startY: number): numbe
   return y;
 }
 
-function addPageNumbers(doc: jsPDF, year: number): void {
+function addPageNumbers(doc: jsPDF, source: MslPdfSource): void {
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   const total = doc.getNumberOfPages();
+  const periodLabel = formatMslPeriod(source.year, source.month);
 
   for (let page = 1; page <= total; page += 1) {
     doc.setPage(page);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7.5);
     doc.setTextColor(...MUTED_TEXT);
-    doc.text(`MSL Engineering ${year}`, MARGIN, pageHeight - 7);
+    doc.text(`MSL Engineering \u00b7 ${periodLabel}`, MARGIN, pageHeight - 7);
     const label = `Halaman ${page} / ${total}`;
     doc.text(label, pageWidth - MARGIN - doc.getTextWidth(label), pageHeight - 7);
   }
@@ -220,9 +241,11 @@ export function buildMslPdf(
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
 
+  const periodLabel = formatMslPeriod(source.year, source.month);
+
   doc.setProperties({
-    title: `MSL Engineering ${source.year}`,
-    subject: "MSL Engineering",
+    title: `MSL Engineering ${periodLabel}`,
+    subject: `MSL Engineering \u00b7 ${periodLabel}`,
     author: "WIBEX",
   });
 
@@ -254,7 +277,8 @@ export function buildMslPdf(
 
   doc.setFontSize(9);
   doc.setTextColor(...MUTED_TEXT);
-  doc.text(`Tahun: ${source.year}`, MARGIN, 27);
+  // Period, not just the year: the same year has twelve independent exports.
+  doc.text(`Periode: ${periodLabel}`, MARGIN, 27);
   const dateLabel = now.toLocaleString("id-ID", {
     dateStyle: "medium",
     timeStyle: "short",
@@ -302,8 +326,8 @@ export function buildMslPdf(
     showHead: "everyPage",
   });
 
-  drawNoteSection(doc, source.note, currentY(doc, tableStartY));
-  addPageNumbers(doc, source.year);
+  drawNoteSection(doc, source.note, source.year, currentY(doc, tableStartY));
+  addPageNumbers(doc, source);
 
   return doc;
 }
@@ -341,7 +365,7 @@ export async function loadWibexLogoDataUrl(): Promise<string | null> {
 export function downloadMslPdf(source: MslPdfSource, logoDataUrl: string | null = null): void {
   const now = new Date();
   const doc = buildMslPdf(source, now, logoDataUrl);
-  doc.save(mslPdfFileName(source.year, now));
+  doc.save(mslPdfFileName(source.year, source.month, now));
 }
 
 export function viewMslPdf(source: MslPdfSource, logoDataUrl: string | null = null): void {
