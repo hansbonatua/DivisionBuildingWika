@@ -33,9 +33,12 @@ export default function MslYearNote({
     <section className="rounded-lg border border-outline bg-surface shadow-sm">
       <div className="flex flex-col gap-1 border-b border-outline p-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-sm font-bold text-primary">Note Akhir Tahun</h2>
+          {/* The year is spelled out on purpose: the note is per YEAR, so it
+              must never read as belonging to the selected month. */}
+          <h2 className="text-sm font-bold text-primary">Note Akhir Tahun {year}</h2>
           <p className="mt-0.5 text-xs text-primary/50">
-            Catatan keseluruhan MSL Engineering untuk tahun {year}.
+            Catatan keseluruhan MSL Engineering untuk tahun {year} (tidak berubah
+            saat bulan diganti).
           </p>
         </div>
         {editable ? (

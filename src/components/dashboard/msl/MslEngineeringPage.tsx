@@ -15,14 +15,23 @@ import {
 import MslLegend from "./MslLegend";
 import MslTable, { type MslEditingState } from "./MslTable";
 import MslYearNote from "./MslYearNote";
+import {
+  MSL_MONTHS,
+  MSL_MONTH_LABELS,
+  formatMslPeriod,
+  isMslMonth,
+} from "@/lib/msl/period";
 
-// MSL Engineering page (V1 UI).
+// MSL Engineering page (V2.2 UI: year + month selector).
 //
-// All data comes from GET /api/msl — the browser never queries the database and
-// never computes the default year, the score or the category: the backend
-// resolves the year and the shared pure engine derives score/category. Local
-// drafts are only for the inputs being typed; every saved value comes back from
-// the API response.
+// All data comes from GET /api/msl?year=&month= — the browser never queries the
+// database and never computes the default year/month, the score or the
+// category: the backend resolves the period and the shared pure engine derives
+// score/category. Local drafts are only for the inputs being typed; every saved
+// value comes back from the API response.
+//
+// Months are independent: nothing here requires a previous month to be filled
+// in, and switching month simply asks the API for that month.
 
 type Feedback = { kind: "success" | "error"; message: string };
 
@@ -46,8 +55,11 @@ async function readErrorMessage(response: Response, fallback: string): Promise<s
 
 export default function MslEngineeringPage({ canManage }: { canManage: boolean }) {
   const [view, setView] = useState<MslYearViewDto | null>(null);
-  // null = "let the backend pick the default year" (initial load / retry).
+  // null = "let the backend pick the default" (initial load / retry). The year
+  // and the month are tracked separately so switching the year keeps the month
+  // the user already chose.
   const [requestedYear, setRequestedYear] = useState<number | null>(null);
+  const [requestedMonth, setRequestedMonth] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -100,6 +112,15 @@ export default function MslEngineeringPage({ canManage }: { canManage: boolean }
     requestIdRef.current = requestId;
     let active = true;
 
+    // Label of the period being requested, used only to make a failed switch
+    // explicit (never as a silent fallback to the previous month's data).
+    const requestedPeriodLabel =
+      requestedMonth === null || !isMslMonth(requestedMonth)
+        ? null
+        : requestedYear === null
+          ? MSL_MONTH_LABELS[requestedMonth]
+          : formatMslPeriod(requestedYear, requestedMonth);
+
     async function loadView(): Promise<void> {
       if (hasLoadedRef.current) {
         setRefreshing(true);
@@ -108,7 +129,15 @@ export default function MslEngineeringPage({ canManage }: { canManage: boolean }
       }
       setError(null);
       try {
-        const url = requestedYear === null ? "/api/msl" : `/api/msl?year=${requestedYear}`;
+        const params = new URLSearchParams();
+        if (requestedYear !== null) {
+          params.set("year", String(requestedYear));
+        }
+        if (requestedMonth !== null) {
+          params.set("month", String(requestedMonth));
+        }
+        const query = params.toString();
+        const url = query === "" ? "/api/msl" : `/api/msl?${query}`;
         const response = await fetch(url, { signal: controller.signal, cache: "no-store" });
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}`);
@@ -135,7 +164,9 @@ export default function MslEngineeringPage({ canManage }: { canManage: boolean }
         const message =
           loadError instanceof Error && loadError.message === "HTTP 403"
             ? "Anda tidak memiliki akses ke MSL Engineering."
-            : "Gagal memuat data MSL Engineering.";
+            : requestedPeriodLabel !== null
+              ? `Gagal memuat data MSL Engineering untuk ${requestedPeriodLabel}.`
+              : "Gagal memuat data MSL Engineering.";
         setError(message);
       } finally {
         if (active && requestId === requestIdRef.current) {
@@ -151,11 +182,16 @@ export default function MslEngineeringPage({ canManage }: { canManage: boolean }
       active = false;
       controller.abort();
     };
-  }, [requestedYear, reloadToken]);
+  }, [requestedYear, requestedMonth, reloadToken]);
 
   const selectedYear = view?.year ?? requestedYear;
   const yearOptions =
     view && view.years.length > 0 ? view.years : view ? [view.year] : [];
+
+  // The selectors show what the user ASKED for; the table and the period label
+  // show what is actually loaded. They agree as soon as the request lands.
+  const selectedMonth = requestedMonth ?? view?.month ?? null;
+  const periodLabel = view ? formatMslPeriod(view.year, view.month) : null;
 
   const editingDirty = editing !== null && !draftEquals(editing.draft, editing.initial);
   const createDirty = Object.values(createDrafts).some((draft) => !isEmptyDraft(draft));
@@ -178,7 +214,27 @@ export default function MslEngineeringPage({ canManage }: { canManage: boolean }
     setCreateDrafts({});
     setCreateErrors({});
     setFeedback(null);
+    // The selected month is kept on purpose: 2026 September -> 2027 September.
     setRequestedYear(nextYear);
+  }
+
+  function handleMonthChange(nextMonth: number): void {
+    if (nextMonth === selectedMonth) {
+      return;
+    }
+    if (hasUnsavedChanges) {
+      const confirmed = window.confirm(
+        "Ada perubahan yang belum disimpan. Ganti bulan dan buang perubahan?",
+      );
+      if (!confirmed) {
+        return;
+      }
+    }
+    setEditing(null);
+    setCreateDrafts({});
+    setCreateErrors({});
+    setFeedback(null);
+    setRequestedMonth(nextMonth);
   }
 
   function applyAssessment(dto: MslAssessmentDto): void {
@@ -447,7 +503,7 @@ export default function MslEngineeringPage({ canManage }: { canManage: boolean }
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-primary">MSL Engineering</h1>
           <p className="mt-1 max-w-3xl text-base text-primary/70">
-            Penilaian kapabilitas engineering per proyek berdasarkan tahun.
+            Penilaian kapabilitas engineering per proyek berdasarkan tahun dan bulan.
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -543,12 +599,42 @@ export default function MslEngineeringPage({ canManage }: { canManage: boolean }
               ))
             )}
           </select>
+          <label
+            htmlFor="msl-month"
+            className="text-[11px] font-bold uppercase tracking-wide text-primary/60"
+          >
+            Bulan
+          </label>
+          <select
+            id="msl-month"
+            value={selectedMonth ?? ""}
+            onChange={(event) => handleMonthChange(Number(event.target.value))}
+            disabled={loading}
+            className="h-10 rounded-lg border border-outline/60 bg-white px-3 text-xs font-bold text-primary focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {selectedMonth === null ? (
+              <option value="">-</option>
+            ) : (
+              MSL_MONTHS.map((month) => (
+                <option key={month} value={month}>
+                  {MSL_MONTH_LABELS[month]}
+                </option>
+              ))
+            )}
+          </select>
         </div>
       </div>
 
       <section className="rounded-lg border border-outline bg-surface shadow-sm">
         <div className="flex flex-col gap-3 border-b border-outline p-4 lg:flex-row lg:items-center lg:justify-between">
-          <MslLegend />
+          <div className="flex flex-col gap-2">
+            {periodLabel ? (
+              <p className="text-xs font-bold text-primary">
+                Periode Penilaian: <span className="text-secondary">{periodLabel}</span>
+              </p>
+            ) : null}
+            <MslLegend />
+          </div>
           <div className="flex items-center gap-3 text-xs font-semibold text-primary/60">
             {!loading && view ? <span>{view.rows.length} proyek</span> : null}
             <span aria-live="polite" className="text-secondary">
@@ -603,6 +689,7 @@ export default function MslEngineeringPage({ canManage }: { canManage: boolean }
             rows={view?.rows ?? []}
             canManage={canManage}
             initialLoading={loading && view === null}
+            refreshing={refreshing}
             emptyMessage={emptyMessage}
             editing={editing}
             createDrafts={createDrafts}

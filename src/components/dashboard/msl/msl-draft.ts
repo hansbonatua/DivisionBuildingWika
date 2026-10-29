@@ -1,4 +1,11 @@
-import { categorizeMslScore, computeMslScore, formatMslScore, type MslCategory } from "@/lib/msl/score";
+import {
+  MSL_COMPONENT_MAX,
+  MSL_COMPONENT_MIN,
+  categorizeMslScore,
+  computeMslScore,
+  formatMslScore,
+  type MslCategory,
+} from "@/lib/msl/score";
 import type { MslAssessmentDto } from "./msl-api.types";
 
 // Draft helpers shared by the MSL page and table. The score formula and the
@@ -23,13 +30,17 @@ export const EMPTY_MSL_DRAFT: MslDraft = {
 
 // Empty is tolerated while typing (null), anything outside the locked input
 // scale or with a third decimal is invalid.
+//
+// The scale is 0.00–5.00: 0 is a legitimate rating, so a zero component parses
+// to the NUMBER 0 rather than falling into the null ("not entered") branch.
+// Callers must therefore compare with `=== null`, never with truthiness.
 export function parseMslComponentInput(raw: string): number | null {
   const trimmed = raw.trim();
   if (trimmed === "") {
     return null;
   }
   const value = Number(trimmed);
-  if (!Number.isFinite(value) || value < 1 || value > 5) {
+  if (!Number.isFinite(value) || value < MSL_COMPONENT_MIN || value > MSL_COMPONENT_MAX) {
     return null;
   }
   const scaled = value * 100;
@@ -138,4 +149,4 @@ export function draftToUpdatePayload(draft: MslDraft):
 }
 
 export const MSL_INPUT_HINT =
-  "Nilai harus antara 1.00 dan 5.00 dengan maksimal 2 angka desimal.";
+  "Nilai harus antara 0.00 dan 5.00 dengan maksimal 2 angka desimal.";

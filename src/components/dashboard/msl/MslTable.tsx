@@ -59,7 +59,7 @@ function ScoreInput({
     <input
       id={id}
       type="number"
-      min="1"
+      min="0"
       max="5"
       step="0.01"
       inputMode="decimal"
@@ -98,6 +98,7 @@ export default function MslTable({
   rows,
   canManage,
   initialLoading,
+  refreshing,
   emptyMessage,
   editing,
   createDrafts,
@@ -114,6 +115,9 @@ export default function MslTable({
   rows: MslYearRowDto[];
   canManage: boolean;
   initialLoading: boolean;
+  // A period switch is in flight: the rows still belong to the PREVIOUS month,
+  // so every write affordance is disabled until the new month has loaded.
+  refreshing: boolean;
   emptyMessage: string;
   editing: MslEditingState | null;
   createDrafts: Record<string, MslDraft>;
@@ -190,7 +194,7 @@ export default function MslTable({
               // A row is interactive when it is the row being edited, or when it
               // is an unassessed row and no other row holds an edit draft.
               const showCreateInputs = canManage && isUnassessed && !isEditingRow;
-              const createInputsDisabled = anotherRowEditing || busyProjectId !== null;
+              const createInputsDisabled = anotherRowEditing || busyProjectId !== null || refreshing;
               const rowError = isEditingRow
                 ? editing?.error
                 : showCreateInputs
@@ -408,10 +412,13 @@ export default function MslTable({
                       </td>
                       <td className={`${bodyCell} min-w-64`}>
                         {assessment?.remarks ? (
-                          <span
-                            className="line-clamp-2 max-w-72 text-primary/70"
-                            title={assessment.remarks}
-                          >
+                          // Remarks are a single string that may hold several
+                          // paragraphs or manual "- " bullets, so the line
+                          // breaks are rendered as authored (pre-wrap). No
+                          // line-clamp: clamping collapses the shape the user
+                          // wrote. The native title tooltip is intentionally NOT
+                          // used — browsers flatten newlines inside it.
+                          <span className="block max-w-72 whitespace-pre-wrap break-words text-primary/70">
                             {assessment.remarks}
                           </span>
                         ) : (
@@ -424,7 +431,7 @@ export default function MslTable({
                             <button
                               type="button"
                               onClick={() => onStartEdit(row)}
-                              disabled={anotherRowEditing || busyProjectId !== null}
+                              disabled={anotherRowEditing || busyProjectId !== null || refreshing}
                               title={
                                 anotherRowEditing
                                   ? "Selesaikan atau batalkan edit pada baris lain terlebih dahulu."
@@ -437,7 +444,7 @@ export default function MslTable({
                             <button
                               type="button"
                               onClick={() => onDelete(row)}
-                              disabled={anotherRowEditing || busyProjectId !== null}
+                              disabled={anotherRowEditing || busyProjectId !== null || refreshing}
                               title={`Hapus penilaian ${row.name}`}
                               className="rounded px-2.5 py-1 text-xs font-bold text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
                             >
