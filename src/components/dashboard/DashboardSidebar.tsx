@@ -11,6 +11,7 @@ import {
 } from "@/lib/engineering-database/access";
 import { canManageCms } from "@/lib/cms/access";
 import { canViewMasterProject } from "@/lib/master-project/access";
+import { canViewOrganizationStructure } from "@/lib/organization-structure/access";
 import { canViewMsl } from "@/lib/msl/access";
 import { canViewProgramKerja } from "@/lib/program-kerja/access";
 import { canViewTemplateForm } from "@/lib/template-form/access";
@@ -123,6 +124,23 @@ const adminMenu: SidebarItem[] = [  {
   },
 ];
 
+// Struktur Organisasi is a SINGLE top-level item (never an accordion): there is
+// exactly one chart to open. Visibility is uniform across the canonical roles
+// through ORGANIZATION_STRUCTURE_VIEW, so no role-specific branching is needed.
+const organizationStructureMenu: SidebarItem = {
+  label: "Struktur Organisasi",
+  href: "/dashboard/struktur-organisasi",
+  icon: (
+    <MenuIcon>
+      <rect width="6" height="6" x="9" y="2" rx="1" />
+      <rect width="6" height="6" x="2" y="16" rx="1" />
+      <rect width="6" height="6" x="16" y="16" rx="1" />
+      <path d="M12 8v4" />
+      <path d="M5 16v-2h14v2" />
+    </MenuIcon>
+  ),
+};
+
 const programKerjaMenu: SidebarItem[] = [
   {
     label: "Summary Report",
@@ -233,12 +251,14 @@ export default function DashboardSidebar({
   const showMasterProject = canViewMasterProject(userRole ?? "");
   const showEngineeringDatabase = canViewEngineeringDatabase(userRole ?? "");
   const showMsl = canViewMsl({ role: userRole ?? "", mslAccess: mslAccess === true });
+  const showOrganizationStructure = canViewOrganizationStructure(userRole ?? "");
   // Landing Page Manager and User Directory are Admin-only, resolved through the
   // central permission layer (CMS_MANAGE / USER_MANAGE) rather than a local
   // `role === "Admin"` literal.
   const showCms = canManageCms(userRole ?? "");
   const showUserDirectory = canManageUsers(userRole ?? "");
   const showCoreEnterprise =
+    showOrganizationStructure ||
     showProgramKerja ||
     showTemplateForm ||
     showMasterProject ||
@@ -401,6 +421,15 @@ export default function DashboardSidebar({
               <div className="mb-2 px-3 text-[11px] font-bold uppercase tracking-wider text-slate-400">
                 Core Enterprise
               </div>
+              {/* Single top-level item, placed before the module groups: the
+                  company chart is reference material, not a module to manage. */}
+              {showOrganizationStructure ? (
+                <div className="mb-1">
+                  <nav className="space-y-1 px-1" aria-label="Struktur Organisasi">
+                    {renderItem(organizationStructureMenu)}
+                  </nav>
+                </div>
+              ) : null}
               {showProgramKerja ? (
                 <div>
                   <div className="px-1">
