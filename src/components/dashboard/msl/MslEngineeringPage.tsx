@@ -275,7 +275,9 @@ export default function MslEngineeringPage({ canManage }: { canManage: boolean }
       return;
     }
     const draft = createDrafts[row.projectId] ?? EMPTY_MSL_DRAFT;
-    const payload = draftToCreatePayload(draft);
+    // New assessments belong to the month currently on screen. The month
+    // selector itself (and switching between months) is V2.2.
+    const payload = view ? draftToCreatePayload(draft, view.month) : null;
     if (!payload) {
       setCreateErrors((previous) => ({ ...previous, [row.projectId]: MSL_INPUT_HINT }));
       return;

@@ -110,10 +110,14 @@ function parseComponentPayload(draft: MslDraft):
   };
 }
 
-// POST contract: remarks is `optional()` only — an empty remarks must be
-// OMITTED (null is rejected by the frozen create schema with a 400).
-export function draftToCreatePayload(draft: MslDraft):
-  | (MslScorePayload & { remarks?: string })
+// POST contract: `assessmentMonth` is REQUIRED (the assessment period is part
+// of its identity) and remarks is `optional()` only — an empty remarks must be
+// OMITTED (null is rejected by the create schema with a 400).
+export function draftToCreatePayload(
+  draft: MslDraft,
+  assessmentMonth: number,
+):
+  | (MslScorePayload & { assessmentMonth: number; remarks?: string })
   | null {
   const parsed = parseComponentPayload(draft);
   if (!parsed) {
@@ -121,8 +125,8 @@ export function draftToCreatePayload(draft: MslDraft):
   }
   const { engineeringValue, metodeKerja, engineeringExecution, remarks } = parsed;
   return remarks === null
-    ? { engineeringValue, metodeKerja, engineeringExecution }
-    : { engineeringValue, metodeKerja, engineeringExecution, remarks };
+    ? { assessmentMonth, engineeringValue, metodeKerja, engineeringExecution }
+    : { assessmentMonth, engineeringValue, metodeKerja, engineeringExecution, remarks };
 }
 
 // PATCH contract: remarks is `nullable().optional()`, so an explicit null is

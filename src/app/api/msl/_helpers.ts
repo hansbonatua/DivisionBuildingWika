@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireUser, UnauthenticatedError } from "@/lib/auth/current-user";
+import { isMslMonth } from "@/lib/msl/period";
 import {
   MslConflictError,
   MslForbiddenError,
@@ -107,6 +108,32 @@ export function parseYearQuery(
 export function invalidYearResponse(): NextResponse {
   return NextResponse.json(
     { error: { message: "Tahun MSL tidak valid" } },
+    { status: 400 },
+  );
+}
+
+// Month follows the same rule as year: parse explicitly from digits only, so
+// "03" is fine while "3.5", "-1", "abc" and "" are rejected before coercion.
+// The range check is the domain rule (1–12), not a formatting concern.
+export function parseMonthQuery(
+  raw: string | null,
+): { month?: number } | { response: NextResponse } {
+  if (raw === null) {
+    return {};
+  }
+  if (!/^\d+$/.test(raw)) {
+    return { response: invalidMonthResponse() };
+  }
+  const month = Number(raw);
+  if (!isMslMonth(month)) {
+    return { response: invalidMonthResponse() };
+  }
+  return { month };
+}
+
+export function invalidMonthResponse(): NextResponse {
+  return NextResponse.json(
+    { error: { message: "Bulan MSL tidak valid" } },
     { status: 400 },
   );
 }

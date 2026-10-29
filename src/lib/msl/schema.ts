@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { MSL_COMPONENT_MAX, MSL_COMPONENT_MIN } from "@/lib/msl/score";
+import { MSL_MONTH_LABELS, MSL_MONTH_MAX, MSL_MONTH_MIN } from "@/lib/msl/period";
 
 // MSL Engineering input contracts (foundation).
 //
@@ -27,9 +29,26 @@ function hasAtMostTwoDecimals(value: number): boolean {
 const scoreComponentField = (label: string) =>
   z
     .number(`${label} wajib berupa angka`)
-    .min(1, `${label} minimal 1`)
-    .max(5, `${label} maksimal 5`)
+    .min(MSL_COMPONENT_MIN, `${label} minimal ${MSL_COMPONENT_MIN}`)
+    .max(MSL_COMPONENT_MAX, `${label} maksimal ${MSL_COMPONENT_MAX}`)
     .refine(hasAtMostTwoDecimals, `${label} maksimal 2 angka desimal`);
+
+// Assessment period. The year is NOT part of the contract: it is derived from
+// master_projects.year. Only the month identifies which of a project's monthly
+// assessments this is, and it is IMMUTABLE after creation — moving an
+// assessment to another month is a delete + create, never a PATCH.
+const assessmentMonthField = z
+  .number("Bulan penilaian wajib berupa angka")
+  .int("Bulan penilaian harus bilangan bulat")
+  .min(MSL_MONTH_MIN, "Bulan penilaian minimal 1")
+  .max(MSL_MONTH_MAX, "Bulan penilaian maksimal 12")
+  .refine(
+    (value) => Number.isInteger(value) && value >= MSL_MONTH_MIN && value <= MSL_MONTH_MAX,
+    { message: "Bulan penilaian tidak valid" },
+  )
+  .describe(
+    `Bulan penilaian: ${MSL_MONTH_MIN} (${MSL_MONTH_LABELS[1]}) – ${MSL_MONTH_MAX} (${MSL_MONTH_LABELS[12]})`,
+  );
 
 const remarksField = z
   .string()
@@ -37,12 +56,13 @@ const remarksField = z
   .max(MSL_REMARKS_MAX_LENGTH, `Remarks maksimal ${MSL_REMARKS_MAX_LENGTH} karakter`)
   .transform((value) => (value.length === 0 ? null : value));
 
-// Create: project + three components + optional remarks. Every other column
-// (id, createdBy/updatedBy, timestamps, score, category) is server-owned and
-// therefore not part of the contract.
+// Create: project + month + three components + optional remarks. Every other
+// column (id, createdBy/updatedBy, timestamps, score, category) is server-owned
+// and therefore not part of the contract.
 export const createMslAssessmentSchema = z
   .object({
     projectId: projectIdField,
+    assessmentMonth: assessmentMonthField,
     engineeringValue: scoreComponentField("Engineering Value"),
     metodeKerja: scoreComponentField("Metode Kerja"),
     engineeringExecution: scoreComponentField("Engineering Execution"),
@@ -52,9 +72,10 @@ export const createMslAssessmentSchema = z
 
 export type CreateMslAssessmentInput = z.infer<typeof createMslAssessmentSchema>;
 
-// Update: scoring fields and remarks only. projectId is intentionally ABSENT —
-// an assessment describes one project and cannot be moved to another. Passing
-// projectId is rejected (strict), not ignored.
+// Update: scoring fields and remarks only. projectId and assessmentMonth are
+// intentionally ABSENT — an assessment describes one project in one month and
+// cannot be moved to another project or month. Passing either is rejected
+// (strict), not ignored.
 export const updateMslAssessmentSchema = z
   .object({
     engineeringValue: scoreComponentField("Engineering Value").optional(),

@@ -44,23 +44,24 @@ export const MSL_CATEGORY_TONES: Record<MslCategory, string> = {
   BERINOVASI: "sky",
 };
 
-// Main legend for V1. TIDAK_PEDULI is a reserved/legacy band: normal input is
-// >= 1, so it cannot be reached through the assessment form and is therefore
-// deliberately left out of the legend.
+// Full legend: every category is reachable from real input since the component
+// scale starts at 0.00, so TIDAK_PEDULI is no longer a reserved bucket and must
+// be shown alongside the others (omitting it would make a 0-score row look
+// unexplained in both the UI legend and the PDF).
 export const MSL_CATEGORY_LEGEND: ReadonlyArray<{
   category: MslCategory;
   label: string;
   tone: string;
-}> = MSL_CATEGORIES.filter((category) => category !== "TIDAK_PEDULI").map(
-  (category) => ({
-    category,
-    label: MSL_CATEGORY_LABELS[category],
-    tone: MSL_CATEGORY_TONES[category],
-  }),
-);
+}> = MSL_CATEGORIES.map((category) => ({
+  category,
+  label: MSL_CATEGORY_LABELS[category],
+  tone: MSL_CATEGORY_TONES[category],
+}));
 
-// Input scale: 1.00 – 5.00, at most two decimals. 0 is not a valid rating.
-export const MSL_COMPONENT_MIN = 1;
+// Input scale: 0.00 – 5.00, at most two decimals. 0 is a valid rating (the
+// lowest one), so "not assessed" is expressed by a NULL assessment row, never
+// by a zero component.
+export const MSL_COMPONENT_MIN = 0;
 export const MSL_COMPONENT_MAX = 5;
 export const MSL_SCORE_DECIMALS = 2;
 
@@ -101,7 +102,7 @@ export function computeMslScore({
 /**
  * Category band of the ROUNDED score (locked rules):
  *
- *   score < 1.00                 -> Tidak Peduli  (reserved)
+ *   0.00 <= score < 1.00         -> Tidak Peduli
  *   1.00 <= score < 2.00         -> Peduli
  *   2.00 <= score < 3.00         -> Tahap Belajar
  *   3.00 <= score < 4.00         -> Kompeten

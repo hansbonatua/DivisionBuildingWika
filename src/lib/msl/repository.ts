@@ -1,4 +1,4 @@
-import { asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { getPgDb } from "@/lib/pg/client";
 import {
   masterProjects,
@@ -28,6 +28,7 @@ export type MslProjectRow = {
 export type MslAssessmentRow = {
   id: string;
   projectId: string;
+  assessmentMonth: number;
   engineeringValue: number;
   metodeKerja: number;
   engineeringExecution: number;
@@ -53,6 +54,7 @@ export type MslYearNoteRow = {
 // ever crosses this module's boundary in either direction.
 export type NewMslAssessmentData = {
   projectId: string;
+  assessmentMonth: number;
   engineeringValue: number;
   metodeKerja: number;
   engineeringExecution: number;
@@ -69,6 +71,21 @@ export type MslAssessmentMutableData = Partial<{
   updatedBy: string;
 }>;
 
+// Shared column projection so the read paths can never drift apart.
+const assessmentColumns = {
+  id: mslAssessments.id,
+  projectId: mslAssessments.projectId,
+  assessmentMonth: mslAssessments.assessmentMonth,
+  engineeringValue: mslAssessments.engineeringValue,
+  metodeKerja: mslAssessments.metodeKerja,
+  engineeringExecution: mslAssessments.engineeringExecution,
+  remarks: mslAssessments.remarks,
+  createdBy: mslAssessments.createdBy,
+  updatedBy: mslAssessments.updatedBy,
+  createdAt: mslAssessments.createdAt,
+  updatedAt: mslAssessments.updatedAt,
+};
+
 // numeric(3,2) comes back as a string from the driver; null is unreachable
 // because all three components are NOT NULL, but the guard keeps the return
 // type honest instead of emitting NaN.
@@ -78,6 +95,27 @@ function toNumber(value: string | null): number {
 
 function toNumericString(value: number): string {
   return value.toFixed(2);
+}
+
+function toAssessmentRow(row: {
+  id: string;
+  projectId: string;
+  assessmentMonth: number;
+  engineeringValue: string | null;
+  metodeKerja: string | null;
+  engineeringExecution: string | null;
+  remarks: string | null;
+  createdBy: string;
+  updatedBy: string;
+  createdAt: Date;
+  updatedAt: Date;
+}): MslAssessmentRow {
+  return {
+    ...row,
+    engineeringValue: toNumber(row.engineeringValue),
+    metodeKerja: toNumber(row.metodeKerja),
+    engineeringExecution: toNumber(row.engineeringExecution),
+  };
 }
 
 export async function listDistinctMslYears(): Promise<number[]> {
@@ -101,70 +139,52 @@ export async function listMasterProjectsByYear(year: number): Promise<MslProject
     .orderBy(asc(masterProjects.name), asc(masterProjects.location), asc(masterProjects.id));
 }
 
-// Bulk read: ONE query for the whole year (never one assessment per project).
-export async function listAssessmentsByYear(year: number): Promise<MslAssessmentRow[]> {
+// Bulk read: ONE query for every assessment of the selected year AND month
+// (never one assessment per project). The year comes from the joined Master
+// Project; only the month is filtered on the assessment itself.
+export async function listAssessmentsByYear(
+  year: number,
+  month: number,
+): Promise<MslAssessmentRow[]> {
   const rows = await getPgDb()
-    .select({
-      id: mslAssessments.id,
-      projectId: mslAssessments.projectId,
-      engineeringValue: mslAssessments.engineeringValue,
-      metodeKerja: mslAssessments.metodeKerja,
-      engineeringExecution: mslAssessments.engineeringExecution,
-      remarks: mslAssessments.remarks,
-      createdBy: mslAssessments.createdBy,
-      updatedBy: mslAssessments.updatedBy,
-      createdAt: mslAssessments.createdAt,
-      updatedAt: mslAssessments.updatedAt,
-    })
+    .select(assessmentColumns)
     .from(mslAssessments)
     .innerJoin(masterProjects, eq(mslAssessments.projectId, masterProjects.id))
-    .where(eq(masterProjects.year, year));
+    .where(
+      and(eq(masterProjects.year, year), eq(mslAssessments.assessmentMonth, month)),
+    );
 
-  return rows.map((row) => ({
-    ...row,
-    engineeringValue: toNumber(row.engineeringValue),
-    metodeKerja: toNumber(row.metodeKerja),
-    engineeringExecution: toNumber(row.engineeringExecution),
-  }));
+  return rows.map(toAssessmentRow);
 }
 
 export async function findAssessmentById(id: string): Promise<MslAssessmentRow | null> {
   const rows = await getPgDb()
-    .select({
-      id: mslAssessments.id,
-      projectId: mslAssessments.projectId,
-      engineeringValue: mslAssessments.engineeringValue,
-      metodeKerja: mslAssessments.metodeKerja,
-      engineeringExecution: mslAssessments.engineeringExecution,
-      remarks: mslAssessments.remarks,
-      createdBy: mslAssessments.createdBy,
-      updatedBy: mslAssessments.updatedBy,
-      createdAt: mslAssessments.createdAt,
-      updatedAt: mslAssessments.updatedAt,
-    })
+    .select(assessmentColumns)
     .from(mslAssessments)
     .where(eq(mslAssessments.id, id))
     .limit(1);
   const row = rows[0];
-  if (!row) return null;
-  return {
-    ...row,
-    engineeringValue: toNumber(row.engineeringValue),
-    metodeKerja: toNumber(row.metodeKerja),
-    engineeringExecution: toNumber(row.engineeringExecution),
-  };
+  return row ? toAssessmentRow(row) : null;
 }
 
-export async function findAssessmentByProjectId(
+// Identity lookup: one assessment per project PER MONTH. A different month is a
+// different assessment, never a duplicate.
+export async function findAssessmentByProjectMonth(
   projectId: string,
+  assessmentMonth: number,
 ): Promise<MslAssessmentRow | null> {
   const rows = await getPgDb()
-    .select({ id: mslAssessments.id })
+    .select(assessmentColumns)
     .from(mslAssessments)
-    .where(eq(mslAssessments.projectId, projectId))
+    .where(
+      and(
+        eq(mslAssessments.projectId, projectId),
+        eq(mslAssessments.assessmentMonth, assessmentMonth),
+      ),
+    )
     .limit(1);
   const row = rows[0];
-  return row ? findAssessmentById(row.id) : null;
+  return row ? toAssessmentRow(row) : null;
 }
 
 // Minimal project reference: existence + canonical year. The year is never
@@ -202,6 +222,7 @@ export async function insertAssessment(data: NewMslAssessmentData): Promise<stri
     .insert(mslAssessments)
     .values({
       projectId: data.projectId,
+      assessmentMonth: data.assessmentMonth,
       engineeringValue: toNumericString(data.engineeringValue),
       metodeKerja: toNumericString(data.metodeKerja),
       engineeringExecution: toNumericString(data.engineeringExecution),

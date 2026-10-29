@@ -9,6 +9,9 @@ import type { MslCategory } from "@/lib/msl/score";
 export type MslAssessmentDto = {
   id: string;
   projectId: string;
+  // Assessment period. Immutable after creation; the YEAR is never sent here
+  // because it belongs to the Master Project.
+  assessmentMonth: number;
   engineeringValue: number;
   metodeKerja: number;
   engineeringExecution: number;
@@ -35,6 +38,9 @@ export type MslYearNoteDto = {
 
 export type MslYearViewDto = {
   year: number;
+  // Selected month of the year view (1–12). The rows below only carry the
+  // assessments of this month.
+  month: number;
   years: number[];
   canManage: boolean;
   rows: MslYearRowDto[];

@@ -403,20 +403,27 @@ export type PgLoginAttempt = typeof loginAttempts.$inferSelect;
 export type NewPgLoginAttempt = typeof loginAttempts.$inferInsert;
 
 // ---------------------------------------------------------------------------
-// MSL Engineering (V1): assessment foundation.
+// MSL Engineering (V2.1): MONTHLY assessment foundation.
 //
-// A project carries at most ONE assessment (UNIQUE project_id, not
-// UNIQUE(project_id, year)): the year is never duplicated here, it is always
-// derived from master_projects.year, the single source of truth.
+// A project carries at most ONE assessment per MONTH (UNIQUE(project_id,
+// assessment_month)). The month is stored here because it is part of the
+// assessment's identity; the YEAR is never duplicated — it is always derived
+// from master_projects.year, the single source of truth.
+//
+// Every month is independent: no rule requires an earlier month to be filled
+// before a later one, and no sequential ordering is enforced anywhere.
+// `assessment_month` is immutable after creation (moving a row to another month
+// is a delete + create), which is enforced by the application contract.
 //
 // The three components are the ONLY stored inputs. MSL score and MSL category
 // are deliberately NOT columns — they are derived on the fly from the
 // components (see @/lib/msl/score), so there is exactly one place where the
 // formula and the category bands live.
 //
-// numeric(3,2) holds 1.00–5.00 exactly and matches the application contract of
+// numeric(3,2) holds 0.00–5.00 exactly and matches the application contract of
 // at most two decimals; the CHECK constraints make the range a database
-// guarantee, not just a validation promise.
+// guarantee, not just a validation promise. 0 is a valid rating and is distinct
+// from "not assessed" (which is the absence of a row).
 // RESTRICT on project_id: deleting a Master Project that an assessment still
 // describes is refused (surfaced as 409 by the Master Project delete flow)
 // instead of silently discarding completed MSL work.
@@ -427,6 +434,7 @@ export const mslAssessments = pgTable(
     projectId: uuid("project_id")
       .notNull()
       .references(() => masterProjects.id, { onDelete: "restrict" }),
+    assessmentMonth: integer("assessment_month").notNull(),
     engineeringValue: numeric("engineering_value", { precision: 3, scale: 2 }).notNull(),
     metodeKerja: numeric("metode_kerja", { precision: 3, scale: 2 }).notNull(),
     engineeringExecution: numeric("engineering_execution", {
@@ -444,22 +452,29 @@ export const mslAssessments = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
-    // The UNIQUE constraint also provides the project_id lookup index, so no
-    // redundant index is added for it.
-    unique("msl_assessments_project_unique").on(table.projectId),
+    // Identity is project + month. The composite UNIQUE also provides the
+    // project_id lookup index, so no redundant index is added for it.
+    unique("msl_assessments_project_month_unique").on(
+      table.projectId,
+      table.assessmentMonth,
+    ),
     index("msl_assessments_created_by_idx").on(table.createdBy),
     index("msl_assessments_updated_by_idx").on(table.updatedBy),
     check(
+      "msl_assessments_month_check",
+      sql`${table.assessmentMonth} BETWEEN 1 AND 12`,
+    ),
+    check(
       "msl_assessments_engineering_value_check",
-      sql`${table.engineeringValue} >= 1 AND ${table.engineeringValue} <= 5`,
+      sql`${table.engineeringValue} >= 0 AND ${table.engineeringValue} <= 5`,
     ),
     check(
       "msl_assessments_metode_kerja_check",
-      sql`${table.metodeKerja} >= 1 AND ${table.metodeKerja} <= 5`,
+      sql`${table.metodeKerja} >= 0 AND ${table.metodeKerja} <= 5`,
     ),
     check(
       "msl_assessments_engineering_execution_check",
-      sql`${table.engineeringExecution} >= 1 AND ${table.engineeringExecution} <= 5`,
+      sql`${table.engineeringExecution} >= 0 AND ${table.engineeringExecution} <= 5`,
     ),
   ],
 );
