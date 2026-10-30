@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { CMS_IMAGE_SOURCE_TYPES } from "@/lib/cms/image-source";
+import { PROJECT_CATEGORY_LABELS } from "@/lib/portfolio-projects/project-categories";
 
 // Image ownership metadata, identical to Hero: `imageUrl` stays the only
 // render field (public endpoints and the landing cards read only that), while
@@ -8,9 +9,14 @@ import { CMS_IMAGE_SOURCE_TYPES } from "@/lib/cms/image-source";
 const imageSourceSchema = z.enum(CMS_IMAGE_SOURCE_TYPES);
 const blobPathnameSchema = z.string().trim().min(1).max(400);
 
+// Category is stored as its display label, so the canonical label list IS the
+// allowed value set. Rejecting anything else keeps the landing badge honest and
+// stops a hand-crafted request from inventing a category the CMS never offers.
+const categorySchema = z.enum(PROJECT_CATEGORY_LABELS, "Kategori tidak dikenal");
+
 export const createPortfolioProjectSchema = z.object({
   title: z.string().trim().min(1, "Title wajib diisi").max(160),
-  category: z.string().trim().min(1, "Category wajib diisi").max(120),
+  category: categorySchema,
   location: z.string().trim().min(1, "Location wajib diisi").max(160),
   imageUrl: z.string().trim().min(1, "Image URL wajib diisi"),
   imageSource: imageSourceSchema.optional(),
@@ -28,7 +34,7 @@ export const createPortfolioProjectSchema = z.object({
 export const updatePortfolioProjectSchema = z
   .object({
     title: z.string().trim().min(1, "Title wajib diisi").max(160).optional(),
-    category: z.string().trim().min(1, "Category wajib diisi").max(120).optional(),
+    category: categorySchema.optional(),
     location: z.string().trim().min(1, "Location wajib diisi").max(160).optional(),
     imageUrl: z.string().trim().min(1, "Image URL wajib diisi").optional(),
     imageSource: imageSourceSchema.optional(),

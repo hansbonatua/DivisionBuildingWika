@@ -28,7 +28,7 @@ const stats: Stat[] = [
 ];
 
 const missions: string[] = [
-  "Memberikan layanan dan produk EPC yang terintegrasi dan berkelanjutan berdasarkan prinsip kualitas, keselamatan, kesehatan, dan lingkungan yang berstandar global", 
+  "Memberikan layanan dan produk EPC yang terintegrasi dan berkelanjutan berdasarkan prinsip kualitas, keselamatan, kesehatan, dan lingkungan yang berstandar global",
   "Mengimplementasikan budaya belajar dan inovasi untuk menyediakan solusi terbaik bagi stakeholder, serta memastikan tingkat kepuasan yang tinggi",
   "Berkomitmen untuk menjalankan proses bisnis dengan standar kualitas tertinggi dan penggunaan teknologi terbaik",
   "Memperkuat ketahanan dan pertumbuhan finasial dengan mengoptimalkan pemanfaatan sumber daya untuk mencapai profitabilitas yang berkelanjutan.",

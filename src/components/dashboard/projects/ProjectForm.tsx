@@ -2,7 +2,10 @@
 
 import { useRef, useState } from "react";
 import Link from "next/link";
-import { CATEGORY_OPTIONS } from "@/lib/demo/projects";
+import {
+  PROJECT_CATEGORY_LABELS,
+  isProjectCategory,
+} from "@/lib/portfolio-projects/project-categories";
 import {
   CMS_IMAGE_ACCEPT_ATTRIBUTE,
   CMS_IMAGE_FORMAT_HINT,
@@ -62,11 +65,17 @@ export default function ProjectForm({
   onSubmit,
 }: ProjectFormProps) {
   const [formTitle, setFormTitle] = useState(initialData?.title ?? "");
+  // The stored value IS the display label, so the select value is the stored
+  // value. A stored value outside the canonical list (a not-yet-migrated
+  // document) is preserved verbatim and surfaced as a temporary option rather
+  // than silently reset to the first category — that reset would rewrite the
+  // record on the next save. `scripts/migrate-portfolio-categories.ts` retires
+  // those legacy values.
+  const initialCategory = initialData?.category.trim() ?? "";
   const [formCategory, setFormCategory] = useState(
-    initialData && CATEGORY_OPTIONS.includes(initialData.category)
-      ? initialData.category
-      : CATEGORY_OPTIONS[0],
+    initialCategory.length > 0 ? initialCategory : PROJECT_CATEGORY_LABELS[0],
   );
+  const legacyCategory = isProjectCategory(formCategory) ? null : formCategory;
   const [formLocation, setFormLocation] = useState(initialData?.location ?? "");
   const [formProgress, setFormProgress] = useState(initialData?.progress ?? 0);
   const [formDescription, setFormDescription] = useState(initialData?.description ?? "");
@@ -184,8 +193,13 @@ export default function ProjectForm({
                 onChange={(e) => setFormCategory(e.target.value)}
                 className={textInputClass}
               >
-                {CATEGORY_OPTIONS.map((option) => (
-                  <option key={option}>{option}</option>
+                {legacyCategory ? (
+                  <option value={legacyCategory}>{legacyCategory} (kategori lama)</option>
+                ) : null}
+                {PROJECT_CATEGORY_LABELS.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
                 ))}
               </select>
               <span className="mt-1 block text-[11px] text-primary/50">

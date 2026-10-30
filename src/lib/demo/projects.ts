@@ -16,9 +16,5 @@ export type ProjectItem = {
   fileName: string | null;
 };
 
-export const CATEGORY_OPTIONS: string[] = [
-  "Gedung Pemerintah / Landmark IKN",
-  "Komersial & High-rise",
-  "Fasilitas Transportasi & Logistik",
-  "Infrastruktur Hijau Terpadu",
-];
+// Project categories used to live here. They are a production contract now:
+// see @/lib/portfolio-projects/project-categories.
