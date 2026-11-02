@@ -2,14 +2,19 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
+import ProjectDetailModal from "@/components/landing/ProjectDetailModal";
 
-type Project = {
+export type Project = {
   title: string;
   category: string;
   meta: string;
   description: string;
   image: string;
   alt: string;
+  // null = the CMS record carries no usable percentage (legacy document or a
+  // malformed value). The card then renders NO progress bar: 0% is a real value
+  // and must never be shown as "unknown".
+  progress: number | null;
 };
 
 const SLIDER_GAP_PX = 24;
@@ -20,10 +25,16 @@ type PortfolioPublicPayload = {
   title?: unknown;
   category?: unknown;
   location?: unknown;
+  progress?: unknown;
   imageUrl?: unknown;
   imageAlt?: unknown;
   description?: unknown;
 };
+
+/** Keeps a display value inside the documented 0–100 range. */
+function clampProgress(value: number): number {
+  return Math.min(100, Math.max(0, value));
+}
 
 function toLandingProject(item: PortfolioPublicPayload): Project | null {
   if (typeof item.title !== "string" || item.title.length === 0) {
@@ -37,6 +48,10 @@ function toLandingProject(item: PortfolioPublicPayload): Project | null {
   const imageAlt = typeof item.imageAlt === "string" && item.imageAlt.length > 0 ? item.imageAlt : item.title;
   // No invented copy: an empty description simply renders no paragraph.
   const description = typeof item.description === "string" ? item.description.trim() : "";
+  const progress =
+    typeof item.progress === "number" && Number.isFinite(item.progress)
+      ? clampProgress(item.progress)
+      : null;
   return {
     title: item.title,
     category,
@@ -44,6 +59,7 @@ function toLandingProject(item: PortfolioPublicPayload): Project | null {
     description,
     image: item.imageUrl,
     alt: imageAlt,
+    progress,
   };
 }
 
@@ -52,6 +68,7 @@ export default function Projects() {
   // Nothing is invented while the request is in flight or when it fails.
   const [projects, setProjects] = useState<Project[]>([]);
   const [status, setStatus] = useState<LoadState>("loading");
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const sliderRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -212,9 +229,14 @@ export default function Projects() {
                     {project.category}
                   </span>
                 </div>
-                <div className="absolute bottom-3 right-3 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-                  <span className="flex items-center gap-1 rounded-md bg-secondary px-3 py-1 text-[11px] font-semibold text-white shadow-sm">
-                    View Detail
+                <div className="absolute bottom-3 right-3 opacity-100 transition-opacity duration-200 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedProject(project)}
+                    aria-haspopup="dialog"
+                    className="flex items-center gap-1 rounded-md bg-secondary px-3 py-1 text-[11px] font-semibold text-white shadow-sm transition-colors hover:bg-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
+                  >
+                    Lihat Detail
                     <svg
                       width="14"
                       height="14"
@@ -229,7 +251,7 @@ export default function Projects() {
                       <path d="M5 12h14" />
                       <path d="m12 5 7 7-7 7" />
                     </svg>
-                  </span>
+                  </button>
                 </div>
               </div>
               <div className="flex flex-1 flex-col justify-between p-5">
@@ -242,12 +264,36 @@ export default function Projects() {
                     <p className="line-clamp-2 text-sm text-primary/70">{project.description}</p>
                   ) : null}
                 </div>
+                {project.progress !== null ? (
+                  <div className="mt-4 flex items-center gap-2">
+                    <div
+                      role="progressbar"
+                      aria-valuenow={project.progress}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-label={`Progres ${project.title}`}
+                      className="h-1.5 flex-1 rounded bg-slate-200"
+                    >
+                      <div className="h-1.5 rounded bg-secondary" style={{ width: `${project.progress}%` }} />
+                    </div>
+                    <span className="text-[11px] font-bold tabular-nums text-primary/70">
+                      {project.progress}%
+                    </span>
+                  </div>
+                ) : null}
               </div>
             </article>
           ))}
         </div>
         )}
       </div>
+
+      {selectedProject ? (
+        <ProjectDetailModal
+          project={selectedProject}
+          onClose={() => setSelectedProject(null)}
+        />
+      ) : null}
     </section>
   );
 }

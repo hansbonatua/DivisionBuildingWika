@@ -102,6 +102,7 @@ export async function findActivePublic(): Promise<PortfolioProjectPublic[]> {
       title: 1,
       category: 1,
       location: 1,
+      progress: 1,
       imageUrl: 1,
       imageAlt: 1,
       description: 1,

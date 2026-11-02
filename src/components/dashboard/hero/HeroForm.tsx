@@ -27,7 +27,6 @@ export type HeroFormValues = {
   project: string;
   location: string;
   status: "active" | "standby";
-  description: string;
   image: HeroFormImage;
 };
 
@@ -65,7 +64,6 @@ export default function HeroForm({
   const [formStatus, setFormStatus] = useState<"active" | "standby">(
     initialData && !initialData.badgeActive ? "standby" : "active",
   );
-  const [formDescription, setFormDescription] = useState(initialData?.description ?? "");
 
   // Shared CMS image state machine (source mode, pending file, upload, cleanup).
   // On create it defaults to Upload Gambar; on edit it mirrors the stored source.
@@ -117,7 +115,6 @@ export default function HeroForm({
         project: formProject.trim(),
         location: formLocation.trim(),
         status: formStatus,
-        description: formDescription.trim(),
         image: submission,
       });
     } catch (error) {
@@ -361,19 +358,6 @@ export default function HeroForm({
           <p className="mt-1 text-[11px] text-slate-400">
             Tipe: string • Lokasi geografis atau wilayah proyek.
           </p>
-        </div>
-        <div className="md:col-span-2">
-          <label htmlFor="heroDescription" className="mb-1.5 block text-xs font-semibold text-slate-700">
-            Deskripsi Singkat
-          </label>
-          <textarea
-            id="heroDescription"
-            rows={2}
-            placeholder="Ringkasan singkat slide hero."
-            value={formDescription}
-            onChange={(e) => setFormDescription(e.target.value)}
-            className="w-full rounded-lg border border-outline/60 bg-white px-3.5 py-2.5 text-xs text-primary placeholder:text-slate-400 focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
-          />
         </div>
       </div>
 

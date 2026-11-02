@@ -21,7 +21,6 @@ export default function AddHeroPage() {
         imageUrl: values.image.imageUrl,
         imageSource: values.image.imageSource,
         blobPathname: values.image.blobPathname,
-        description: values.description,
       }),
     });
     if (!response.ok) {

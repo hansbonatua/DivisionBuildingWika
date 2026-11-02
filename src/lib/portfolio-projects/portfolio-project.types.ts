@@ -31,6 +31,10 @@ export type PortfolioProjectPublic = {
   title: string;
   category: string;
   location: string;
+  // Admin-entered construction progress, 0–100. Legacy documents written
+  // before this projection existed have no value; the landing page treats a
+  // missing number as "unknown" and renders no bar at all.
+  progress: number;
   imageUrl: string;
   imageAlt: string;
   description: string;
