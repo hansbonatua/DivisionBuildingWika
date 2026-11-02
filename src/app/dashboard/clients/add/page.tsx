@@ -21,7 +21,6 @@ export default function AddClientPage() {
         logoUrl: values.logo.imageUrl,
         imageSource: values.logo.imageSource,
         blobPathname: values.logo.blobPathname,
-        logoAlt: values.logoAlt,
         status: "active",
       }),
     });

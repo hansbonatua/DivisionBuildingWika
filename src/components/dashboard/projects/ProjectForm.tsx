@@ -28,7 +28,6 @@ export type ProjectFormValues = {
   description: string;
   // Resolved by the shared CMS image hook: the page only forwards it to the API.
   image: CmsImageSubmission;
-  imageAlt: string;
   status: "Active" | "Draft";
 };
 
@@ -79,7 +78,6 @@ export default function ProjectForm({
   const [formLocation, setFormLocation] = useState(initialData?.location ?? "");
   const [formProgress, setFormProgress] = useState(initialData?.progress ?? 0);
   const [formDescription, setFormDescription] = useState(initialData?.description ?? "");
-  const [formImageAlt, setFormImageAlt] = useState(initialData?.imageAlt ?? "");
   const [formStatus, setFormStatus] = useState<"Active" | "Draft">(
     initialData?.status ?? "Active",
   );
@@ -135,7 +133,6 @@ export default function ProjectForm({
         progress: Number.isFinite(formProgress) ? formProgress : 0,
         description: formDescription.trim(),
         image: submission,
-        imageAlt: formImageAlt.trim(),
         status: formStatus,
       });
     } catch (error) {
@@ -450,19 +447,6 @@ export default function ProjectForm({
             <CmsUploadProgress percent={image.uploadPercent} label="Mengunggah gambar proyek..." />
           ) : null}
 
-          <div>
-            <label htmlFor="projectImageAlt" className="mb-1.5 block text-xs font-bold text-primary">
-              Alt Text Gambar
-            </label>
-            <input
-              id="projectImageAlt"
-              type="text"
-              placeholder="Deskripsi gambar untuk aksesibilitas."
-              value={formImageAlt}
-              onChange={(e) => setFormImageAlt(e.target.value)}
-              className={textInputClass}
-            />
-          </div>
         </div>
       </div>
 

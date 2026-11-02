@@ -59,7 +59,6 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
         imageUrl: values.image.imageUrl,
         imageSource: values.image.imageSource,
         blobPathname: values.image.blobPathname,
-        imageAlt: values.imageAlt,
         status: values.status,
       }),
     });
@@ -162,7 +161,6 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
               location: project.location,
               progress: project.progress,
               description: project.description,
-              imageAlt: project.imageAlt,
               status: project.status,
             }}
             initialImage={{

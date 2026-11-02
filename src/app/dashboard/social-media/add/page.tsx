@@ -27,7 +27,6 @@ export default function AddSocialPostPage() {
         imageUrl: image.imageUrl,
         imageSource: image.imageSource,
         blobPathname: image.blobPathname,
-        imageAlt: values.imageAlt,
         status: values.status,
       }),
     });

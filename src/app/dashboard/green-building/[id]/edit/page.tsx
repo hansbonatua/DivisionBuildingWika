@@ -67,7 +67,6 @@ export default function EditCertificatePage({ params }: { params: Promise<{ id: 
         imageUrl: values.image.imageUrl,
         imageSource: values.image.imageSource,
         blobPathname: values.image.blobPathname,
-        imageAlt: values.imageAlt,
         status: values.status,
         publishStatus: values.publishStatus,
       }),
@@ -179,7 +178,6 @@ export default function EditCertificatePage({ params }: { params: Promise<{ id: 
               certificateNumber: certificate.certificateNumber,
               score: certificate.score,
               description: certificate.description,
-              imageAlt: certificate.imageAlt,
               status: certificate.status,
               publishStatus: certificate.publishStatus,
             }}

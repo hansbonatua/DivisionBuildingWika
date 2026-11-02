@@ -37,7 +37,6 @@ export type SocialPostFormValues = {
   caption: string;
   url: string;
   type: string;
-  imageAlt: string;
   status: "Published" | "Draft" | "Hidden";
 };
 
@@ -80,7 +79,6 @@ export default function SocialPostForm({
   const [formCaption, setFormCaption] = useState(initialData?.caption ?? "");
   const [formUrl, setFormUrl] = useState(initialData?.url ?? "");
   const [formType, setFormType] = useState(initialData?.type ?? TYPE_OPTIONS[0]);
-  const [formImageAlt, setFormImageAlt] = useState(initialData?.imageAlt ?? "");
   const [formStatus, setFormStatus] = useState<"Published" | "Draft" | "Hidden">(
     initialData?.status ?? "Draft",
   );
@@ -117,7 +115,6 @@ export default function SocialPostForm({
         caption: formCaption,
         url: formUrl,
         type: formType,
-        imageAlt: formImageAlt,
         status: formStatus,
       },
       image.previewSrc,
@@ -127,7 +124,6 @@ export default function SocialPostForm({
     formCaption,
     formUrl,
     formType,
-    formImageAlt,
     formStatus,
     image.previewSrc,
     onValuesChange,
@@ -182,7 +178,6 @@ export default function SocialPostForm({
           caption: formCaption.trim(),
           url: formUrl.trim(),
           type: formType,
-          imageAlt: formImageAlt.trim(),
           status: formStatus,
         },
         imageValues,
@@ -327,22 +322,6 @@ export default function SocialPostForm({
           </div>
         )}
 
-        {image.sourceMode === "none" ? null : (
-          <div>
-            <label htmlFor="s_imageAlt" className="mb-1.5 block text-xs font-semibold text-slate-700">
-              Alt Text Gambar
-            </label>
-            <input
-              id="s_imageAlt"
-              type="text"
-              placeholder="Deskripsi gambar untuk aksesibilitas."
-              value={formImageAlt}
-              onChange={(e) => setFormImageAlt(e.target.value)}
-              disabled={busy}
-              className={inputClass}
-            />
-          </div>
-        )}
       </div>
       <div>
         <label htmlFor="s_account" className="mb-1.5 block text-xs font-semibold text-slate-700">

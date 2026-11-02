@@ -113,7 +113,6 @@ export default function EditHeroPage({ params }: { params: Promise<{ id: string 
         imageSource: values.image.imageSource,
         blobPathname: values.image.blobPathname,
         description: values.description,
-        imageAlt: values.imageAlt,
       }),
     });
     if (!response.ok) {

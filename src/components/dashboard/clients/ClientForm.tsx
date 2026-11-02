@@ -23,7 +23,6 @@ export type ClientFormValues = {
   shortName: string;
   category: string;
   link: string;
-  logoAlt: string;
   status: "active" | "hidden";
   // Resolved by the shared CMS image hook: the page only forwards it to the API.
   logo: CmsImageSubmission;
@@ -89,7 +88,6 @@ export default function ClientForm({
   const [formShortName, setFormShortName] = useState(initialData?.shortName ?? "");
   const [formCategory, setFormCategory] = useState(initialData?.category ?? "");
   const [formLink, setFormLink] = useState(initialData?.link ?? "");
-  const [formLogoAlt, setFormLogoAlt] = useState(initialData?.logoAlt ?? "");
   const [formStatus, setFormStatus] = useState<"active" | "hidden">(initialData?.status ?? "active");
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -178,7 +176,6 @@ export default function ClientForm({
         shortName: formShortName.trim(),
         category: formCategory.trim(),
         link: formLink.trim(),
-        logoAlt: formLogoAlt.trim(),
         status: formStatus,
         logo: submission,
       });
@@ -382,21 +379,6 @@ export default function ClientForm({
             <CmsUploadProgress percent={image.uploadPercent} label="Mengunggah logo..." />
           </div>
         ) : null}
-      </div>
-
-      <div>
-        <label htmlFor="clientLogoAlt" className="mb-1.5 block text-xs font-bold text-primary">
-          Alt Text Logo
-        </label>
-        <input
-          id="clientLogoAlt"
-          type="text"
-          placeholder="Deskripsi logo untuk aksesibilitas."
-          value={formLogoAlt}
-          onChange={(e) => setFormLogoAlt(e.target.value)}
-          disabled={busy}
-          className={inputClass}
-        />
       </div>
 
       <div>

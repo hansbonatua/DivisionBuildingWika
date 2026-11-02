@@ -84,7 +84,6 @@ export default function EditSocialPostPage({ params }: { params: Promise<{ id: s
         imageUrl: image.imageUrl,
         imageSource: image.imageSource,
         blobPathname: image.blobPathname,
-        imageAlt: values.imageAlt,
         status: values.status,
       }),
     });
@@ -163,7 +162,6 @@ export default function EditSocialPostPage({ params }: { params: Promise<{ id: s
     caption: post.caption,
     url: post.url,
     type: post.type,
-    imageAlt: post.imageAlt,
     status: post.status,
   };
 
@@ -201,7 +199,6 @@ export default function EditSocialPostPage({ params }: { params: Promise<{ id: s
               caption: post.caption,
               url: post.url,
               type: post.type,
-              imageAlt: post.imageAlt,
               status: post.status,
               imageUrl: post.imageUrl,
               imageSource: storedImageSource(post),

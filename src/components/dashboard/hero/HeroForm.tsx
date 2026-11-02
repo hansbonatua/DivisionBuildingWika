@@ -28,7 +28,6 @@ export type HeroFormValues = {
   location: string;
   status: "active" | "standby";
   description: string;
-  imageAlt: string;
   image: HeroFormImage;
 };
 
@@ -67,7 +66,6 @@ export default function HeroForm({
     initialData && !initialData.badgeActive ? "standby" : "active",
   );
   const [formDescription, setFormDescription] = useState(initialData?.description ?? "");
-  const [formImageAlt, setFormImageAlt] = useState(initialData?.imageAlt ?? "");
 
   // Shared CMS image state machine (source mode, pending file, upload, cleanup).
   // On create it defaults to Upload Gambar; on edit it mirrors the stored source.
@@ -120,7 +118,6 @@ export default function HeroForm({
         location: formLocation.trim(),
         status: formStatus,
         description: formDescription.trim(),
-        imageAlt: formImageAlt.trim(),
         image: submission,
       });
     } catch (error) {
@@ -376,19 +373,6 @@ export default function HeroForm({
             value={formDescription}
             onChange={(e) => setFormDescription(e.target.value)}
             className="w-full rounded-lg border border-outline/60 bg-white px-3.5 py-2.5 text-xs text-primary placeholder:text-slate-400 focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
-          />
-        </div>
-        <div className="md:col-span-2">
-          <label htmlFor="heroImageAlt" className="mb-1.5 block text-xs font-semibold text-slate-700">
-            Teks Alt Gambar
-          </label>
-          <input
-            id="heroImageAlt"
-            type="text"
-            placeholder="Deskripsi gambar untuk aksesibilitas."
-            value={formImageAlt}
-            onChange={(e) => setFormImageAlt(e.target.value)}
-            className={textInputClass}
           />
         </div>
       </div>

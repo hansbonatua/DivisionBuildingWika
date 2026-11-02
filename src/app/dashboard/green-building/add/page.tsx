@@ -25,7 +25,6 @@ export default function AddCertificatePage() {
         imageUrl: values.image.imageUrl,
         imageSource: values.image.imageSource,
         blobPathname: values.image.blobPathname,
-        imageAlt: values.imageAlt,
         status: values.status,
         publishStatus: values.publishStatus,
       }),

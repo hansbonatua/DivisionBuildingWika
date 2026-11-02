@@ -34,7 +34,6 @@ export type CertificateFormValues = {
   description: string;
   // Resolved by the shared CMS image hook: the page only forwards it to the API.
   image: CmsImageSubmission;
-  imageAlt: string;
   status: CertificateVerification;
   publishStatus: CertificatePublish;
 };
@@ -78,7 +77,6 @@ export default function CertificateForm({
   const [formNumber, setFormNumber] = useState(initialData?.certificateNumber ?? "");
   const [formScore, setFormScore] = useState(initialData?.score ?? 0);
   const [formDescription, setFormDescription] = useState(initialData?.description ?? "");
-  const [formImageAlt, setFormImageAlt] = useState(initialData?.imageAlt ?? "");
   const [formStatus, setFormStatus] = useState<CertificateVerification>(
     initialData?.status ?? "Verified",
   );
@@ -108,7 +106,6 @@ export default function CertificateForm({
     certificateNumber: formNumber,
     score: formScore,
     description: formDescription,
-    imageAlt: formImageAlt,
     status: formStatus,
     publishStatus: formPublish,
   };
@@ -125,7 +122,6 @@ export default function CertificateForm({
     formNumber,
     formScore,
     formDescription,
-    formImageAlt,
     formStatus,
     formPublish,
     image.previewSrc,
@@ -173,7 +169,6 @@ export default function CertificateForm({
         score: Number.isFinite(formScore) ? formScore : 0,
         description: formDescription.trim(),
         image: submission,
-        imageAlt: formImageAlt.trim(),
         status: formStatus,
         publishStatus: formPublish,
       });
@@ -283,19 +278,6 @@ export default function CertificateForm({
           <CmsUploadProgress percent={image.uploadPercent} label="Mengunggah gambar sertifikat..." />
         ) : null}
 
-        <div>
-          <label htmlFor="f_imageAlt" className="mb-1.5 block text-xs font-semibold text-slate-700">
-            Alt Text Gambar
-          </label>
-          <input
-            id="f_imageAlt"
-            type="text"
-            placeholder="Deskripsi gambar untuk aksesibilitas."
-            value={formImageAlt}
-            onChange={(e) => setFormImageAlt(e.target.value)}
-            className={inputClass}
-          />
-        </div>
       </div>
       <div>
         <label htmlFor="f_project" className="mb-1.5 block text-xs font-semibold text-slate-700">

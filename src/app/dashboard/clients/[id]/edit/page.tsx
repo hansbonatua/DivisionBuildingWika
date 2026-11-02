@@ -62,7 +62,6 @@ export default function EditClientPage({ params }: { params: Promise<{ id: strin
         logoUrl: values.logo.imageUrl,
         imageSource: values.logo.imageSource,
         blobPathname: values.logo.blobPathname,
-        logoAlt: values.logoAlt,
         status: values.status,
       }),
     });
@@ -171,7 +170,6 @@ export default function EditClientPage({ params }: { params: Promise<{ id: strin
               shortName: client.shortName,
               category: client.category,
               link: client.link,
-              logoAlt: client.logoAlt,
               status: client.status,
             }}
             initialImage={{

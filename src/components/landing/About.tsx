@@ -8,7 +8,6 @@ type Stat = {
   highlight?: boolean;
 };
 
-
 const missions: string[] = [
   "Memberikan layanan dan produk EPC yang terintegrasi dan berkelanjutan berdasarkan prinsip kualitas, keselamatan, kesehatan, dan lingkungan yang berstandar global",
   "Mengimplementasikan budaya belajar dan inovasi untuk menyediakan solusi terbaik bagi stakeholder, serta memastikan tingkat kepuasan yang tinggi",
