@@ -8,24 +8,6 @@ type Stat = {
   highlight?: boolean;
 };
 
-const stats: Stat[] = [
-  {
-    value: "1960",
-    label: "Since 1960",
-    description: "Foundational Heritage",
-  },
-  {
-    value: "250+",
-    label: "Completed",
-    description: "Strategic Projects",
-  },
-  {
-    value: "Expansion",
-    label: "Expansion",
-    description: "Sustainable Scale",
-    highlight: true,
-  },
-];
 
 const missions: string[] = [
   "Memberikan layanan dan produk EPC yang terintegrasi dan berkelanjutan berdasarkan prinsip kualitas, keselamatan, kesehatan, dan lingkungan yang berstandar global",
@@ -57,40 +39,6 @@ export default function About() {
             </div>
             <div className="pointer-events-none absolute -left-4 -top-4 hidden h-24 w-24 border-l-2 border-t-2 border-secondary/40 sm:block" />
             <div className="pointer-events-none absolute -bottom-4 -right-4 hidden h-24 w-24 border-b-2 border-r-2 border-secondary/40 sm:block" />
-            <div className="mt-8 grid grid-cols-1 gap-4 min-[480px]:grid-cols-3">
-              {stats.map((stat) => (
-                <div
-                  key={stat.value + stat.label}
-                  className="flex flex-col justify-center rounded-xl border border-outline/50 bg-surface p-4 text-center shadow-sm"
-                >
-                  {stat.highlight ? (
-                    <div className="mb-1 flex items-center justify-center gap-1">
-                      <svg
-                        width="28"
-                        height="28"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        aria-hidden="true"
-                        className="text-secondary"
-                      >
-                        <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
-                        <polyline points="16 7 22 7 22 13" />
-                      </svg>
-                    </div>
-                  ) : (
-                    <span className="text-xl font-bold text-primary">{stat.value}</span>
-                  )}
-                  <span className="mt-0.5 text-[11px] font-bold uppercase tracking-wider text-secondary">
-                    {stat.label}
-                  </span>
-                  <span className="mt-1 text-sm text-primary/70">{stat.description}</span>
-                </div>
-              ))}
-            </div>
           </div>
 
           <div className="flex w-full max-w-full flex-col justify-center">
