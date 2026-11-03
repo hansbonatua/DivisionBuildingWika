@@ -201,12 +201,12 @@ export default function SocialMedia() {
           <p className="mt-2 text-base text-primary/70">Follow our latest activities and corporate updates.</p>
           <div className="mt-6">
             <a
-              href="https://www.instagram.com/ptwijayakarya/"
+              href="https://www.instagram.com/wika.building/"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 rounded-lg bg-secondary px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:bg-primary"
             >
-              <span>Follow @ptwijayakarya</span>
+              <span>Follow @wika.building</span>
               <ExternalLinkIcon />
             </a>
           </div>

@@ -125,6 +125,8 @@ export default function Navbar() {
           </button>
           <Link
             href="/login"
+            target="_blank"
+            rel="noopener noreferrer"
             className="inline-flex h-9 items-center gap-2 whitespace-nowrap rounded-lg bg-secondary px-3 text-xs font-semibold text-white shadow-sm transition-all duration-200 hover:bg-primary md:h-10 md:px-4 md:text-sm"
           >
             <span>WIBEX Portal</span>

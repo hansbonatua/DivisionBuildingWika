@@ -187,12 +187,6 @@ export default function Footer() {
                   wibexwika@gmail.com
                 </a>
               </div>
-              <div className="flex items-center gap-2">
-                <CallIcon />
-                <a href="tel:+62215550199" className="transition-colors hover:text-white">
-                  +62 21 555 0199
-                </a>
-              </div>
             </div>
           </div>
         </div>

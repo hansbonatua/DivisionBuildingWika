@@ -7,6 +7,9 @@ type Client = {
   name: string;
   label: string;
   logo: string;
+  // Sanitized destination from the CMS `link` field; null keeps the card
+  // non-interactive instead of producing a dead link.
+  href: string | null;
 };
 
 type ClientPublicPayload = {
@@ -14,7 +17,41 @@ type ClientPublicPayload = {
   shortName?: unknown;
   logoUrl?: unknown;
   logoAlt?: unknown;
+  link?: unknown;
 };
+
+// Only absolute http(s) URLs and same-origin paths may become an href. Empty,
+// malformed, protocol-relative (//host) and script-capable schemes
+// (javascript:, data:, vbscript:) are rejected, so a bad CMS value can never
+// inject a dead link or execute code. Valid values are returned unchanged.
+function toSafeHref(value: unknown): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const raw = value.trim();
+  if (raw.length === 0) {
+    return null;
+  }
+  // Protocol-relative would silently inherit the current scheme.
+  if (raw.startsWith("//")) {
+    return null;
+  }
+  if (raw.startsWith("/")) {
+    // Reject inner whitespace and backslashes: browsers strip/normalize them,
+    // which would turn an apparent path ("/\\evil.com", "/\t/evil.com") into
+    // a protocol-relative external URL.
+    return /^\/[^\s\\]*$/.test(raw) ? raw : null;
+  }
+  try {
+    const parsed = new URL(raw);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return null;
+    }
+  } catch {
+    return null;
+  }
+  return raw;
+}
 
 const MOBILE_COLS = 2;
 
@@ -31,10 +68,10 @@ function toLandingClient(item: ClientPublicPayload): Client | null {
   const shortName = typeof item.shortName === "string" && item.shortName.length > 0 ? item.shortName : item.name;
   const logoAlt = typeof item.logoAlt === "string" && item.logoAlt.length > 0 ? item.logoAlt : shortName;
   return {
-    // Cards are not clickable by design; link is intentionally not consumed.
     name: logoAlt,
     label: shortName,
     logo: item.logoUrl,
+    href: toSafeHref(item.link),
   };
 }
 
@@ -125,11 +162,16 @@ export default function Clients() {
                 ].join(" ")
               : "";
             const remote = !client.logo.startsWith("/");
-            return (
-              <div
-                key={`${client.logo}-${client.name}-${index}`}
-                className={`group flex min-h-[150px] flex-col items-center justify-center gap-3 rounded-xl border border-outline/30 bg-surface p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-md ${orphanClass}`}
-              >
+            // External URLs follow the CMS convention (new tab); a same-origin
+            // path navigates in the current tab.
+            const isExternal = client.href !== null && !client.href.startsWith("/");
+            // The card element is the grid child, so every visual class and the
+            // last-card centering must stay on it — no extra wrapper.
+            const cardClassName = `group flex min-h-[150px] flex-col items-center justify-center gap-3 rounded-xl border border-outline/30 bg-surface p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-md ${orphanClass}`;
+            const linkedCardClassName = `${cardClassName} cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2`;
+            const cardKey = `${client.logo}-${client.name}-${index}`;
+            const cardContent = (
+              <>
                 <div className="relative h-14 w-full">
                   {remote ? (
                     // Remote CMS URLs bypass next/image so no remotePatterns config is needed.
@@ -152,7 +194,24 @@ export default function Clients() {
                   )}
                 </div>
                 <span className="text-center text-xs font-bold tracking-wide text-primary">{client.label}</span>
+              </>
+            );
+            // No sanitized link ⇒ the previous non-interactive card, unchanged.
+            return client.href === null ? (
+              <div key={cardKey} className={cardClassName}>
+                {cardContent}
               </div>
+            ) : (
+              <a
+                key={cardKey}
+                href={client.href}
+                target={isExternal ? "_blank" : undefined}
+                rel={isExternal ? "noopener noreferrer" : undefined}
+                aria-label={`Kunjungi situs ${client.label}${isExternal ? " (tab baru)" : ""}`}
+                className={linkedCardClassName}
+              >
+                {cardContent}
+              </a>
             );
           })}
         </div>
