@@ -263,13 +263,13 @@ export type PgTemplateForm = typeof templateForms.$inferSelect;
 export type NewPgTemplateForm = typeof templateForms.$inferInsert;
 
 // ---------------------------------------------------------------------------
-// Core Enterprise: Knowledge Management (V1).
+// Core Enterprise: Knowledge Management (V2).
 //
 // ONE shared table for the three submenus (Lesson Learn, Best Practice / KI KM,
 // VA/VE) instead of three identical tables: the columns are identical, the only
-// difference is `knowledge_type`. UNIQUE(project_id, knowledge_type) is the
-// business rule "at most one record per project per submenu", enforced by the
-// database (not only by the service).
+// difference is `knowledge_type`. V2 allows MANY records per project per
+// submenu, so the V1 UNIQUE(project_id, knowledge_type) constraint is gone; the
+// non-unique composite index below serves the list ordering.
 //
 // project_id is ON DELETE RESTRICT: a Master Project that already carries
 // knowledge cannot be hard-deleted, so user-entered knowledge is never silently
@@ -285,6 +285,9 @@ export const knowledgeEntries = pgTable(
     // Plain multiline text (paragraphs, "- " bullets, "1. " numbered lists).
     // Line breaks are preserved verbatim; no HTML/Markdown is ever rendered.
     content: text("content").notNull(),
+    // Optimistic concurrency token. It starts at 1 and increments on every
+    // successful update; DELETE also receives an expected_version.
+    version: integer("version").notNull().default(1),
     createdBy: uuid("created_by")
       .notNull()
       .references(() => users.id, { onDelete: "no action" }),
@@ -293,22 +296,44 @@ export const knowledgeEntries = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
-    unique("knowledge_entries_project_type_unique").on(table.projectId, table.knowledgeType),
-    index("knowledge_entries_type_idx").on(table.knowledgeType),
+    // V2 list ordering: type first, then project, then stable creation/id tie-breakers.
+    index("knowledge_entries_type_project_created_idx").on(
+      table.knowledgeType,
+      table.projectId,
+      table.createdAt,
+      table.id,
+    ),
     index("knowledge_entries_created_by_idx").on(table.createdBy),
     check(
-      "knowledge_entries_type_check",
+      "knowledge_entries_knowledge_type_check",
       sql`${table.knowledgeType} in ('lesson_learn', 'best_practice', 'va_ve')`,
     ),
     check("knowledge_entries_content_check", sql`length(btrim(${table.content})) > 0`),
+    check("knowledge_entries_version_check", sql`${table.version} >= 1`),
   ],
 );
 
 export type PgKnowledgeEntry = typeof knowledgeEntries.$inferSelect;
 export type NewPgKnowledgeEntry = typeof knowledgeEntries.$inferInsert;
 
-// Multiple evidence links per knowledge record. Name + http(s) URL only —
-// WIBEX never uploads or copies the referenced files.
+// Exactly one active evidence per knowledge record. Name + http(s) URL only —
+// WIBEX never uploads or copies the referenced files. The UNIQUE constraint
+// enforces the maximum; the deferred trigger in migration 0016 enforces the
+// minimum at COMMIT.
+//
+// Trigger DDL is intentionally in the migration files, because Drizzle's
+// pgTable has no trigger builder:
+// - knowledge_entries_immutable_fields_trigger (BEFORE UPDATE, 0015) keeps
+//   project_id and knowledge_type immutable;
+// - knowledge_entries_require_evidence_trigger (AFTER INSERT OR UPDATE,
+//   DEFERRABLE INITIALLY DEFERRED, 0016) rejects an entry with no active
+//   evidence;
+// - knowledge_evidence_require_remaining_trigger (AFTER DELETE, DEFERRABLE
+//   INITIALLY DEFERRED, 0016) rejects deleting the last active evidence.
+//
+// V1 sort_order is intentionally absent from this V2 schema. Existing V1
+// repository/service code still references sortOrder and is expected to fail
+// typecheck until Sub-Fase B removes those references; 0017 drops the column.
 export const knowledgeEvidence = pgTable(
   "knowledge_evidence",
   {
@@ -318,17 +343,17 @@ export const knowledgeEvidence = pgTable(
       .references(() => knowledgeEntries.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
     url: text("url").notNull(),
-    sortOrder: integer("sort_order").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
-    index("knowledge_evidence_entry_id_idx").on(table.knowledgeEntryId),
+    unique("knowledge_evidence_entry_unique").on(table.knowledgeEntryId),
     check("knowledge_evidence_name_check", sql`length(btrim(${table.name})) > 0`),
-    check("knowledge_evidence_url_check", sql`${table.url} ~* '^https?://'`),
+    check("knowledge_evidence_url_check", sql`${table.url} ~ '^https?://'`),
   ],
 );
 
 export type PgKnowledgeEvidence = typeof knowledgeEvidence.$inferSelect;
+export type NewPgKnowledgeEvidence = typeof knowledgeEvidence.$inferInsert;
 
 // Multiple PIC users per knowledge record (Head Office eligibility is a service
 // rule, not a CHECK). Deleting a record cascades its assignments; deleting a
@@ -348,6 +373,60 @@ export const knowledgePics = pgTable(
 );
 
 export type PgKnowledgePic = typeof knowledgePics.$inferSelect;
+
+// Migration-only archive. This deliberately has NO foreign keys to the active
+// entry/evidence/project/user rows: the archive must survive permanent delete,
+// and it is an audit snapshot rather than a live aggregate. It is never read by
+// the V2 CRUD query path.
+export const knowledgeEvidenceArchive = pgTable(
+  "knowledge_evidence_archive",
+  {
+    archiveId: uuid("archive_id").primaryKey().defaultRandom(),
+    evidenceId: uuid("evidence_id").notNull(),
+    knowledgeEntryId: uuid("knowledge_entry_id").notNull(),
+    projectId: uuid("project_id").notNull(),
+    knowledgeType: text("knowledge_type").notNull(),
+    name: text("name").notNull(),
+    url: text("url").notNull(),
+    originalSortOrder: integer("original_sort_order"),
+    originalCreatedAt: timestamp("original_created_at", { withTimezone: true }).notNull(),
+    archivedAt: timestamp("archived_at", { withTimezone: true }).notNull().defaultNow(),
+    archivedBy: uuid("archived_by").notNull(),
+    archiveReason: text("archive_reason").notNull(),
+    keptEvidenceId: uuid("kept_evidence_id").notNull(),
+  },
+  (table) => [
+    unique("knowledge_evidence_archive_evidence_id_unique").on(table.evidenceId),
+  ],
+);
+
+export type PgKnowledgeEvidenceArchive = typeof knowledgeEvidenceArchive.$inferSelect;
+export type NewPgKnowledgeEvidenceArchive = typeof knowledgeEvidenceArchive.$inferInsert;
+
+// Owner selection register used by the migration gate. Like the archive, it is
+// a controlled pre-migration snapshot: no FKs to live rows, and exactly one
+// keep row per multi-evidence entry is checked by the migration process.
+export const knowledgeEvidenceSelection = pgTable(
+  "knowledge_evidence_selection",
+  {
+    entryId: uuid("entry_id").notNull(),
+    evidenceId: uuid("evidence_id").notNull(),
+    decision: text("decision").notNull(),
+    reason: text("reason").notNull(),
+    selectedBy: uuid("selected_by").notNull(),
+    selectedAt: timestamp("selected_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.entryId, table.evidenceId] }),
+    check(
+      "knowledge_evidence_selection_decision_check",
+      sql`${table.decision} in ('keep', 'archive')`,
+    ),
+  ],
+);
+
+export type PgKnowledgeEvidenceSelection = typeof knowledgeEvidenceSelection.$inferSelect;
+export type NewPgKnowledgeEvidenceSelection = typeof knowledgeEvidenceSelection.$inferInsert;
 
 // Canonical project directory. A project belongs to EXACTLY ONE year: there is
 // deliberately no start_year/end_year pair and no project↔year join table, so

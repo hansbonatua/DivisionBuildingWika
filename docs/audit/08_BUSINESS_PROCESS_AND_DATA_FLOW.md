@@ -152,7 +152,40 @@ Tidak ada ketergantungan CMS ↔ PostgreSQL selain registry referensi gambar (ya
 | NIP tidak dikenal | bcrypt dummy dijalankan, 401 generik |
 | Login berulang | 429 + `Retry-After`, tanpa menulis attempt baru |
 
-## 12. Knowledge Management (baru, 4 November 2026)
+## 12. Knowledge Management (V1 → V2, 5 November 2026)
+
+```mermaid
+sequenceDiagram
+  participant UI as KnowledgeTable + FormDialog
+  participant API as /api/knowledge-management
+  participant S as service
+  participant DB as PostgreSQL
+  UI->>API: POST ?type=… { project_id, content, pic_ids, evidence_* }
+  API->>API: getActor + Zod strict
+  API->>S: createKnowledgeEntry(actor, type, input)
+  S->>S: assertManageAccess + validasi project & PIC Head Office
+  S->>DB: BEGIN → INSERT entry (version=1, updated_by NULL) + pics + evidence
+  DB-->>S: COMMIT (trigger: minimal 1 PIC, tepat 1 evidence)
+  S-->>API: DTO { version: 1, updated_by: null }
+  UI->>API: PUT /[id] { content, pic_ids, evidence_*, expected_version }
+  S->>DB: SELECT … FOR UPDATE → UPDATE … WHERE version = expected
+  alt versi cocok
+    DB-->>S: version + 1 (200)
+  else versi basi
+    DB-->>S: 0 baris → 409 (draft tetap di form, tombol muat ulang)
+  end
+  UI->>API: DELETE /[id]?expected_version=N
+  S->>DB: DELETE entry (CASCADE pics + evidence)
+```
+
+- **Add** lewat modal: combobox Master Project (search `project-options`), content (counter 20.000), PIC multi-select Head Office, evidence name/URL. Sukses → modal tertutup, tabel di-refresh, toast.
+- **Edit** memakai modal yang sama; Master Project read-only; history menampilkan Created/Updated (Updated = `—` sampai update pertama).
+- **Delete** permanen dengan dialog konfirmasi; `expected_version` ikut dikirim, 409 bila data berubah.
+- **Konkurensi** berbasis integer `version` (bukan timestamp): dua update paralel → satu 200, satu 409; retry dengan versi terbaru diterima.
+- **Integritas:** `project_id`/`knowledge_type` immutable (trigger), evidence tepat satu (UNIQUE + deferred trigger), PIC minimal satu (deferred trigger), FK project RESTRICT.
+- **Status verifikasi:** concurrency 4/4 PASS, regresi 7/7 PASS, Admin PASS, Head Office/Management/Project **BLOCKED**. Detail: `DL-2026-11-05-02`.
+
+### Alur V1 (historis — SUPERSEDED)
 
 ```mermaid
 sequenceDiagram

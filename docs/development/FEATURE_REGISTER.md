@@ -24,7 +24,7 @@ Status memakai: `COMPLETE AND VERIFIED` · `IMPLEMENTED BUT NOT FULLY VERIFIED` 
 | `ENT-ENGDB` | Engineering Databases | Enterprise | COMPLETE AND VERIFIED | — |
 | `ENT-MSL` | MSL Engineering (protected) | Enterprise | COMPLETE AND VERIFIED | — |
 | `ENT-ORG` | Struktur Organisasi (protected) | Enterprise | COMPLETE AND VERIFIED | — |
-| `ENT-KNOW` | **Knowledge Management V1** (Lesson Learn, Best Practice / KI KM, VA/VE) | Enterprise | **IMPLEMENTED BUT NOT FULLY VERIFIED** — migrasi 0013/0014 applied di `neondb`; API terautentikasi & browser belum diuji | belum di-commit |
+| `ENT-KNOW` | **Knowledge Management V2** (Lesson Learn, Best Practice / KI KM, VA/VE) | Enterprise | **IMPLEMENTED BUT NOT FULLY VERIFIED** — V1→V2 via drop+rebuild; `0015_knowledge_management_v2_fresh` APPLIED 2026-11-05; Admin PASS, HO/Mgmt/Project BLOCKED (credentials). Lihat DL-2026-11-05-02 | belum di-commit |
 | `ENT-SASAA` | Dashboard SASAA | Enterprise | NOT STARTED | — |
 | `GOV-WIBEX-001` | **WIBEX Development Governance** — standar organization-wide | Governance | **IMPLEMENTED BUT NOT FULLY VERIFIED — READY FOR OWNER REVIEW** — preliminary review selesai; koreksi diterapkan; final review & approval Owner pending | belum di-commit |
 
@@ -54,7 +54,13 @@ Status memakai: `COMPLETE AND VERIFIED` · `IMPLEMENTED BUT NOT FULLY VERIFIED` 
 
 **Commit.** Belum di-commit (instruksi task: no commit/push).
 
-## 3. Detail `ENT-KNOW` — Knowledge Management V1
+## 3. Detail `ENT-KNOW` — Knowledge Management (V1 → V2)
+
+> **V2 (5 November 2026).** Model V1 digantikan **drop+rebuild**: multiple records per project/kategori, form modal Add/Edit, evidence exactly-one, optimistic concurrency berbasis `version` integer, dan permanent delete. `0015_knowledge_management_v2_fresh` **APPLIED** di `neondb`; journal 16 entry. Seluruh rincian V1 di bawah ditandai **SUPERSEDED** dan dipertahankan sebagai sejarah. V1.1: **SUPERSEDED by V2** — lihat `DL-2026-11-05-02` (commit V1 `c75d426` tercatat di `DL-2026-11-05-01`).
+>
+> **Status V2.** `IMPLEMENTED BUT NOT FULLY VERIFIED` — API 71/73 lalu dua temuan diperbaiki di E+ (updated_by null saat create, pesan validasi spesifik); concurrency 4/4 PASS; regresi 7/7 PASS; runtime browser Admin PASS (gate Owner); Head Office/Management/Project **BLOCKED** (tanpa kredensial).
+
+### Detail V1 (historis — SUPERSEDED)
 
 **Kebutuhan.** Tiga submenu (Lesson Learn, Best Practice / KI KM, VA/VE) di bawah item top-level **Knowledge Management** — sibling Program Kerja, bukan accordion di dalamnya (restrukturisasi navigasi 4 November 2026). Setiap tabel menampilkan seluruh Master Project, isi knowledge multiline, banyak evidence (nama + URL), dan banyak PIC Head Office. Satu proyek maksimal satu data per submenu.
 

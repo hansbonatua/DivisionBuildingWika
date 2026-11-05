@@ -1,63 +1,68 @@
 # CURRENT PROJECT STATE — BDWIKA / WIBEX
 
-Terakhir diperbarui: 3 November 2026 (setelah implementasi `LP-NAV-002`).
+Terakhir diperbarui: 5 November 2026 (setelah Sub-Fase F — Knowledge Management V2 final).
 
 ## 1. Repository
 
 | Item | Nilai |
 |---|---|
 | Root | `D:\MagangHub-Wika-StaffEngDigitalisasiBuilding\progress\bdwika` |
-| Branch | `main`, tracking `origin/main` |
-| HEAD | `84e0a90` (sama dengan `refs/heads/main` di GitHub) |
-| Commit total | 68 |
-| Stack | Next.js 16.3.8 · React 19.2.8 · TypeScript 5.9.3 · Tailwind 4 · Drizzle ORM · PostgreSQL · MongoDB · Vercel Blob |
-| Node / npm | v24.18.0 / 10.5.0 |
-| Dev server | `http://localhost:3000` (aktif, HTTP 200 saat verifikasi) |
+| Branch | `main` (tracking `origin/main`) |
+| HEAD | `c75d426` — "feat:KM core enterprise v.1" (belum ada commit baru) |
+| Stack | Next.js 16.3.8 · React 19.2.8 · TypeScript 5.9.3 · Tailwind 4 · Drizzle ORM · PostgreSQL (Neon) · MongoDB · Vercel Blob |
+| Node / npm | v24 · npm 10 |
+| Dev server | **dimatikan** (port 3000 kosong saat penutupan F) |
+| Database | `neondb` (PostgreSQL 18.6), migration journal **16 entry** |
 
 ## 2. Working Tree (belum di-commit)
 
-| Path | Tipe | Keterangan |
-|---|---|---|
-| `src/components/landing/Navbar.tsx` | M | **+2 baris** — `LP-NAV-002` (Portal `target="_blank"` + `rel`) |
-| `src/components/landing/About.tsx` | M | perubahan lama, tidak disentuh |
-| `src/components/landing/Clients.tsx` | M | perubahan lama (sanitizer URL + kartu anchor) |
-| `src/components/landing/Footer.tsx` | M | perubahan lama |
-| `src/components/landing/SocialMedia.tsx` | M | perubahan lama |
-| `BDWIKA_WIBEX_AUDIT_REPORT.md`, `BDWIKA_WIBEX_PROJECT_CONTEXT.md` | ?? | dokumen audit root |
-| `docs/` | ?? | `docs/audit/` (19 dokumen, termasuk 23/24 hasil second pass) + `docs/development/` (3 dokumen) |
-| `screenshots/` | ?? | artefak QA |
+Tidak ada staged change. Tidak ada commit/push/deploy.
 
-Tidak ada staged change. Tidak ada commit/push/deploy yang dilakukan. Tidak ada perubahan konfigurasi, dependency, database, atau migration.
+| Kelompok | Path | Keterangan |
+|---|---|---|
+| Lib KM V2 | `src/lib/knowledge-management/{access,conflict,repository,schema,service}.ts`, `knowledge.test.ts`, `repository.test.ts` (baru) | validation/service/repository V2 + 2 file test |
+| API KM V2 | `src/app/api/knowledge-management/{route.ts,_helpers.ts,pic-options/route.ts,[id]/route.ts (baru),project-options/route.ts (baru)}` | 7 endpoint V2; 4 route V1 dihapus |
+| Frontend KM V2 | `src/components/dashboard/knowledge-management/{KnowledgeTable,KnowledgeFormDialog (baru),KnowledgeDeleteDialog (baru),KnowledgeManagementPage (baru),types.ts (baru),types.test.ts (baru)}` | rowspan grouping, modal Add/Edit, dialog delete |
+| Page KM | `src/app/dashboard/knowledge-management/{lesson-learn,best-practice,va-ve}/page.tsx` | memakai `KnowledgeManagementPage` |
+| Schema DB | `src/lib/pg/schema.ts` | V2 + 4 drift fix (Sub-Fase F) |
+| Migration | `drizzle/0015_knowledge_management_v2_fresh.sql` (baru), `drizzle/meta/0015_snapshot.json` (baru), `drizzle/meta/_journal.json` | journal 16 entry; file 0015/0016/0017 lama dihapus |
+| Dokumentasi | `docs/development/*`, `docs/audit/05,06,07,08,13`, `docs/design/` | DL-2026-11-05-02 + sinkronisasi status |
+| Landing | `src/components/landing/{Navbar,About,Clients,Footer,SocialMedia}.tsx` | perubahan lama, tidak disentuh F |
+
+Jangan `reset`, `checkout --`, `stash`, atau `clean` — seluruh pekerjaan KM V2 belum di-commit.
 
 ## 3. Status Pemeriksaan Terakhir
 
 | Pemeriksaan | Perintah | Exit | Status |
 |---|---|---|---|
 | TypeScript | `npx tsc --noEmit` | 0 | PASS |
-| ESLint (file diubah) | `npx eslint src/components/landing/Navbar.tsx` | 0 | PASS |
+| ESLint (file KM) | `npx eslint src/lib/knowledge-management src/app/api/knowledge-management src/components/dashboard/knowledge-management` | 0 | PASS |
+| Test otomatis | `npm test` | 0 | **44/44 PASS** (16 suite) |
 | Diff hygiene | `git diff --check` | 0 | PASS |
-| Build produksi (sesi audit, sebelum perubahan ini) | `npm run build` | 0 | PASS |
-| Test otomatis | — | — | TIDAK DIKONFIGURASI |
+| Drift Drizzle | `npx drizzle-kit generate` | 0 | **No schema changes** (snapshot 0015 sinkron) |
+| Migration | `npx drizzle-kit migrate` | — | **tidak dijalankan di F** (0015 sudah APPLIED) |
 
-## 4. Perubahan Terakhir
+## 4. Knowledge Management V2
 
-`LP-NAV-002` — tombol **WIBEX Portal** di navbar landing kini membuka `/login` di tab baru. Detail lengkap: `DEVELOPMENT_MASTER_LOG.md` entri `DL-2026-11-03-01` dan `FEATURE_REGISTER.md`.
+**Status:** `IMPLEMENTED BUT NOT FULLY VERIFIED` — Admin PASS; Head Office/Management/Project BLOCKED.
 
-**Status.** `IMPLEMENTED BUT NOT FULLY VERIFIED` — TypeScript, ESLint, dan `git diff --check` PASS; markup DOM terverifikasi; tab landing tidak berpindah. **Belum terverifikasi:** tampilan `/login` di tab baru (tab baru tidak muncul pada daftar tab terkelola tooling).
-
-Hasil yang diharapkan: klik Portal → `/login` di tab baru; landing tetap terbuka di tab sebelumnya; tombol SUSTAINABILITY dan tampilan desktop/mobile tidak berubah.
+- **Model:** multiple records per project/kategori (bukan satu baris per project), form modal Add/Edit, evidence **tepat satu**, PIC **minimal satu** (Head Office), optimistic concurrency integer `version`, permanent delete.
+- **Migration:** `0015_knowledge_management_v2_fresh` **APPLIED** di `neondb` (5 November 2026). Tabel V1 di-drop, V2 dibangun ulang. Data V1 = 1 test record, hilang per keputusan Owner (no backup, accepted risk).
+- **Verifikasi:** API 71/73 PASS lalu dua temuan diperbaiki (updated_by null saat create; pesan validasi spesifik 20.000) dan diverifikasi runtime; concurrency 4/4 PASS; regresi 7/7 PASS (MSL, Org, Program Kerja, Master Project, User, Landing CMS, Sidebar); runtime browser Admin PASS (gate Owner).
+- **Known limitation:** Head Office, Management, Project BLOCKED — tidak ada kredensial di `.env.local`/secret file; tidak ada impersonasi/pembuatan user.
+- **Catatan operasional:** `drizzle.config.ts` tidak membaca `.env.local`; export `DIRECT_URL` sebelum `npx drizzle-kit migrate` (lihat `docs/audit/13`).
 
 ## 5. Kondisi yang Perlu Diketahui
 
-- Perubahan landing (termasuk yang lama) **belum di-commit**; jangan `reset`, `checkout --`, `stash`, atau `clean`.
-- Belum ada test otomatis dan CI.
-- Feed publik Green Building masih 0 item (landing menampilkan empty state).
-- Dokumentasi audit menyebut CSP belum dipasang dan `link` CMS belum divalidasi server-side.
-- Modul MSL dan Struktur Organisasi diperlakukan **protected** (hanya dokumentasi, tanpa perubahan).
+- Seluruh pekerjaan KM V2 (A–F) belum di-commit; HEAD masih `c75d426`.
+- Database KM dalam keadaan bersih: `knowledge_entries/pics/evidence = 0`, tidak ada project `ZZ-KM-TEST-*`.
+- Tidak ada user baru, suspend, atau reset password selama pengujian; baseline user 10 akun tidak berubah.
+- Modul MSL dan Struktur Organisasi protected — tidak disentuh.
+- Feed publik Green Building masih 0 item (empty state).
+- `schema.ts` kini identik dengan database (4 drift M selesai) dan snapshot `0015_snapshot.json` tersedia.
 
 ## 6. Langkah Berikutnya
 
-1. Konfirmasi manual di browser bahwa `/login` benar-benar terbuka di tab baru (batasan tooling pada sesi implementasi).
-2. Commit perubahan landing secara terpisah (`Navbar.tsx` sendiri; tiga file lama terpisah).
-3. Perbarui `docs/audit/07_MODULE_AND_FEATURE_INVENTORY.md` agar baris Navbar mencerminkan perilaku Portal yang baru.
-4. Kembali ke roadmap audit: validasi `link` server-side, `.env.example` ter-track, unit test + CI.
+1. Final acceptance review Owner/ChatGPT atas DL-2026-11-05-02.
+2. Commit + push (menunggu otorisasi Owner); sertakan migration, snapshot, frontend, API, lib, dan dokumentasi.
+3. Setelah commit: acceptance role Head Office/Management/Project bila Owner menyediakan kredensial uji.

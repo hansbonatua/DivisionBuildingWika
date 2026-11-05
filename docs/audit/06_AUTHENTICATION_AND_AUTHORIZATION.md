@@ -116,7 +116,7 @@ Tidak ada `middleware.ts`. Ini aman selama setiap route memeriksa sesi sendiri �
 
 Tidak ditemukan jalur eskalasi hak akses: Admin shortcut hanya di level fitur, sedangkan integritas (admin terakhir, FK, field immutable) tetap ditegakkan.
 
-## 7. Knowledge Management V1 (baru, 4 November 2026)
+## 7. Knowledge Management V1 (4 November 2026 — SUPERSEDED by V2, lihat §8)
 
 | Permission | Admin | Head Office | Management | Project | Penegak |
 |---|---|---|---|---|---|
@@ -143,3 +143,33 @@ Tidak ditemukan jalur eskalasi hak akses: Admin shortcut hanya di level fitur, s
 **Security hygiene** (tidak ada mutasi tak sah, tidak ada sesi uji tersisa, tidak ada user diubah) **PASS**. **RBAC authorization** untuk Head Office/Management/Project **belum terverifikasi runtime**; jangan dibaca sebagai PASS.
 
 **Aturan PIC.** Hanya user `Head Office` yang diterima; status akun tidak difilter (suspended tetap eligible, sesuai keputusan V1). Validasi memakai `findUsersByIds` + cek role di service, bukan CHECK database.
+
+## 8. Knowledge Management V2 (5 November 2026)
+
+Matriks izin tidak berubah dari V1; yang berubah adalah cakupan operasi: V2 menambah **create**, **update**, **permanent delete**, dan **project-options**.
+
+| Permission | Admin | Head Office | Management | Project | Penegak |
+|---|---|---|---|---|---|
+| `KNOWLEDGE_MANAGEMENT_VIEW` | ✔ (super) | ✔ | ✔ | ✔ | `lib/knowledge-management/access.ts` |
+| `KNOWLEDGE_MANAGEMENT_MANAGE` | ✔ | ✔ | ✗ | ✗ | idem + `assertManageAccess` di service |
+
+**Keputusan Owner yang mengikat implementasi V2.**
+
+| Kode | Keputusan | Penegak |
+|---|---|---|
+| D-01 | Hanya Admin dan Head Office yang boleh memutasi; Management/Project read-only | `assertManageAccess` → 403 |
+| D-02 | `project_id` dan `knowledge_type` **immutable** setelah create; PUT strict tanpa `project_id` | Zod strict (400) + trigger `knowledge_entries_immutable_fields_trigger` (23514) |
+| D-04 | Optimistic concurrency integer `version`; mismatch → 409; satu transaksi aggregate | `expected_version` + `UPDATE … WHERE version = expected` |
+
+**Tiga lapis tetap berlaku:** layout (`canViewKnowledgeManagement`), route (`getActor` → sesi), service (`assertViewAccess`/`assertManageAccess`). Role dan identitas tidak pernah dibaca dari body.
+
+**Status verifikasi role (5 November 2026).**
+
+| Role | Login runtime | GET | Mutasi | PIC options | Verdict |
+|---|---|---|---|---|---|
+| Admin | **PASS** | **PASS** | **PASS** (201/200/200) | **PASS** | **PASS** |
+| Head Office | — | — | — | — | **BLOCKED** — tidak ada kredensial |
+| Management | — | — | — | — | **BLOCKED** — tidak ada kredensial |
+| Project | — | — | — | — | **BLOCKED** — tidak ada kredensial |
+
+Tidak ada impersonasi, pembuatan user, suspend, atau reset password. Head Office PIC tetap eligible walau `suspended`; tidak ada user suspended di database saat pengujian (N/A). Detail: `DL-2026-11-05-02`.

@@ -1,35 +1,43 @@
 import { getPgDb } from "@/lib/pg/client";
-import { HEAD_OFFICE_ROLE } from "@/lib/users/roles";
 import {
   canManageKnowledgeManagement,
   canViewKnowledgeManagement,
+  isEligibleKnowledgePic,
 } from "@/lib/knowledge-management/access";
 import {
-  deleteKnowledgeEvidence,
-  findEvidenceById,
-  findKnowledgeEntry,
+  deleteKnowledgeEntry as deleteKnowledgeEntryRow,
+  findEvidenceByEntryId,
+  findKnowledgeEntryForUpdate,
+  findKnowledgeRecordById,
   findMasterProjectById,
   findUsersByIds,
   insertKnowledgeEntry,
   insertKnowledgeEvidence,
   listHeadOfficePicOptions as listHeadOfficePicOptionRows,
-  listKnowledgeRows,
-  nextEvidenceSortOrder,
+  listKnowledgeRecords as listKnowledgeRecordRows,
+  listMasterProjectOptions,
   replaceKnowledgePics,
-  updateKnowledgeContentIfUnchanged,
+  updateKnowledgeEntry as updateKnowledgeEntryRow,
   updateKnowledgeEvidence,
-  type KnowledgeProjectRow,
+  type KnowledgeProjectSummary,
+  type KnowledgeRecordRow,
 } from "@/lib/knowledge-management/repository";
-import { hasStaleTimestamp } from "@/lib/knowledge-management/conflict";
+import {
+  KnowledgeVersionConflictError,
+  hasVersionConflict,
+} from "@/lib/knowledge-management/conflict";
 import type {
+  CreateKnowledgeEntryInput,
   EvidenceItemInput,
   KnowledgeType,
-  UpsertKnowledgeEntryInput,
+  UpdateKnowledgeEntryInput,
 } from "@/lib/knowledge-management/schema";
 
-// Server-only business rules for Knowledge Management V1. Routes never bypass
+// Server-only business rules for Knowledge Management V2. Routes never bypass
 // this layer: HTTP mapping is Forbidden → 403, NotFound → 404,
-// Conflict → 409, Validation → 400.
+// version conflict → 409, Validation → 400.
+
+export { KnowledgeVersionConflictError } from "@/lib/knowledge-management/conflict";
 
 export type KnowledgeActor = {
   id: string;
@@ -37,11 +45,37 @@ export type KnowledgeActor = {
   status: string;
 };
 
-export type KnowledgePicOption = {
+export type KnowledgeRecordDto = {
   id: string;
+  project: {
+    project_id: string;
+    name: string;
+    location: string;
+    year: number;
+  };
+  knowledge_type: KnowledgeType;
+  content: string;
+  pics: Array<{ user_id: string; name: string; status: string }>;
+  evidence: { name: string; url: string };
+  version: number;
+  created_by: { user_id: string; name: string };
+  created_at: string;
+  updated_by: { user_id: string; name: string } | null;
+  updated_at: string;
+};
+
+export type KnowledgePicOption = {
+  user_id: string;
   name: string;
   status: string;
   position: string;
+};
+
+export type KnowledgeProjectOption = {
+  project_id: string;
+  name: string;
+  location: string;
+  year: number;
 };
 
 export class KnowledgeForbiddenError extends Error {
@@ -85,8 +119,8 @@ function assertViewAccess(actor: KnowledgeActor): void {
   }
 }
 
-// Mutations require KNOWLEDGE_MANAGEMENT_MANAGE: Admin (super application) and
-// Head Office. Management and Project are strictly read-only.
+// Mutations require KNOWLEDGE_MANAGEMENT_MANAGE: Admin and Head Office.
+// Management and Project are strictly read-only.
 function assertManageAccess(actor: KnowledgeActor): void {
   assertActive(actor);
   if (!canManageKnowledgeManagement(actor.role)) {
@@ -94,13 +128,12 @@ function assertManageAccess(actor: KnowledgeActor): void {
   }
 }
 
-// Deduplicates and validates the PIC list. Every assignee must exist and be a
-// Head Office user. Account status is deliberately NOT checked: suspended Head
-// Office users stay eligible for PIC assignment in V1.
+// Deduplicates PIC IDs and validates every assignee as Head Office. Account
+// status is deliberately NOT checked: suspended Head Office users remain
+// eligible. There is no maximum number of PICs.
 async function validatePicIds(picIds: string[]): Promise<string[]> {
   const unique = [...new Set(picIds.map((id) => id.trim()).filter((id) => id.length > 0))];
   if (unique.length === 0) {
-    // Business rule: every knowledge record has at least one PIC.
     throw new KnowledgeValidationError("Minimal 1 PIC");
   }
   const found = await findUsersByIds(unique);
@@ -108,210 +141,278 @@ async function validatePicIds(picIds: string[]): Promise<string[]> {
     throw new KnowledgeNotFoundError("PIC user tidak ditemukan");
   }
   for (const user of found) {
-    if (user.role !== HEAD_OFFICE_ROLE) {
-      throw new KnowledgeConflictError("PIC harus user dengan role Head Office");
+    if (!isEligibleKnowledgePic(user)) {
+      throw new KnowledgeValidationError("PIC harus user dengan role Head Office");
     }
   }
   return unique;
 }
 
 const UNIQUE_VIOLATION = "23505";
-const STALE_UPDATE_MESSAGE =
-  "Data sudah diubah oleh pengguna lain. Muat ulang data lalu coba lagi.";
-
-function isUniqueViolation(error: unknown, depth = 0): boolean {
-  if (depth > 3 || typeof error !== "object" || error === null) {
-    return false;
-  }
-  const code = (error as { code?: unknown }).code;
-  if (code === UNIQUE_VIOLATION) {
-    return true;
-  }
-  return isUniqueViolation((error as { cause?: unknown }).cause, depth + 1);
-}
-
-// A referenced row cannot be written: PostgreSQL signals 23503
-// (foreign_key_violation, NO ACTION) or 23001 (restrict_violation). In this
-// module it can only happen when a PIC user disappears between validation and
-// insert, so it is a conflict (409), never a raw 500.
 const ROW_REFERENCED_CODES = new Set(["23503", "23001"]);
 
-function isCheckViolation(error: unknown, depth = 0): boolean {
+function hasErrorCode(error: unknown, codes: Set<string>, depth = 0): boolean {
   if (depth > 3 || typeof error !== "object" || error === null) {
     return false;
   }
   const code = (error as { code?: unknown }).code;
-  if (code === "23514") {
+  if (typeof code === "string" && codes.has(code)) {
     return true;
   }
-  return isCheckViolation((error as { cause?: unknown }).cause, depth + 1);
+  return hasErrorCode((error as { cause?: unknown }).cause, codes, depth + 1);
 }
 
-function isForeignKeyViolation(error: unknown, depth = 0): boolean {
-  if (depth > 3 || typeof error !== "object" || error === null) {
-    return false;
-  }
-  const code = (error as { code?: unknown }).code;
-  if (typeof code === "string" && ROW_REFERENCED_CODES.has(code)) {
-    return true;
-  }
-  return isForeignKeyViolation((error as { cause?: unknown }).cause, depth + 1);
+function isUniqueViolation(error: unknown): boolean {
+  return hasErrorCode(error, new Set([UNIQUE_VIOLATION]));
 }
 
-// Read surface: every Master Project in the directory, with or without a
-// knowledge record. Available to all four roles (Admin, Head Office,
-// Management, Project).
-export async function listKnowledgeProjectRows(
+function isForeignKeyViolation(error: unknown): boolean {
+  return hasErrorCode(error, ROW_REFERENCED_CODES);
+}
+
+function isCheckViolation(error: unknown): boolean {
+  return hasErrorCode(error, new Set(["23514"]));
+}
+
+function mapWriteError(error: unknown): never {
+  if (
+    error instanceof KnowledgeVersionConflictError ||
+    error instanceof KnowledgeNotFoundError ||
+    error instanceof KnowledgeForbiddenError ||
+    error instanceof KnowledgeConflictError ||
+    error instanceof KnowledgeValidationError
+  ) {
+    throw error;
+  }
+  if (isUniqueViolation(error)) {
+    throw new KnowledgeConflictError(
+      "Evidence untuk record ini sudah ada. Muat ulang data terbaru.",
+    );
+  }
+  if (isForeignKeyViolation(error)) {
+    throw new KnowledgeConflictError(
+      "PIC atau proyek terkait sudah tidak tersedia. Muat ulang data terbaru.",
+    );
+  }
+  if (isCheckViolation(error)) {
+    throw new KnowledgeValidationError(
+      "Data Knowledge Management tidak memenuhi aturan PIC/evidence.",
+    );
+  }
+  throw error;
+}
+
+function toRecordDto(row: KnowledgeRecordRow): KnowledgeRecordDto {
+  return {
+    id: row.id,
+    project: {
+      project_id: row.project.id,
+      name: row.project.name,
+      location: row.project.location,
+      year: row.project.year,
+    },
+    knowledge_type: row.knowledgeType,
+    content: row.content,
+    pics: row.pics.map((pic) => ({
+      user_id: pic.id,
+      name: pic.name,
+      status: pic.status,
+    })),
+    evidence: {
+      name: row.evidence.name,
+      url: row.evidence.url,
+    },
+    version: row.version,
+    created_by: {
+      user_id: row.createdBy.id,
+      name: row.createdBy.name,
+    },
+    created_at: row.createdAt,
+    updated_by: row.updatedBy
+      ? { user_id: row.updatedBy.id, name: row.updatedBy.name }
+      : null,
+    updated_at: row.updatedAt,
+  };
+}
+
+// Read surface: records only. Projects without records never appear because
+// the query starts from knowledge_entries.
+export async function listKnowledgeRecords(
   actor: KnowledgeActor,
   knowledgeType: KnowledgeType,
-): Promise<KnowledgeProjectRow[]> {
+): Promise<KnowledgeRecordDto[]> {
   assertViewAccess(actor);
-  return listKnowledgeRows(knowledgeType);
+  const rows = await listKnowledgeRecordRows(knowledgeType);
+  return rows.map(toRecordDto);
 }
 
-// Creates or replaces the inline record for (project, knowledgeType): content
-// and PIC only. Evidence is deliberately untouched here — it is managed by the
-// dedicated evidence endpoints, one row at a time.
-export async function upsertKnowledgeEntry(
+export async function getKnowledgeEntry(
   actor: KnowledgeActor,
-  input: UpsertKnowledgeEntryInput,
-): Promise<{ entryId: string }> {
+  id: string,
+): Promise<KnowledgeRecordDto> {
+  assertViewAccess(actor);
+  const row = await findKnowledgeRecordById(id);
+  if (!row) {
+    throw new KnowledgeNotFoundError();
+  }
+  return toRecordDto(row);
+}
+
+export async function createKnowledgeEntry(
+  actor: KnowledgeActor,
+  knowledgeType: KnowledgeType,
+  input: CreateKnowledgeEntryInput,
+): Promise<KnowledgeRecordDto> {
   assertManageAccess(actor);
 
-  const project = await findMasterProjectById(input.projectId);
+  const project = await findMasterProjectById(input.project_id);
   if (!project) {
     throw new KnowledgeNotFoundError("Master Project tidak ditemukan");
   }
 
-  const picIds = await validatePicIds(input.picIds);
-  const expectedUpdatedAt = input.expectedUpdatedAt ?? null;
+  const picIds = await validatePicIds(input.pic_ids);
+  const db = getPgDb();
+
+  let entryId: string;
+  try {
+    entryId = await db.transaction(async (tx) => {
+      const id = await insertKnowledgeEntry(
+        {
+          projectId: input.project_id,
+          knowledgeType,
+          content: input.content,
+          createdBy: actor.id,
+        },
+        tx,
+      );
+      await replaceKnowledgePics(id, picIds, tx);
+      await insertKnowledgeEvidence(
+        id,
+        { name: input.evidence_name, url: input.evidence_url },
+        tx,
+      );
+      return id;
+    });
+  } catch (error) {
+    mapWriteError(error);
+  }
+
+  return getKnowledgeEntry(actor, entryId);
+}
+
+export async function updateKnowledgeEntry(
+  actor: KnowledgeActor,
+  id: string,
+  input: UpdateKnowledgeEntryInput,
+): Promise<KnowledgeRecordDto> {
+  assertManageAccess(actor);
+
+  const picIds = await validatePicIds(input.pic_ids);
+  const db = getPgDb();
+  const evidence: EvidenceItemInput = {
+    name: input.evidence_name,
+    url: input.evidence_url,
+  };
+
+  try {
+    await db.transaction(async (tx) => {
+      const current = await findKnowledgeEntryForUpdate(id, tx);
+      if (!current) {
+        throw new KnowledgeNotFoundError();
+      }
+      if (hasVersionConflict(current.version, input.expected_version)) {
+        throw new KnowledgeVersionConflictError();
+      }
+
+      const updated = await updateKnowledgeEntryRow(
+        id,
+        input.content,
+        actor.id,
+        input.expected_version,
+        tx,
+      );
+      if (!updated) {
+        // The row lock should make this unreachable, but keep the guard.
+        throw new KnowledgeVersionConflictError();
+      }
+
+      await replaceKnowledgePics(id, picIds, tx);
+
+      // Evidence is part of the aggregate: UPDATE the existing row in place
+      // (preserving its id), or INSERT only when the invariant is missing.
+      const existingEvidence = await findEvidenceByEntryId(id, tx);
+      if (existingEvidence) {
+        const changed = await updateKnowledgeEvidence(
+          existingEvidence.id,
+          evidence,
+          tx,
+        );
+        if (!changed) {
+          await insertKnowledgeEvidence(id, evidence, tx);
+        }
+      } else {
+        await insertKnowledgeEvidence(id, evidence, tx);
+      }
+    });
+  } catch (error) {
+    mapWriteError(error);
+  }
+
+  return getKnowledgeEntry(actor, id);
+}
+
+export async function deleteKnowledgeEntry(
+  actor: KnowledgeActor,
+  id: string,
+  expectedVersion: number,
+): Promise<{ deleted: true; id: string }> {
+  assertManageAccess(actor);
   const db = getPgDb();
 
   try {
-    const entryId = await db.transaction(async (tx) => {
-      const existing = await findKnowledgeEntry(input.projectId, input.knowledgeType, tx);
-      let id: string;
-      if (existing) {
-        if (hasStaleTimestamp(existing.updatedAt, expectedUpdatedAt)) {
-          throw new KnowledgeConflictError(STALE_UPDATE_MESSAGE);
-        }
-        const updated = await updateKnowledgeContentIfUnchanged(
-          existing.id,
-          input.content,
-          actor.id,
-          existing.updatedAt,
-          tx,
-        );
-        if (!updated) {
-          // Someone committed between the read and the guarded UPDATE.
-          throw new KnowledgeConflictError(STALE_UPDATE_MESSAGE);
-        }
-        id = existing.id;
-      } else {
-        if (expectedUpdatedAt !== null) {
-          // The client thought a record existed, but it no longer does.
-          throw new KnowledgeConflictError(STALE_UPDATE_MESSAGE);
-        }
-        id = await insertKnowledgeEntry(
-          {
-            projectId: input.projectId,
-            knowledgeType: input.knowledgeType,
-            content: input.content,
-            createdBy: actor.id,
-          },
-          tx,
-        );
+    await db.transaction(async (tx) => {
+      const current = await findKnowledgeEntryForUpdate(id, tx);
+      if (!current) {
+        throw new KnowledgeNotFoundError();
       }
-      await replaceKnowledgePics(id, picIds, tx);
-      return id;
+      if (hasVersionConflict(current.version, expectedVersion)) {
+        throw new KnowledgeVersionConflictError();
+      }
+      const deleted = await deleteKnowledgeEntryRow(id, expectedVersion, tx);
+      if (!deleted) {
+        throw new KnowledgeNotFoundError();
+      }
     });
-    return { entryId };
   } catch (error) {
-    if (isUniqueViolation(error)) {
-      throw new KnowledgeConflictError(
-        "Proyek ini sudah memiliki data untuk submenu tersebut",
-      );
-    }
-    if (isForeignKeyViolation(error)) {
-      throw new KnowledgeConflictError(
-        "PIC atau proyek terkait sudah tidak tersedia. Muat ulang data lalu coba lagi.",
-      );
-    }
-    if (isCheckViolation(error)) {
-      // Raised by the database trigger when a record would end up without PIC.
-      throw new KnowledgeValidationError("Minimal 1 PIC");
-    }
-    throw error;
+    mapWriteError(error);
   }
+
+  return { deleted: true, id };
 }
 
-// ---------------------------------------------------------------------------
-// Evidence (individual rows, independent of content/PIC)
-// ---------------------------------------------------------------------------
-
-async function getEntryOrThrow(
-  projectId: string,
-  knowledgeType: KnowledgeType,
-): Promise<{ id: string }> {
-  const entry = await findKnowledgeEntry(projectId, knowledgeType);
-  if (!entry) {
-    throw new KnowledgeNotFoundError(
-      "Simpan konten dan PIC terlebih dahulu sebelum menambahkan evidence",
-    );
-  }
-  return entry;
-}
-
-export async function addKnowledgeEvidence(
-  actor: KnowledgeActor,
-  projectId: string,
-  knowledgeType: KnowledgeType,
-  input: EvidenceItemInput,
-): Promise<{ id: string; name: string; url: string }> {
-  assertManageAccess(actor);
-  const entry = await getEntryOrThrow(projectId, knowledgeType);
-  const sortOrder = await nextEvidenceSortOrder(entry.id);
-  return insertKnowledgeEvidence(entry.id, input, sortOrder);
-}
-
-export async function updateKnowledgeEvidenceById(
-  actor: KnowledgeActor,
-  evidenceId: string,
-  input: EvidenceItemInput,
-): Promise<{ id: string; name: string; url: string }> {
-  assertManageAccess(actor);
-  const existing = await findEvidenceById(evidenceId);
-  if (!existing) {
-    throw new KnowledgeNotFoundError("Evidence tidak ditemukan");
-  }
-  const updated = await updateKnowledgeEvidence(evidenceId, input);
-  if (!updated) {
-    throw new KnowledgeNotFoundError("Evidence tidak ditemukan");
-  }
-  return updated;
-}
-
-export async function deleteKnowledgeEvidenceById(
-  actor: KnowledgeActor,
-  evidenceId: string,
-): Promise<{ deleted: true; id: string }> {
-  assertManageAccess(actor);
-  const existing = await findEvidenceById(evidenceId);
-  if (!existing) {
-    throw new KnowledgeNotFoundError("Evidence tidak ditemukan");
-  }
-  const deleted = await deleteKnowledgeEvidence(evidenceId);
-  if (!deleted) {
-    throw new KnowledgeNotFoundError("Evidence tidak ditemukan");
-  }
-  return { deleted: true, id: evidenceId };
-}
-
-// PIC option feed is management-only: Management/Project can read PIC names in
-// the table but must never need the assignment list.
 export async function listKnowledgePicOptions(
   actor: KnowledgeActor,
 ): Promise<KnowledgePicOption[]> {
   assertManageAccess(actor);
-  return listHeadOfficePicOptionRows();
+  const rows = await listHeadOfficePicOptionRows();
+  return rows.map((row) => ({
+    user_id: row.id,
+    name: row.name,
+    status: row.status,
+    position: row.position,
+  }));
+}
+
+export async function listKnowledgeProjectOptions(
+  actor: KnowledgeActor,
+  query?: string,
+): Promise<KnowledgeProjectOption[]> {
+  assertManageAccess(actor);
+  const rows = await listMasterProjectOptions(query);
+  return rows.map((row: KnowledgeProjectSummary) => ({
+    project_id: row.id,
+    name: row.name,
+    location: row.location,
+    year: row.year,
+  }));
 }

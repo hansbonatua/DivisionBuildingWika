@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray, or, sql, type SQL } from "drizzle-orm";
 import { getPgDb, type PgDatabase } from "@/lib/pg/client";
 import {
   knowledgeEntries,
@@ -11,9 +11,10 @@ import {
 import { HEAD_OFFICE_ROLE } from "@/lib/users/roles";
 import type { EvidenceItemInput, KnowledgeType } from "@/lib/knowledge-management/schema";
 
-// Server-only persistence for Knowledge Management V1. No business policy here:
-// project/PIC existence and Head Office eligibility are service rules; URL
-// safety is validated at the API boundary by Zod.
+// Server-only persistence for Knowledge Management V2. Business policy
+// (permission, project/PIC existence, Head Office eligibility) belongs to the
+// service; this module only performs query construction and transaction-local
+// reads/writes.
 
 type PgTransaction = Parameters<Parameters<PgDatabase["transaction"]>[0]>[0];
 
@@ -32,109 +33,190 @@ export type KnowledgeEvidenceRow = {
 export type KnowledgePicRow = {
   id: string;
   name: string;
+  status: string;
 };
 
-// One row per Master Project, always — even when no knowledge record exists yet.
-// The table is assembled from the project directory (LEFT JOIN), never from the
-// knowledge table, so newly created projects appear automatically without any
-// placeholder rows being written to the database.
-export type KnowledgeProjectRow = {
-  projectId: string;
-  projectName: string;
-  projectLocation: string;
-  projectYear: number;
-  entryId: string | null;
-  content: string | null;
-  // Exact PostgreSQL timestamp token (UTC, microsecond precision). It is a
-  // string on purpose: converting through Date would drop microseconds and
-  // weaken optimistic concurrency inside the same millisecond.
-  updatedAt: string | null;
-  evidence: KnowledgeEvidenceRow[];
+export type KnowledgeUserRef = {
+  id: string;
+  name: string;
+};
+
+export type KnowledgeProjectSummary = {
+  id: string;
+  name: string;
+  location: string;
+  year: number;
+};
+
+export type KnowledgeRecordRow = {
+  id: string;
+  project: KnowledgeProjectSummary;
+  knowledgeType: KnowledgeType;
+  content: string;
   pics: KnowledgePicRow[];
+  evidence: KnowledgeEvidenceRow;
+  version: number;
+  createdBy: KnowledgeUserRef;
+  createdAt: string;
+  updatedBy: KnowledgeUserRef | null;
+  updatedAt: string;
 };
 
-export async function listKnowledgeRows(
-  knowledgeType: KnowledgeType,
-  db: KnowledgeDb = dbOrDefault(),
-): Promise<KnowledgeProjectRow[]> {
-  const projects = await db
+type TimestampColumn =
+  | typeof knowledgeEntries.createdAt
+  | typeof knowledgeEntries.updatedAt;
+
+const ISO_TIMESTAMP = (column: TimestampColumn) =>
+  sql<string>`to_char(${column} AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`;
+
+async function loadRecordRows(
+  where: SQL,
+  db: KnowledgeDb,
+): Promise<KnowledgeRecordRow[]> {
+  const rows = await db
     .select({
+      id: knowledgeEntries.id,
       projectId: masterProjects.id,
       projectName: masterProjects.name,
       projectLocation: masterProjects.location,
       projectYear: masterProjects.year,
-      entryId: knowledgeEntries.id,
+      knowledgeType: knowledgeEntries.knowledgeType,
       content: knowledgeEntries.content,
-      updatedAt: sql<string | null>`to_char(${knowledgeEntries.updatedAt} AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`,
+      version: knowledgeEntries.version,
+      createdById: knowledgeEntries.createdBy,
+      updatedById: knowledgeEntries.updatedBy,
+      createdAt: ISO_TIMESTAMP(knowledgeEntries.createdAt),
+      updatedAt: ISO_TIMESTAMP(knowledgeEntries.updatedAt),
+      evidenceId: knowledgeEvidence.id,
+      evidenceName: knowledgeEvidence.name,
+      evidenceUrl: knowledgeEvidence.url,
     })
-    .from(masterProjects)
-    .leftJoin(
-      knowledgeEntries,
-      and(
-        eq(knowledgeEntries.projectId, masterProjects.id),
-        eq(knowledgeEntries.knowledgeType, knowledgeType),
-      ),
+    .from(knowledgeEntries)
+    .innerJoin(masterProjects, eq(knowledgeEntries.projectId, masterProjects.id))
+    .innerJoin(
+      knowledgeEvidence,
+      eq(knowledgeEvidence.knowledgeEntryId, knowledgeEntries.id),
     )
-    .orderBy(desc(masterProjects.year), asc(masterProjects.name), asc(masterProjects.id));
+    .where(where)
+    .orderBy(
+      desc(masterProjects.year),
+      asc(masterProjects.name),
+      asc(knowledgeEntries.createdAt),
+      asc(knowledgeEntries.id),
+    );
 
-  if (projects.length === 0) {
+  if (rows.length === 0) {
     return [];
   }
 
-  const entryIds = projects
-    .map((row) => row.entryId)
-    .filter((id): id is string => id !== null);
+  const entryIds = rows.map((row) => row.id);
+  const userIds = [
+    ...new Set(
+      rows.flatMap((row) =>
+        [row.createdById, row.updatedById].filter(
+          (id): id is string => id !== null,
+        ),
+      ),
+    ),
+  ];
 
-  const evidenceByEntry = new Map<string, KnowledgeEvidenceRow[]>();
+  const [picRows, userRows] = await Promise.all([
+    db
+      .select({
+        entryId: knowledgePics.knowledgeEntryId,
+        id: users.id,
+        name: users.name,
+        status: users.status,
+      })
+      .from(knowledgePics)
+      .innerJoin(users, eq(knowledgePics.userId, users.id))
+      .where(inArray(knowledgePics.knowledgeEntryId, entryIds))
+      .orderBy(asc(users.name), asc(users.id)),
+    userIds.length === 0
+      ? Promise.resolve([])
+      : db
+          .select({ id: users.id, name: users.name })
+          .from(users)
+          .where(inArray(users.id, userIds)),
+  ]);
+
   const picsByEntry = new Map<string, KnowledgePicRow[]>();
-
-  if (entryIds.length > 0) {
-    const [evidenceRows, picRows] = await Promise.all([
-      db
-        .select({
-          id: knowledgeEvidence.id,
-          entryId: knowledgeEvidence.knowledgeEntryId,
-          name: knowledgeEvidence.name,
-          url: knowledgeEvidence.url,
-        })
-        .from(knowledgeEvidence)
-        .where(inArray(knowledgeEvidence.knowledgeEntryId, entryIds))
-        .orderBy(asc(knowledgeEvidence.sortOrder), asc(knowledgeEvidence.name)),
-      db
-        .select({
-          entryId: knowledgePics.knowledgeEntryId,
-          id: users.id,
-          name: users.name,
-        })
-        .from(knowledgePics)
-        .innerJoin(users, eq(knowledgePics.userId, users.id))
-        .where(inArray(knowledgePics.knowledgeEntryId, entryIds))
-        .orderBy(asc(users.name), asc(users.id)),
-    ]);
-
-    for (const row of evidenceRows) {
-      const list = evidenceByEntry.get(row.entryId) ?? [];
-      list.push({ id: row.id, name: row.name, url: row.url });
-      evidenceByEntry.set(row.entryId, list);
-    }
-    for (const row of picRows) {
-      const list = picsByEntry.get(row.entryId) ?? [];
-      list.push({ id: row.id, name: row.name });
-      picsByEntry.set(row.entryId, list);
-    }
+  for (const row of picRows) {
+    const list = picsByEntry.get(row.entryId) ?? [];
+    list.push({ id: row.id, name: row.name, status: row.status });
+    picsByEntry.set(row.entryId, list);
   }
 
-  return projects.map((row) => ({
-    projectId: row.projectId,
-    projectName: row.projectName,
-    projectLocation: row.projectLocation,
-    projectYear: row.projectYear,
-    entryId: row.entryId,
+  const userById = new Map(userRows.map((user) => [user.id, user]));
+
+  return rows.map((row) => ({
+    id: row.id,
+    project: {
+      id: row.projectId,
+      name: row.projectName,
+      location: row.projectLocation,
+      year: row.projectYear,
+    },
+    knowledgeType: row.knowledgeType as KnowledgeType,
     content: row.content,
+    pics: picsByEntry.get(row.id) ?? [],
+    evidence: {
+      id: row.evidenceId,
+      name: row.evidenceName,
+      url: row.evidenceUrl,
+    },
+    version: row.version,
+    createdBy: userById.get(row.createdById) ?? {
+      id: row.createdById,
+      name: "—",
+    },
+    createdAt: row.createdAt,
+    updatedBy: row.updatedById ? (userById.get(row.updatedById) ?? null) : null,
     updatedAt: row.updatedAt,
-    evidence: row.entryId ? (evidenceByEntry.get(row.entryId) ?? []) : [],
-    pics: row.entryId ? (picsByEntry.get(row.entryId) ?? []) : [],
   }));
+}
+
+export async function listKnowledgeRecords(
+  knowledgeType: KnowledgeType,
+  db: KnowledgeDb = dbOrDefault(),
+): Promise<KnowledgeRecordRow[]> {
+  return loadRecordRows(eq(knowledgeEntries.knowledgeType, knowledgeType), db);
+}
+
+export async function findKnowledgeRecordById(
+  id: string,
+  db: KnowledgeDb = dbOrDefault(),
+): Promise<KnowledgeRecordRow | null> {
+  const rows = await loadRecordRows(eq(knowledgeEntries.id, id), db);
+  return rows[0] ?? null;
+}
+
+export async function findKnowledgeEntryForUpdate(
+  id: string,
+  db: KnowledgeDb = dbOrDefault(),
+): Promise<{
+  id: string;
+  version: number;
+  projectId: string;
+  knowledgeType: KnowledgeType;
+} | null> {
+  const rows = await db
+    .select({
+      id: knowledgeEntries.id,
+      version: knowledgeEntries.version,
+      projectId: knowledgeEntries.projectId,
+      knowledgeType: knowledgeEntries.knowledgeType,
+    })
+    .from(knowledgeEntries)
+    .where(eq(knowledgeEntries.id, id))
+    .for("update")
+    .limit(1);
+  const row = rows[0];
+  if (!row) return null;
+  return {
+    ...row,
+    knowledgeType: row.knowledgeType as KnowledgeType,
+  };
 }
 
 export async function findMasterProjectById(
@@ -145,27 +227,6 @@ export async function findMasterProjectById(
     .select({ id: masterProjects.id })
     .from(masterProjects)
     .where(eq(masterProjects.id, id))
-    .limit(1);
-  return rows[0] ?? null;
-}
-
-export async function findKnowledgeEntry(
-  projectId: string,
-  knowledgeType: KnowledgeType,
-  db: KnowledgeDb = dbOrDefault(),
-): Promise<{ id: string; updatedAt: string } | null> {
-  const rows = await db
-    .select({
-      id: knowledgeEntries.id,
-      updatedAt: sql<string>`to_char(${knowledgeEntries.updatedAt} AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`,
-    })
-    .from(knowledgeEntries)
-    .where(
-      and(
-        eq(knowledgeEntries.projectId, projectId),
-        eq(knowledgeEntries.knowledgeType, knowledgeType),
-      ),
-    )
     .limit(1);
   return rows[0] ?? null;
 }
@@ -181,7 +242,15 @@ export async function insertKnowledgeEntry(
 ): Promise<string> {
   const rows = await db
     .insert(knowledgeEntries)
-    .values({ ...data, updatedBy: data.createdBy })
+    .values({
+      ...data,
+      version: 1,
+      // A brand-new record has never been edited: updated_by stays NULL so the
+      // History panel shows "—" for "Diubah" (design G.3/H.7/OD-03). The DB
+      // defaults both timestamps in the same statement, so updated_at equals
+      // created_at until the first real update.
+      updatedBy: null,
+    })
     .returning({ id: knowledgeEntries.id });
   const created = rows[0];
   if (!created) {
@@ -190,82 +259,75 @@ export async function insertKnowledgeEntry(
   return created.id;
 }
 
-// Guarded update: the row is only written when its stored updated_at still
-// equals the value the caller read. A concurrent commit changes updated_at, so
-// the UPDATE matches zero rows and the service reports 409 instead of
-// overwriting newer data (KM-03).
-//
-// The token is the exact UTC timestamp string (microseconds) the client
-// received. It is cast back to timestamptz for an exact comparison inside the
-// UPDATE, so no JavaScript Date conversion can truncate precision.
-//
-// The new timestamp must be STRICTLY greater than the old one: `now()` is the
-// transaction start time and can repeat (or, with clock adjustments, go
-// backwards), which would let a replayed token match again. GREATEST with old
-// value + 1 microsecond guarantees forward progress even when the clock does
-// not, while keeping full PostgreSQL precision.
-export async function updateKnowledgeContentIfUnchanged(
+export async function updateKnowledgeEntry(
   id: string,
   content: string,
   updatedBy: string,
-  expectedUpdatedAt: string,
+  expectedVersion: number,
   db: KnowledgeDb = dbOrDefault(),
-): Promise<boolean> {
+): Promise<{ id: string; version: number } | null> {
   const rows = await db
     .update(knowledgeEntries)
     .set({
       content,
       updatedBy,
-      updatedAt: sql`greatest(clock_timestamp(), ${knowledgeEntries.updatedAt} + interval '1 microsecond')`,
+      updatedAt: sql`clock_timestamp()`,
+      version: sql`${knowledgeEntries.version} + 1`,
     })
     .where(
       and(
         eq(knowledgeEntries.id, id),
-        sql`${knowledgeEntries.updatedAt} = ${expectedUpdatedAt}::timestamptz`,
+        eq(knowledgeEntries.version, expectedVersion),
+      ),
+    )
+    .returning({
+      id: knowledgeEntries.id,
+      version: knowledgeEntries.version,
+    });
+  return rows[0] ?? null;
+}
+
+export async function deleteKnowledgeEntry(
+  id: string,
+  expectedVersion: number,
+  db: KnowledgeDb = dbOrDefault(),
+): Promise<boolean> {
+  const rows = await db
+    .delete(knowledgeEntries)
+    .where(
+      and(
+        eq(knowledgeEntries.id, id),
+        eq(knowledgeEntries.version, expectedVersion),
       ),
     )
     .returning({ id: knowledgeEntries.id });
   return rows.length > 0;
 }
 
-// Evidence is managed one row at a time (inline editing): add, edit or delete a
-// single evidence without touching content, PIC or the other evidence rows.
-export async function findEvidenceById(
-  id: string,
+export async function findEvidenceByEntryId(
+  entryId: string,
   db: KnowledgeDb = dbOrDefault(),
-): Promise<{ id: string; knowledgeEntryId: string } | null> {
+): Promise<KnowledgeEvidenceRow | null> {
   const rows = await db
     .select({
       id: knowledgeEvidence.id,
-      knowledgeEntryId: knowledgeEvidence.knowledgeEntryId,
+      name: knowledgeEvidence.name,
+      url: knowledgeEvidence.url,
     })
     .from(knowledgeEvidence)
-    .where(eq(knowledgeEvidence.id, id))
+    .where(eq(knowledgeEvidence.knowledgeEntryId, entryId))
     .limit(1);
   return rows[0] ?? null;
-}
-
-export async function nextEvidenceSortOrder(
-  knowledgeEntryId: string,
-  db: KnowledgeDb = dbOrDefault(),
-): Promise<number> {
-  const rows = await db
-    .select({ maxOrder: sql<number | null>`max(${knowledgeEvidence.sortOrder})` })
-    .from(knowledgeEvidence)
-    .where(eq(knowledgeEvidence.knowledgeEntryId, knowledgeEntryId));
-  const current = rows[0]?.maxOrder ?? null;
-  return current === null ? 0 : Number(current) + 1;
 }
 
 export async function insertKnowledgeEvidence(
   knowledgeEntryId: string,
   data: EvidenceItemInput,
-  sortOrder: number,
   db: KnowledgeDb = dbOrDefault(),
-): Promise<{ id: string; name: string; url: string }> {
+): Promise<KnowledgeEvidenceRow> {
   const rows = await db
     .insert(knowledgeEvidence)
-    .values({ knowledgeEntryId, name: data.name, url: data.url, sortOrder })
+    .values({ knowledgeEntryId, name: data.name, url: data.url })
     .returning({
       id: knowledgeEvidence.id,
       name: knowledgeEvidence.name,
@@ -282,7 +344,7 @@ export async function updateKnowledgeEvidence(
   id: string,
   data: EvidenceItemInput,
   db: KnowledgeDb = dbOrDefault(),
-): Promise<{ id: string; name: string; url: string } | null> {
+): Promise<KnowledgeEvidenceRow | null> {
   const rows = await db
     .update(knowledgeEvidence)
     .set({ name: data.name, url: data.url })
@@ -293,17 +355,6 @@ export async function updateKnowledgeEvidence(
       url: knowledgeEvidence.url,
     });
   return rows[0] ?? null;
-}
-
-export async function deleteKnowledgeEvidence(
-  id: string,
-  db: KnowledgeDb = dbOrDefault(),
-): Promise<boolean> {
-  const rows = await db
-    .delete(knowledgeEvidence)
-    .where(eq(knowledgeEvidence.id, id))
-    .returning({ id: knowledgeEvidence.id });
-  return rows.length > 0;
 }
 
 export async function replaceKnowledgePics(
@@ -321,8 +372,7 @@ export async function replaceKnowledgePics(
 }
 
 // PIC option feed. Every Head Office user is eligible REGARDLESS of account
-// status (explicit V1 rule), so no status filter is applied. Identity and status
-// are returned so the UI can show who is suspended.
+// status, so no status filter is applied.
 export async function listHeadOfficePicOptions(
   db: KnowledgeDb = dbOrDefault(),
 ): Promise<Array<{ id: string; name: string; status: string; position: string }>> {
@@ -336,6 +386,38 @@ export async function listHeadOfficePicOptions(
     .from(users)
     .where(eq(users.role, HEAD_OFFICE_ROLE))
     .orderBy(asc(users.name), asc(users.id));
+}
+
+export async function listMasterProjectOptions(
+  query: string | undefined,
+  db: KnowledgeDb = dbOrDefault(),
+): Promise<KnowledgeProjectSummary[]> {
+  const search = query?.trim();
+  const base = db
+    .select({
+      id: masterProjects.id,
+      name: masterProjects.name,
+      location: masterProjects.location,
+      year: masterProjects.year,
+    })
+    .from(masterProjects);
+
+  if (search) {
+    const pattern = `%${search}%`;
+    return base
+      .where(
+        or(
+          ilike(masterProjects.name, pattern),
+          ilike(masterProjects.location, pattern),
+        ),
+      )
+      .orderBy(desc(masterProjects.year), asc(masterProjects.name), asc(masterProjects.id))
+      .limit(50);
+  }
+
+  return base
+    .orderBy(desc(masterProjects.year), asc(masterProjects.name), asc(masterProjects.id))
+    .limit(50);
 }
 
 export async function findUsersByIds(

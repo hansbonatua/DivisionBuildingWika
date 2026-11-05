@@ -53,6 +53,16 @@ Perintah lain:
 
 **Jangan** menjalankan perintah bertanda "ya" tanpa persetujuan pemilik proyek.
 
+**Catatan `.env.local` (5 November 2026).** `drizzle.config.ts` hanya membaca `process.env`, **tidak** memuat `.env.local` otomatis. Untuk `npx drizzle-kit migrate`, export `DIRECT_URL` lebih dulu di shell (nilai jangan dicetak):
+
+```bash
+# Git Bash
+export DIRECT_URL=$(grep '^DIRECT_URL=' .env.local | cut -d'=' -f2-)
+npx drizzle-kit migrate
+```
+
+Tanpa export, perintah berhenti dengan `Missing database URL for Drizzle migrations` **sebelum** menyentuh database (tidak ada state parsial).
+
 ## 4. Deployment
 
 | Aspek | Status |

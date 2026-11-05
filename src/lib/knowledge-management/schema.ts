@@ -1,10 +1,11 @@
 import { z } from "zod";
 
-// Knowledge Management V1 input contracts.
+// Knowledge Management V2 input contracts.
 //
-// The three submenus share one payload shape; `knowledgeType` is the only
-// discriminator. Content is plain text (paragraphs, "- " bullets, "1. " numbered
-// lists) — line breaks are stored verbatim, never HTML or Markdown.
+// The three submenus share one create/update payload shape. `knowledge_type`
+// comes from the route query on create; it is never accepted in the PUT body.
+// Content is plain text (paragraphs, bullets, numbered lists); line breaks are
+// stored verbatim and never rendered as HTML/Markdown.
 
 export const KNOWLEDGE_TYPES = ["lesson_learn", "best_practice", "va_ve"] as const;
 
@@ -31,10 +32,8 @@ export function knowledgeTypeFromSlug(slug: string): KnowledgeType | null {
   return match ?? null;
 }
 
-// Evidence URLs are validated on the SERVER (this module is imported by route
-// handlers and services, never by the browser as the authority). Only absolute
-// http/https URLs are accepted: javascript:, data:, file:, blob:, protocol
-// relative ("//host") and bare hostnames ("example.com") are all rejected.
+// Only absolute http/https URLs are accepted. javascript:, data:, file:, blob:,
+// protocol-relative and bare-host values are rejected by the server.
 export function isSafeEvidenceUrl(value: string): boolean {
   let parsed: URL;
   try {
@@ -45,14 +44,15 @@ export function isSafeEvidenceUrl(value: string): boolean {
   return parsed.protocol === "http:" || parsed.protocol === "https:";
 }
 
-const evidenceUrlField = z
+const contentField = z
   .string()
   .trim()
-  .min(1, "URL evidence wajib diisi")
-  .max(2048, "URL evidence maksimal 2048 karakter")
-  .refine(isSafeEvidenceUrl, {
-    message: "URL evidence harus diawali http:// atau https://",
-  });
+  .min(1, "Isi knowledge wajib diisi")
+  .max(20000, "Isi knowledge maksimal 20.000 karakter");
+
+const picIdListField = z
+  .array(z.uuid("PIC tidak valid"))
+  .min(1, "Minimal 1 PIC");
 
 const evidenceNameField = z
   .string()
@@ -60,6 +60,22 @@ const evidenceNameField = z
   .min(1, "Nama evidence wajib diisi")
   .max(200, "Nama evidence maksimal 200 karakter");
 
+const evidenceUrlField = z
+  .string()
+  .trim()
+  .min(1, "URL evidence wajib diisi")
+  .max(2048, "URL evidence maksimal 2.048 karakter")
+  .refine(isSafeEvidenceUrl, {
+    message: "URL evidence harus diawali http:// atau https://",
+  });
+
+const expectedVersionField = z
+  .number()
+  .int("expected_version harus berupa bilangan bulat")
+  .min(1, "expected_version minimal 1");
+
+// Evidence is one pair per record in V2. The dedicated V1 per-row evidence
+// contract is retained only for the remaining V1 route until Sub-Fase C.
 export const evidenceItemSchema = z
   .object({
     name: evidenceNameField,
@@ -69,54 +85,29 @@ export const evidenceItemSchema = z
 
 export type EvidenceItemInput = z.infer<typeof evidenceItemSchema>;
 
-const contentField = z
-  .string()
-  .trim()
-  .min(1, "Isi knowledge wajib diisi")
-  .max(20000, "Isi knowledge maksimal 20000 karakter");
-
-// PIC is mandatory in V1: a knowledge record always has at least one Head
-// Office assignee. Duplicates are removed by the service, not here.
-const picIdListField = z
-  .array(z.uuid("PIC tidak valid"))
-  .min(1, "Minimal 1 PIC")
-  .max(50, "Maksimal 50 PIC per baris");
-
-// Optimistic-concurrency token (KM-03). The client echoes the `updatedAt` it
-// last received for this record, or null when it believes no record exists yet.
-// The server compares it inside the transaction; a mismatch means someone else
-// saved first and the write is rejected with 409.
-const expectedUpdatedAtField = z
-  .string()
-  .trim()
-  .min(1, "expectedUpdatedAt tidak valid")
-  .refine((value) => !Number.isNaN(Date.parse(value)), {
-    message: "expectedUpdatedAt tidak valid",
-  })
-  .nullable()
-  .optional();
-
-// Inline record payload for one (project, knowledge type): content + PIC only.
-// Evidence is NOT part of this contract — it is managed per row through the
-// dedicated evidence endpoints, so saving content/PIC can never add, edit or
-// remove evidence (and vice versa).
-export const upsertKnowledgeEntrySchema = z
+export const createKnowledgeEntrySchema = z
   .object({
-    projectId: z.uuid("Project tidak valid"),
-    knowledgeType: z.enum(KNOWLEDGE_TYPES),
+    project_id: z.uuid("Project tidak valid"),
     content: contentField,
-    // Required with no default (KM-01): an omitted list is never read as
-    // "clear every PIC". The business rule also demands at least one PIC.
-    picIds: picIdListField,
-    expectedUpdatedAt: expectedUpdatedAtField,
+    pic_ids: picIdListField,
+    evidence_name: evidenceNameField,
+    evidence_url: evidenceUrlField,
   })
   .strict();
 
-// One Evidence row (add / edit). Name and URL are both required; the URL is
-// restricted to absolute http(s) and rendered as a plain hyperlink.
-export const evidencePayloadSchema = evidenceItemSchema;
+export type CreateKnowledgeEntryInput = z.infer<typeof createKnowledgeEntrySchema>;
 
-export type UpsertKnowledgeEntryInput = z.infer<typeof upsertKnowledgeEntrySchema>;
+export const updateKnowledgeEntrySchema = z
+  .object({
+    content: contentField,
+    pic_ids: picIdListField,
+    evidence_name: evidenceNameField,
+    evidence_url: evidenceUrlField,
+    expected_version: expectedVersionField,
+  })
+  .strict();
+
+export type UpdateKnowledgeEntryInput = z.infer<typeof updateKnowledgeEntrySchema>;
 
 export const knowledgeTypeQuerySchema = z.object({
   type: z.enum(KNOWLEDGE_TYPES, "Tipe knowledge tidak valid"),

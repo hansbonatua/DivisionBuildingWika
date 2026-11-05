@@ -462,3 +462,70 @@ Hasil ini konsisten dengan desain: Project tetap dapat membuka Knowledge Managem
 **Security hygiene vs RBAC.** Security hygiene **PASS** (tidak ada mutasi tak sah, tidak ada sesi uji tersisa, user tidak berubah). RBAC authorization tiga role **BELUM terverifikasi runtime** dan tidak boleh dilaporkan PASS.
 
 **Status akhir.** Admin PASS; timestamp PASS; concurrent HTTP NOT RUN; Head Office/Management/Project BLOCKED. **BELUM READY FOR FINAL ACCEPTANCE**.
+
+---
+
+## DL-2026-11-05-01 — Commit KM V1 (c75d426)
+
+| Field | Nilai |
+|---|---|
+| Feature ID | `ENT-KNOW` |
+| Tanggal | 5 November 2026 |
+| Status | **COMMITTED & PUSHED** — commit `c75d426`; tidak ada perubahan source pada pencatatan ini |
+| Commit | `c75d426` "feat:KM core enterprise v.1" |
+| Branch | `main` |
+| Push | sudah di `origin/main` (verified) |
+| Otorisasi | Owner (Hans) |
+| Isi | 40 file: KM V1 (migration 0013/0014, API, lib, sidebar, dashboard, test), dokumentasi audit + development, `package.json` |
+| File landing | 5 file landing sudah ter-commit di `d342bda`, bukan di commit ini |
+
+### Catatan
+
+Commit ini menutup rangkaian DL-01…DL-16 yang sebelumnya menyatakan "belum di-commit". Penambahan entri ini hanya dokumentasi log; tidak ada perubahan source code, migration, database, config, atau deployment.
+
+---
+
+## DL-2026-11-05-02 — Knowledge Management V2
+
+| Field | Nilai |
+|---|---|
+| Feature ID | `ENT-KNOW` |
+| Tanggal | 5 November 2026 |
+| Status | **IMPLEMENTED BUT NOT FULLY VERIFIED** — Admin PASS; Head Office/Management/Project BLOCKED (credentials tidak tersedia); migration APPLIED |
+| Commit | belum di-commit (instruksi: no commit/push) |
+| Branch | `main` |
+| Baseline | `c75d426` |
+| Migration | `0015_knowledge_management_v2_fresh` APPLIED di `neondb` |
+| Data V1 | di-DROP (Owner accepted risk; 1 test record) |
+
+### Perubahan
+- Model V1 → V2: multiple records per project/kategori, form-based CRUD (bukan inline editing), evidence exactly-one, version-based concurrency, permanent delete
+- Frontend: `KnowledgeTable` rewrite dengan rowspan grouping, `KnowledgeFormDialog` (modal Add/Edit), `KnowledgeDeleteDialog` (konfirmasi), `KnowledgeManagementPage` (shell)
+- API: 6 endpoint V2 + 1 pendukung (`project-options`); hapus 4 endpoint V1
+- Database: DROP V1 tables, REBUILD V2 fresh via migration 0015 (single statement batch, no partial state)
+
+### Verifikasi
+| Pemeriksaan | Hasil |
+|---|---|
+| `npx tsc --noEmit` | PASS |
+| `npx eslint` | PASS |
+| `npm test` | 44/44 PASS |
+| `git diff --check` | PASS |
+| Migration APPLIED | PASS — 8/8 schema verification |
+| API test | 71/73 → fix 2 di E+ → final PASS |
+| Concurrency test | 4/4 PASS |
+| Regression test | 7/7 PASS (MSL, Org, Program Kerja, Master Project, User, Landing CMS, Sidebar) |
+| Runtime browser | PASS (gate Owner) |
+| 4 role | Admin PASS; HO/Mgmt/Project BLOCKED |
+| Cleanup | PASS — 0 record, 0 test project, users identik, modul lain tidak berubah |
+
+### Known limitations
+- Head Office, Management, Project: BLOCKED — tidak ada kredensial di `.env.local`/file secret; tidak ada impersonasi atau pembuatan user
+- 4 drift `schema.ts` vs DB dari Sub-Fase M: diperbaiki di Sub-Fase F (termasuk snapshot `0015_snapshot.json`)
+- `drizzle.config.ts` tidak membaca `.env.local` otomatis — didokumentasikan di `docs/audit/13_DEPLOYMENT_AND_ENVIRONMENT_GUIDE.md`
+
+### Batasan
+- Tidak ada commit/push/deploy
+- Tidak menyentuh modul MSL/Org
+- Migration 0015 fresh menggantikan 0015/0016/0017 (superseded)
+- Data V1 (1 test record) hilang per keputusan Owner

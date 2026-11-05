@@ -1,32 +1,52 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  createKnowledgeEntrySchema,
   evidenceItemSchema,
   isSafeEvidenceUrl,
   knowledgeTypeFromSlug,
-  upsertKnowledgeEntrySchema,
+  updateKnowledgeEntrySchema,
   KNOWLEDGE_TYPE_SLUGS,
   KNOWLEDGE_TYPES,
 } from "@/lib/knowledge-management/schema";
 import {
   canManageKnowledgeManagement,
   canViewKnowledgeManagement,
+  isEligibleKnowledgePic,
 } from "@/lib/knowledge-management/access";
-import { hasStaleTimestamp } from "@/lib/knowledge-management/conflict";
+import {
+  KnowledgeVersionConflictError,
+  hasVersionConflict,
+} from "@/lib/knowledge-management/conflict";
 
 const PROJECT_ID = "11111111-1111-4111-8111-111111111111";
 const PIC_ID = "22222222-2222-4222-8222-222222222222";
 const PIC_ID_2 = "33333333-3333-4333-8333-333333333333";
 
-// Inline record payload: content + PIC only. Evidence is a separate contract.
-function payload(overrides: Record<string, unknown> = {}) {
+function createPayload(overrides: Record<string, unknown> = {}) {
   return {
-    projectId: PROJECT_ID,
-    knowledgeType: "lesson_learn",
+    project_id: PROJECT_ID,
     content: "Ringkasan pekerjaan.",
-    picIds: [PIC_ID],
+    pic_ids: [PIC_ID],
+    evidence_name: "Laporan evaluasi",
+    evidence_url: "https://example.com/evaluasi",
     ...overrides,
   };
+}
+
+function updatePayload(overrides: Record<string, unknown> = {}) {
+  return {
+    content: "Ringkasan pekerjaan terbaru.",
+    pic_ids: [PIC_ID],
+    evidence_name: "Laporan evaluasi terbaru",
+    evidence_url: "https://example.com/evaluasi-terbaru",
+    expected_version: 1,
+    ...overrides,
+  };
+}
+
+function uuidFor(value: number): string {
+  return `00000000-0000-4000-8000-${String(value).padStart(12, "0")}`;
 }
 
 describe("knowledge evidence URL safety", () => {
@@ -54,77 +74,153 @@ describe("knowledge evidence URL safety", () => {
   });
 });
 
-describe("knowledge evidence row contract", () => {
-  it("accepts a valid row and trims both fields", () => {
-    const parsed = evidenceItemSchema.safeParse({
-      name: "  Laporan evaluasi  ",
-      url: "  https://example.com/evaluasi  ",
-    });
+describe("knowledge create contract", () => {
+  it("accepts and trims a valid aggregate payload", () => {
+    const parsed = createKnowledgeEntrySchema.safeParse(
+      createPayload({
+        content: "  Ringkasan pekerjaan.  ",
+        evidence_name: "  Laporan evaluasi  ",
+        evidence_url: "  https://example.com/evaluasi  ",
+      }),
+    );
     assert.equal(parsed.success, true);
     if (parsed.success) {
-      assert.equal(parsed.data.name, "Laporan evaluasi");
-      assert.equal(parsed.data.url, "https://example.com/evaluasi");
+      assert.equal(parsed.data.content, "Ringkasan pekerjaan.");
+      assert.equal(parsed.data.evidence_name, "Laporan evaluasi");
+      assert.equal(parsed.data.evidence_url, "https://example.com/evaluasi");
     }
   });
 
-  it("rejects empty fields, unsafe URLs and unknown keys", () => {
-    const invalid = [
-      { name: "", url: "https://example.com/a" },
-      { name: "Laporan", url: "   " },
-      { name: "Laporan", url: "javascript:alert(1)" },
-      { name: "Laporan", url: "/relative" },
-      { name: "Laporan", url: "https://example.com/a", extra: true },
-    ];
-    for (const candidate of invalid) {
-      assert.equal(evidenceItemSchema.safeParse(candidate).success, false);
-    }
-  });
-});
-
-describe("knowledge content contract", () => {
-  it("preserves paragraphs, bullets, numbered lists and line breaks", () => {
-    const content =
-      "Paragraf pertama.\n\n- poin manual\n- poin kedua\n\n1. langkah satu\n2. langkah dua";
-    const parsed = upsertKnowledgeEntrySchema.safeParse(payload({ content }));
-    assert.equal(parsed.success, true);
-    if (parsed.success) {
-      assert.equal(parsed.data.content, content);
-      assert.ok(parsed.data.content.includes("\n\n- poin manual"));
-      assert.ok(parsed.data.content.includes("1. langkah satu"));
+  it("enforces content 20.000 / 20.001", () => {
+    const atLimit = createKnowledgeEntrySchema.safeParse(
+      createPayload({ content: "a".repeat(20000) }),
+    );
+    const overLimit = createKnowledgeEntrySchema.safeParse(
+      createPayload({ content: "a".repeat(20001) }),
+    );
+    assert.equal(atLimit.success, true);
+    assert.equal(overLimit.success, false);
+    if (!overLimit.success) {
+      assert.match(overLimit.error.issues[0]?.message ?? "", /20\.000/);
     }
   });
 
-  it("rejects empty or whitespace-only content", () => {
-    assert.equal(upsertKnowledgeEntrySchema.safeParse(payload({ content: "" })).success, false);
-    assert.equal(upsertKnowledgeEntrySchema.safeParse(payload({ content: "   " })).success, false);
+  it("enforces evidence name 200 / 201", () => {
+    assert.equal(
+      createKnowledgeEntrySchema.safeParse(
+        createPayload({ evidence_name: "n".repeat(200) }),
+      ).success,
+      true,
+    );
+    const overLimit = createKnowledgeEntrySchema.safeParse(
+      createPayload({ evidence_name: "n".repeat(201) }),
+    );
+    assert.equal(overLimit.success, false);
+    if (!overLimit.success) {
+      assert.match(overLimit.error.issues[0]?.message ?? "", /200/);
+    }
   });
 
-  it("rejects unknown fields and invalid project/PIC ids", () => {
+  it("enforces evidence URL 2.048 / 2.049", () => {
+    const base = "https://example.com/"; // 20 chars
     assert.equal(
-      upsertKnowledgeEntrySchema.safeParse(payload({ projectName: "x" })).success,
-      false,
+      createKnowledgeEntrySchema.safeParse(
+        createPayload({ evidence_url: base + "a".repeat(2028) }),
+      ).success,
+      true,
     );
-    assert.equal(
-      upsertKnowledgeEntrySchema.safeParse(payload({ projectId: "not-a-uuid" })).success,
-      false,
+    const overLimit = createKnowledgeEntrySchema.safeParse(
+      createPayload({ evidence_url: base + "a".repeat(2029) }),
     );
-    assert.equal(
-      upsertKnowledgeEntrySchema.safeParse(payload({ picIds: ["not-a-uuid"] })).success,
-      false,
-    );
+    assert.equal(overLimit.success, false);
+    if (!overLimit.success) {
+      assert.match(overLimit.error.issues[0]?.message ?? "", /2\.048/);
+    }
   });
 
-  it("accepts one of the three knowledge types only", () => {
+  it("requires at least one PIC and has no maximum PIC count", () => {
     assert.equal(
-      upsertKnowledgeEntrySchema.safeParse(payload({ knowledgeType: "lesson_learn" })).success,
+      createKnowledgeEntrySchema.safeParse(createPayload({ pic_ids: [] })).success,
+      false,
+    );
+    assert.equal(
+      createKnowledgeEntrySchema.safeParse(
+        createPayload({
+          pic_ids: [PIC_ID, PIC_ID_2],
+        }),
+      ).success,
       true,
     );
     assert.equal(
-      upsertKnowledgeEntrySchema.safeParse(payload({ knowledgeType: "other" })).success,
+      createKnowledgeEntrySchema.safeParse(
+        createPayload({
+          pic_ids: Array.from({ length: 51 }, (_, index) => uuidFor(index + 1)),
+        }),
+      ).success,
+      true,
+    );
+  });
+
+  it("rejects unknown fields, invalid project IDs and unsafe URLs", () => {
+    assert.equal(
+      createKnowledgeEntrySchema.safeParse(createPayload({ projectId: PROJECT_ID }))
+        .success,
       false,
     );
     assert.equal(
-      upsertKnowledgeEntrySchema.safeParse(payload({ picIds: [PIC_ID, PIC_ID_2] })).success,
+      createKnowledgeEntrySchema.safeParse(createPayload({ project_id: "not-a-uuid" }))
+        .success,
+      false,
+    );
+    assert.equal(
+      createKnowledgeEntrySchema.safeParse(
+        createPayload({ evidence_url: "javascript:alert(1)" }),
+      ).success,
+      false,
+    );
+  });
+});
+
+describe("knowledge update contract", () => {
+  it("accepts the V2 update body with expected_version", () => {
+    assert.equal(updateKnowledgeEntrySchema.safeParse(updatePayload()).success, true);
+  });
+
+  it("rejects project_id, projectId and knowledge_type", () => {
+    assert.equal(
+      updateKnowledgeEntrySchema.safeParse(
+        updatePayload({ project_id: PROJECT_ID }),
+      ).success,
+      false,
+    );
+    assert.equal(
+      updateKnowledgeEntrySchema.safeParse(
+        updatePayload({ projectId: PROJECT_ID }),
+      ).success,
+      false,
+    );
+    assert.equal(
+      updateKnowledgeEntrySchema.safeParse(
+        updatePayload({ knowledge_type: "lesson_learn" }),
+      ).success,
+      false,
+    );
+  });
+
+  it("requires an integer expected_version >= 1", () => {
+    for (const value of [undefined, null, 0, -1, 1.5, "1"]) {
+      assert.equal(
+        updateKnowledgeEntrySchema.safeParse(
+          updatePayload({ expected_version: value }),
+        ).success,
+        false,
+        `expected reject: ${String(value)}`,
+      );
+    }
+    assert.equal(
+      updateKnowledgeEntrySchema.safeParse(
+        updatePayload({ expected_version: 2 }),
+      ).success,
       true,
     );
   });
@@ -160,87 +256,67 @@ describe("knowledge permissions", () => {
     assert.equal(canViewKnowledgeManagement("Guest"), false);
     assert.equal(canManageKnowledgeManagement("Guest"), false);
   });
-});
 
-describe("PIC minimum contract", () => {
-  it("rejects a payload without a PIC list", () => {
-    const withoutPics = {
-      projectId: PROJECT_ID,
-      knowledgeType: "lesson_learn",
-      content: "Ringkasan pekerjaan.",
-    };
-    assert.equal(upsertKnowledgeEntrySchema.safeParse(withoutPics).success, false);
-  });
-
-  it("rejects an explicit empty PIC list", () => {
+  it("allows active and suspended Head Office PICs equally", () => {
     assert.equal(
-      upsertKnowledgeEntrySchema.safeParse(payload({ picIds: [] })).success,
-      false,
+      isEligibleKnowledgePic({ role: "Head Office", status: "active" }),
+      true,
+    );
+    assert.equal(
+      isEligibleKnowledgePic({ role: "Head Office", status: "suspended" }),
+      true,
     );
   });
 
-  it("accepts multiple PICs and an explicit empty evidence state", () => {
-    const parsed = upsertKnowledgeEntrySchema.safeParse(
-      payload({ picIds: [PIC_ID, PIC_ID_2] }),
-    );
-    assert.equal(parsed.success, true);
-    if (parsed.success) {
-      assert.deepEqual(parsed.data.picIds, [PIC_ID, PIC_ID_2]);
+  it("rejects PICs whose role is not Head Office", () => {
+    for (const role of ["Admin", "Management", "Project", "Guest"]) {
+      assert.equal(
+        isEligibleKnowledgePic({ role, status: "active" }),
+        false,
+        `expected reject: ${role}`,
+      );
     }
   });
 });
 
-describe("evidence is managed outside the record payload", () => {
-  it("rejects an evidence key inside the inline content/PIC payload", () => {
+describe("evidence item contract", () => {
+  it("accepts a valid row and rejects unsafe or unknown values", () => {
     assert.equal(
-      upsertKnowledgeEntrySchema.safeParse(
-        payload({ evidence: [{ name: "Laporan", url: "https://example.com/a" }] }),
-      ).success,
+      evidenceItemSchema.safeParse({
+        name: "Laporan",
+        url: "https://example.com/a",
+      }).success,
+      true,
+    );
+    assert.equal(
+      evidenceItemSchema.safeParse({
+        name: "Laporan",
+        url: "javascript:alert(1)",
+      }).success,
+      false,
+    );
+    assert.equal(
+      evidenceItemSchema.safeParse({
+        name: "Laporan",
+        url: "https://example.com/a",
+        extra: true,
+      }).success,
       false,
     );
   });
 });
 
-describe("KM-03 optimistic concurrency token", () => {
-  const iso = "2026-11-04T10:00:00.000000Z";
-
-  it("treats an equal exact timestamp as fresh", () => {
-    assert.equal(hasStaleTimestamp(iso, iso), false);
+describe("version-based optimistic concurrency", () => {
+  it("treats an equal version as fresh and a different version as stale", () => {
+    assert.equal(hasVersionConflict(3, 3), false);
+    assert.equal(hasVersionConflict(4, 3), true);
+    assert.equal(hasVersionConflict(2, 3), true);
   });
 
-  it("treats a newer stored timestamp as stale", () => {
-    assert.equal(hasStaleTimestamp("2026-11-04T10:00:01.000000Z", iso), true);
-  });
-
-  it("distinguishes tokens inside the same millisecond", () => {
-    const first = "2026-11-04T10:00:00.123400Z";
-    const second = "2026-11-04T10:00:00.123900Z";
-    assert.equal(hasStaleTimestamp(first, first), false);
-    assert.equal(hasStaleTimestamp(second, first), true);
-  });
-
-  it("rejects a token that differs by exactly one microsecond", () => {
-    const first = "2026-11-04T10:00:00.123456Z";
-    const next = "2026-11-04T10:00:00.123457Z";
-    assert.equal(hasStaleTimestamp(next, first), true);
-    assert.equal(hasStaleTimestamp(next, next), false);
-  });
-
-  it("treats a missing token as stale", () => {
-    assert.equal(hasStaleTimestamp(iso, null), true);
-  });
-
-  it("treats a different token as stale", () => {
-    assert.equal(hasStaleTimestamp(iso, "not-a-date"), true);
-  });
-
-  it("accepts ISO or null tokens and rejects invalid ones", () => {
-    const withToken = (expectedUpdatedAt: unknown) =>
-      upsertKnowledgeEntrySchema.safeParse(payload({ expectedUpdatedAt })).success;
-    assert.equal(withToken(iso), true);
-    assert.equal(withToken(null), true);
-    assert.equal(withToken(undefined), true);
-    assert.equal(withToken("nope"), false);
-    assert.equal(withToken(123), false);
+  it("exposes a dedicated conflict error with a stable code", () => {
+    const error = new KnowledgeVersionConflictError();
+    assert.equal(error.name, "KnowledgeVersionConflictError");
+    assert.equal(error.code, "KNOWLEDGE_VERSION_CONFLICT");
+    assert.match(error.message, /Muat ulang data terbaru/);
   });
 });

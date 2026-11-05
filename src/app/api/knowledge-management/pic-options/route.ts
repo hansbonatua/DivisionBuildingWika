@@ -3,9 +3,8 @@ import { listKnowledgePicOptions } from "@/lib/knowledge-management/service";
 import { getActor, mapDomainError } from "../_helpers";
 
 // GET /api/knowledge-management/pic-options
-// Narrow PIC feed for the knowledge table: Head Office users only, every account
-// status included (V1 rule). Returns id, name, status and position so the UI can
-// show suspended assignees explicitly.
+// Manage-only Head Office PIC feed. Account status is deliberately not filtered;
+// suspended users remain selectable and are labelled by the UI.
 export async function GET() {
   try {
     const auth = await getActor();

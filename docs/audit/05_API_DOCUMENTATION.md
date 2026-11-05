@@ -159,7 +159,7 @@ Parsing query eksplisit (`/^\d+$/`) — `2026.5`, `abc`, string kosong ditolak 4
 
 - Semua endpoint di atas **ada** di repository (diverifikasi dari daftar `git ls-files 'src/app/api/*route.ts'` + `export function`): 55 file, 90 method — seluruhnya tercantum di dokumen ini.
 
-## 13. Knowledge Management (baru, 4 November 2026)
+## 13. Knowledge Management V1 (4 November 2026 — SUPERSEDED by V2, lihat §14)
 
 | Method | Path | Guard | Service | Efek |
 |---|---|---|---|---|
@@ -186,3 +186,25 @@ Parsing query eksplisit (`/^\d+$/`) — `2026.5`, `abc`, string kosong ditolak 4
 **Verifikasi runtime (4 November 2026, dev server `localhost:3000`).** Tanpa sesi: seluruh endpoint KM **401**, `DELETE /entry/[id]` **405**, dashboard **307**. Terautentikasi **Admin**: 40 cek API (36 PASS; 4 FAIL karena bug presisi token yang kemudian diperbaiki), verifikasi ulang **10/10 PASS**, tiga submenu dan inline editing di browser **PASS**, fixture dibersihkan. Head Office, Management, dan Project: **BLOCKED** karena kredensial tidak tersedia; 403 role lain belum diuji.
 - Contoh body/response rinci per field sengaja tidak dikarang: bentuk otoritatif ada di `src/lib/<domain>/schema.ts`.
 - Efek samping (Blob delete, cascade) hanya ditulis bila terlihat di service.
+
+## 14. Knowledge Management V2 (5 November 2026)
+
+Seluruh endpoint V1 di §13 (`[projectId]/[type]`, `[projectId]/[type]/evidence`, `evidence/[id]`, `entry/[id]`) **dihapus dari repository** dan diganti tujuh endpoint berikut. Cookie sesi dipakai otomatis (`credentials: include`).
+
+| Method | Path | Guard | Service | Efek |
+|---|---|---|---|---|
+| GET | `/api/knowledge-management?type=…` | `getActor` + `KNOWLEDGE_MANAGEMENT_VIEW` | `listKnowledgeRecords` | daftar record V2 datar (satu baris per record), diurutkan tahun DESC, nama project ASC, `created_at` ASC, id ASC |
+| GET | `/api/knowledge-management/[id]` | idem | `getKnowledgeEntry` | satu record lengkap; UUID tidak valid → 400, tidak ada → 404 |
+| GET | `/api/knowledge-management/pic-options` | `getActor` + `KNOWLEDGE_MANAGEMENT_MANAGE` | `listHeadOfficePicOptions` | Head Office tanpa filter status (`{ user_id, name, status, position }`) |
+| GET | `/api/knowledge-management/project-options?q=…` | idem | `listMasterProjectOptions` | pencarian Master Project untuk combobox Add (`{ project_id, name, location, year }`) |
+| POST | `/api/knowledge-management?type=…` | `getActor` + `KNOWLEDGE_MANAGEMENT_MANAGE` | `createKnowledgeEntry` | **201** — entry + PIC + tepat 1 evidence dalam satu transaksi |
+| PUT | `/api/knowledge-management/[id]` | idem | `updateKnowledgeEntry` | **200** — body `{ content, pic_ids, evidence_name, evidence_url, expected_version }`; `project_id` ditolak **400** (strict) |
+| DELETE | `/api/knowledge-management/[id]?expected_version=N` | idem | `deleteKnowledgeEntry` | **200** `{ deleted: true, id }`; tanpa/tidak valid `expected_version` → **400**; tidak ada → **404**; versi basi → **409** |
+
+- Body `POST` divalidasi `createKnowledgeEntrySchema` (strict): `project_id` UUID, `content` 1–20.000, `pic_ids` minimal 1 (tanpa batas atas), `evidence_name` 1–200, `evidence_url` 1–2.048 dan wajib `http(s)://` absolut.
+- **Pesan validasi 400 bersifat spesifik** (Sub-Fase E+): `validationErrorResponse` meneruskan pesan Zod pertama (contoh `"Isi knowledge maksimal 20.000 karakter"`) dan tetap menyertakan `details.fieldErrors`.
+- `expected_version` adalah integer ≥ 1 dan dibaca dari body (PUT) atau query (DELETE). Ketidakcocokan → **409**; record yang sudah hilang → **404** (bukan 409/500).
+- FK violation `23503`/`23001` dan unique violation `23505` dipetakan ke **409** `KnowledgeConflictError`; CHECK `23514` → **400**.
+- `updated_by` bernilai **null** sampai update pertama; `updated_at = created_at` pada record baru.
+
+**Status verifikasi (Sub-Fase E/E+, 5 November 2026).** API 71/73 PASS lalu dua temuan diperbaiki (updated_by, pesan validasi) dan diverifikasi runtime; concurrency 4/4 PASS. Admin PASS; Head Office/Management/Project **BLOCKED** (tanpa kredensial). Detail: `DL-2026-11-05-02`.

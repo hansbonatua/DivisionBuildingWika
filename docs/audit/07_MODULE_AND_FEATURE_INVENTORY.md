@@ -25,7 +25,7 @@ Klasifikasi memakai label yang diminta. "Bukti" = hal yang benar-benar diperiksa
 | 17 | Organization Structure | **COMPLETE AND VERIFIED** (frozen: PERLU VERIFIKASI) | singleton + upload |
 | 18 | Dashboard SASAA | **NOT STARTED** | hanya permission |
 | 19 | Test & CI | **PARTIALLY IMPLEMENTED** | 21 unit test Knowledge Management (`npm test`), belum ada CI |
-| 20 | Knowledge Management (Lesson Learn, Best Practice / KI KM, VA/VE) | **IMPLEMENTED BUT NOT FULLY VERIFIED** | 3 halaman + 6 route + `knowledge_entries`/`knowledge_evidence`/`knowledge_pics`; migration `0013`/`0014` belum dijalankan |
+| 20 | Knowledge Management V2 (Lesson Learn, Best Practice / KI KM, VA/VE) | **IMPLEMENTED BUT NOT FULLY VERIFIED** | 3 halaman + 7 route V2 + `knowledge_entries`/`knowledge_pics`/`knowledge_evidence` (+ archive/selection); `0015_knowledge_management_v2_fresh` APPLIED 2026-11-05; Admin PASS, 3 role BLOCKED |
 
 ## 2. Public Landing Page
 
@@ -143,7 +143,13 @@ Pola seragam untuk 5 modul: list → form → preview → status publikasi → `
 
 Tidak ada modul notifikasi, email, audit log umum, pencarian global, export Excel, atau manajemen dokumen versi. Jangan mengasumsikan keberadaannya.
 
-## 12. Knowledge Management V1 (baru, 4 November 2026)
+## 12. Knowledge Management (V1 → V2, 5 November 2026)
+
+**V2 (menggantikan V1).** Tabel kini berisi **record** (bukan semua Master Project): satu project dapat punya banyak record per kategori, ditambah tombol **+ Tambah**. Kolom: No · Master Project (merged `rowspan` per project) · Knowledge Content · PIC · Evidence · Record History · Aksi. Create/Edit memakai **modal** (`KnowledgeFormDialog`), delete memakai dialog konfirmasi terpisah. Evidence **tepat satu** per record, PIC **minimal satu**, dan concurrency memakai integer `version` (`expected_version`). Data V1 (1 test record) di-drop sesuai keputusan Owner; migration `0015_knowledge_management_v2_fresh` APPLIED, journal 16.
+
+**Status V2.** `IMPLEMENTED BUT NOT FULLY VERIFIED` — API/concurrency/regresi PASS; runtime browser Admin PASS; Head Office/Management/Project **BLOCKED** (tanpa kredensial). Detail: `DL-2026-11-05-02`.
+
+### Detail V1 (historis — SUPERSEDED)
 
 | Submenu | Route | Isi kolom |
 |---|---|---|
