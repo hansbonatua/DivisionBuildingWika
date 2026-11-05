@@ -293,7 +293,7 @@ export async function deleteMasterProject(
   } catch (error) {
     if (isForeignKeyViolation(error)) {
       throw new MasterProjectConflictError(
-        "Master Project tidak dapat dihapus karena masih digunakan oleh data Engineering Database atau MSL Engineering",
+        "Master Project tidak dapat dihapus karena masih digunakan oleh data Engineering Database, MSL Engineering, atau Knowledge Management",
       );
     }
     throw error;

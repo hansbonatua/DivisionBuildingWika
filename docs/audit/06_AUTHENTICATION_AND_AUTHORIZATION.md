@@ -46,7 +46,7 @@ sequenceDiagram
 
 | Lapis | Lokasi | Perilaku |
 |---|---|---|
-| 1. Layout server | `src/app/dashboard/**/layout.tsx` (**19 layout modul + 1 shell**) | `getCurrentUser()` → redirect `/login`; `canView*` → redirect `/dashboard` |
+| 1. Layout server | `src/app/dashboard/**/layout.tsx` (**20 layout modul + 1 shell**) | `getCurrentUser()` → redirect `/login`; `canView*` → redirect `/dashboard` |
 | 2. Route handler | `src/app/api/**/route.ts` | `getPermittedActor` / `getActor` / `apiAuthGuard` → 401/403 |
 | 3. Service | `src/lib/*/service.ts` | `assertCanManageCms`, `assertManageAccess`, `assertCanManageUsers`, dst → error domain → 403 |
 
@@ -115,3 +115,31 @@ Tidak ada `middleware.ts`. Ini aman selama setiap route memeriksa sesi sendiri �
 | A-07 | `apiAuthGuard()` diekspor tetapi tidak dipakai route mana pun | INFORMATIONAL | VERIFIED (0 call site) |
 
 Tidak ditemukan jalur eskalasi hak akses: Admin shortcut hanya di level fitur, sedangkan integritas (admin terakhir, FK, field immutable) tetap ditegakkan.
+
+## 7. Knowledge Management V1 (baru, 4 November 2026)
+
+| Permission | Admin | Head Office | Management | Project | Penegak |
+|---|---|---|---|---|---|
+| `KNOWLEDGE_MANAGEMENT_VIEW` | ✔ (super) | ✔ | ✔ | ✔ | `lib/knowledge-management/access.ts` |
+| `KNOWLEDGE_MANAGEMENT_MANAGE` | ✔ | ✔ | ✗ | ✗ | idem + `assertManageAccess` di service |
+
+**Routing & hierarki (diperbarui 4 November 2026).** Halaman berada di namespace sendiri `/dashboard/knowledge-management/*` dengan layout guard `canViewKnowledgeManagement`. Namespace `/dashboard/program-kerja/*` **tidak diubah** dan tetap menolak Project lewat `PROGRAM_KERJA_VIEW`. Sidebar kini menampilkan Knowledge Management sebagai **item top-level sendiri (sibling Program Kerja)** dengan state accordion terpisah, default terbuka untuk role berizin, dan otomatis terbuka pada route KM. Project melihat Knowledge Management tanpa melihat Program Kerja; tidak ada tambahan akses Program Kerja. Matriks izin di atas tidak berubah.
+
+**Regresi navigasi (4 November 2026).** 16 unit test khusus sidebar PASS: visibilitas empat role, Project tanpa `PROGRAM_KERJA_VIEW`, penolakan role tanpa izin, independensi dari accordion Program Kerja, default terbuka, auto-open route KM, tiga route submenu, tidak ada duplikasi, dan Program Kerja tetap dua link. **Browser Head Office PASS** untuk navigasi (desktop 1280×800, mobile 390×844, active route, independensi accordion); Admin/Management/Project **NOT RUN** (tanpa sesi/kredensial).
+
+**Tiga lapis tetap berlaku:** layout (`canViewKnowledgeManagement`), route (`getActor` → sesi), service (`assertViewAccess` / `assertManageAccess` → 403). Role dan identitas tidak pernah dibaca dari body.
+
+**Status verifikasi role (4 November 2026).** Admin: **PASS** — login, GET, inline edit, PIC, evidence, dan penolakan tanpa sesi diuji runtime. Head Office, Management, Project: **BLOCKED** — akun aktif tersedia (5 Head Office, 1 Management, 1 Project) tetapi tidak ada kredensial di `.env.local`/secret file maupun handoff browser; tidak ada impersonasi, pembuatan user, atau reset password. Matriks izin di atas tetap berlaku sebagai aturan kode, bukan hasil uji HTTP role tersebut.
+
+**Matriks acceptance (4 November 2026).**
+
+| Role | Autentikasi runtime | GET/visibilitas | Mutasi | PIC options | Bukti |
+|---|---|---|---|---|---|
+| Admin | **PASS** | **PASS** | **PASS** | **PASS** | Login + API + browser (DL-10) |
+| Head Office | **BLOCKED** | **NOT RUN** | **NOT RUN** | **NOT RUN** | Tidak ada handoff/kredensial |
+| Management | **BLOCKED** | **NOT RUN** | **NOT RUN** | **NOT RUN** | Tidak ada handoff/kredensial |
+| Project | **BLOCKED** | **NOT RUN** | **NOT RUN** | **NOT RUN** | Tidak ada handoff/kredensial |
+
+**Security hygiene** (tidak ada mutasi tak sah, tidak ada sesi uji tersisa, tidak ada user diubah) **PASS**. **RBAC authorization** untuk Head Office/Management/Project **belum terverifikasi runtime**; jangan dibaca sebagai PASS.
+
+**Aturan PIC.** Hanya user `Head Office` yang diterima; status akun tidak difilter (suspended tetap eligible, sesuai keputusan V1). Validasi memakai `findUsersByIds` + cek role di service, bukan CHECK database.

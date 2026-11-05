@@ -24,7 +24,9 @@ Status memakai: `COMPLETE AND VERIFIED` · `IMPLEMENTED BUT NOT FULLY VERIFIED` 
 | `ENT-ENGDB` | Engineering Databases | Enterprise | COMPLETE AND VERIFIED | — |
 | `ENT-MSL` | MSL Engineering (protected) | Enterprise | COMPLETE AND VERIFIED | — |
 | `ENT-ORG` | Struktur Organisasi (protected) | Enterprise | COMPLETE AND VERIFIED | — |
+| `ENT-KNOW` | **Knowledge Management V1** (Lesson Learn, Best Practice / KI KM, VA/VE) | Enterprise | **IMPLEMENTED BUT NOT FULLY VERIFIED** — migrasi 0013/0014 applied di `neondb`; API terautentikasi & browser belum diuji | belum di-commit |
 | `ENT-SASAA` | Dashboard SASAA | Enterprise | NOT STARTED | — |
+| `GOV-WIBEX-001` | **WIBEX Development Governance** — standar organization-wide | Governance | **IMPLEMENTED BUT NOT FULLY VERIFIED — READY FOR OWNER REVIEW** — preliminary review selesai; koreksi diterapkan; final review & approval Owner pending | belum di-commit |
 
 ## 2. Detail `LP-NAV-002` — WIBEX Portal New Tab Behavior
 
@@ -51,3 +53,77 @@ Status memakai: `COMPLETE AND VERIFIED` · `IMPLEMENTED BUT NOT FULLY VERIFIED` 
 **Status.** `IMPLEMENTED BUT NOT FULLY VERIFIED` — kode & tooling hijau, konfirmasi visual tab baru menunggu pemeriksaan manual.
 
 **Commit.** Belum di-commit (instruksi task: no commit/push).
+
+## 3. Detail `ENT-KNOW` — Knowledge Management V1
+
+**Kebutuhan.** Tiga submenu (Lesson Learn, Best Practice / KI KM, VA/VE) di bawah item top-level **Knowledge Management** — sibling Program Kerja, bukan accordion di dalamnya (restrukturisasi navigasi 4 November 2026). Setiap tabel menampilkan seluruh Master Project, isi knowledge multiline, banyak evidence (nama + URL), dan banyak PIC Head Office. Satu proyek maksimal satu data per submenu.
+
+**Keputusan teknis.**
+- Satu tabel `knowledge_entries` + `UNIQUE(project_id, knowledge_type)`, bukan tiga tabel identik: kolom sama, pembeda hanya `knowledge_type`.
+- Baris tabel berasal dari Master Project (`LEFT JOIN`), bukan dari tabel knowledge. Tidak ada placeholder, proyek baru otomatis muncul.
+- Inline table editing: content + PIC disimpan bersama per baris; evidence dikelola satu per satu lewat endpoint sendiri sehingga tidak pernah saling menimpa.
+- Evidence (`knowledge_evidence`) dan PIC (`knowledge_pics`) sebagai tabel anak. PIC diganti atomik dalam transaksi inline save; evidence ditulis per baris (`POST`/`PATCH`/`DELETE`).
+- `project_id` **ON DELETE RESTRICT**: Master Project dengan knowledge tidak bisa di-hard-delete (409), sehingga knowledge tidak hilang diam-diam.
+- Namespace route terpisah `/dashboard/knowledge-management/*` dengan guard sendiri; `PROGRAM_KERJA_VIEW` tidak diubah sehingga Project tetap tidak bisa membuka halaman Program Kerja lain.
+- PIC: hanya role Head Office, **tanpa filter status** (suspended tetap eligible), disimpan sebagai `user_id`.
+
+**File utama.** `src/lib/knowledge-management/{access,schema,conflict,repository,service}.ts`, 6 route di `src/app/api/knowledge-management/**`, layout + 3 halaman di `src/app/dashboard/knowledge-management/**`, `src/components/dashboard/knowledge-management/KnowledgeTable.tsx`, `DashboardSidebar.tsx`, `permissions.ts`, `pg/schema.ts`, `drizzle/0013_knowledge_management.sql`, `drizzle/0014_knowledge_pic_minimum.sql`.
+
+**Verifikasi.** `npx tsc --noEmit` PASS · ESLint seluruh file berubah PASS · `npm test` PASS (39/39, termasuk 16 test navigasi sidebar) · `npx next build` PASS · `npx drizzle-kit check` PASS. **Browser:** Head Office navigasi **PASS** (desktop/mobile/active route); Admin, Management, Project **NOT RUN** (tanpa sesi/kredensial).
+
+**Status.** `IMPLEMENTED BUT NOT FULLY VERIFIED`.
+
+### Remediasi second-pass (4 November 2026)
+
+| Temuan | Status | Perubahan |
+|---|---|---|
+| KM-01 — default array destruktif | **FIXED** | `picIds` wajib (min 1); evidence dikeluarkan dari payload inline sehingga tidak bisa terhapus oleh save konten |
+| KM-02 — hapus seluruh record di luar scope | **DISABLED** | Tombol Hapus dihapus dari tabel; route `DELETE /entry/[id]` → 405; hapus evidence per baris tetap tersedia |
+| KM-03 — silent concurrent overwrite | **VERIFIED (Admin)** | Token `expectedUpdatedAt` string UTC **presisi mikrodetik** (tanpa konversi `Date`) + UPDATE terjaga `WHERE updated_at = token::timestamptz`; token basi/sama-milidetik → 409 + tombol muat ulang. Timestamp baru monotonic ketat (`GREATEST(clock_timestamp(), updated_at + 1µs)`). Runtime Admin PASS; uji HTTP paralel dan role lain belum dijalankan |
+| KM-04 — content wajib | **PENDING BUSINESS DECISION** | Tidak diubah; lihat catatan perubahan yang diperlukan di bawah |
+| KM-06 — pesan 409 Master Project | **FIXED** | Pesan menyebut Knowledge Management |
+| KM-08 — FK violation → 500 | **FIXED** | 23503/23001 dipetakan ke 409 dengan pesan jelas |
+
+**Status acceptance (4 November 2026).** Admin: **PASS**. Monotonic timestamp: **PASS** (unit + SQL proof). Uji HTTP dua penulis simultan: **NOT RUN** (tidak ada DB uji terisolasi; fixture produksi tambahan tidak disetujui). Head Office, Management, Project: **BLOCKED** (kredensial/handoff tidak tersedia).
+
+**KM-04 — diputuskan 4 November 2026.** Owner menetapkan content **wajib** (bukan opsional), sehingga CHECK `knowledge_entries_content_check` dan `min(1)` di Zod **tetap dipertahankan**. Tidak ada migration yang diperlukan untuk content; migration `0014` hanya menambah penjaga PIC minimal satu.
+
+### Pembaruan business requirement (4 November 2026)
+
+| Aturan | Implementasi |
+|---|---|
+| Inline table editing (pola MSL Engineering) | Content + PIC diedit per baris di tabel; Simpan/Batal di kolom Aksi |
+| Content wajib, tidak boleh kosong | Zod `min(1)` + CHECK database (sudah ada) + guard UI |
+| PIC minimal satu, role Head Office | Zod `min(1)` + service (role & keberadaan user) + constraint trigger `0014` |
+| Semua status akun Head Office eligible | PIC options tanpa filter status; label "(non-aktif)" |
+| Evidence opsional dan boleh kosong | Bukan bagian payload inline; tanpa evidence tetap sah |
+| Evidence ditambahkan kapan saja | `POST /[projectId]/[type]/evidence`; record harus ada |
+| Multiple PIC & multiple evidence | Tetap didukung (maks 50 PIC, unlimited praktis untuk evidence) |
+| Evidence tidak mengubah content/PIC | Endpoint evidence terpisah, tidak menulis `knowledge_entries`/`knowledge_pics` |
+| Optimistic concurrency dipertahankan | Token `expectedUpdatedAt` pada inline save; evidence tidak mengubah token |
+| Hapus seluruh record tetap nonaktif | `DELETE /entry/[id]` → 405, tombol Hapus record tidak ada |
+
+## 4. Detail `GOV-WIBEX-001` — WIBEX Development Governance
+
+**Kebutuhan.** Menetapkan satu standar kerja yang berlaku untuk seluruh proyek, modul, fitur, perubahan, dan pemeliharaan WIBEX — bukan hanya Knowledge Management V1.1. Standar harus mengatur peran, lifecycle, review gate, bukti, keamanan perubahan, Git/deploy, dokumentasi, dan final acceptance.
+
+**Dokumen kanonik.** `docs/development/WIBEX_DEVELOPMENT_GOVERNANCE.md`.
+
+**Dokumen operasional turunan.** `docs/development/WIBEX_ENGINEERING_WORKFLOW.md` — memuat konteks teknis dan langkah rinci; tunduk pada governance dan tidak boleh melemahkannya.
+
+**Keputusan inti.**
+- Owner = decision maker; ChatGPT = technical reviewer; Freebuff = implementer.
+- Prinsip: **Freebuff mengerjakan, ChatGPT mengevaluasi, Owner menyetujui.**
+- Setiap phase wajib melewati review gate: **PASS / CONDITIONAL / FAIL**.
+- Status verifikasi: **PASS / FAIL / NOT RUN / NOT APPLICABLE / HISTORICAL**.
+- Status final: **IMPLEMENTED & VERIFIED / IMPLEMENTED BUT NOT FULLY VERIFIED / BLOCKED / NOT ACCEPTED**.
+- Cakupan: 12 area pekerjaan WIBEX, termasuk database, API, frontend, RBAC, integrasi, deployment, regresi, technical debt, dan dokumentasi.
+- Change safety: lindungi pekerjaan lokal, jangan reset/stash/overwrite tanpa otorisasi, verifikasi target DB, migration harus punya strategi data dan rollback.
+- Git/deploy: tanpa instruksi Owner — no commit, no push, no deploy, no production release.
+- Dokumentasi: gunakan dokumen existing, hindari duplikasi, jangan menandai selesai tanpa bukti.
+
+**Penerapan pertama.** Knowledge Management V1.1. Statusnya **APPROVED SPECIFICATION / READY FOR IMPLEMENTATION**, bukan fitur yang sudah selesai; V1 tetap menjadi kondisi runtime aktual sampai implementasi V1.1 disetujui dan diverifikasi.
+
+**Status review.** Preliminary technical review ChatGPT sudah dilakukan dan koreksi sudah diterapkan. Final review dan approval Owner masih **PENDING**; karena itu status keseluruhan adalah **READY FOR OWNER REVIEW**, sedangkan status register tetap `IMPLEMENTED BUT NOT FULLY VERIFIED`.
+
+**Batasan.** Perubahan ini murni dokumentasi. Tidak ada perubahan source code, database, migration, API, frontend, deployment, commit, atau push. `docs/development/CURRENT_PROJECT_STATE.md` sengaja tidak diubah; snapshot historisnya dipertahankan sebagai documentation debt sampai task pembaruan khusus.

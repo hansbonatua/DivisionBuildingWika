@@ -2,6 +2,8 @@
 
 Panduan kerja untuk AI coding agent / engineer berikutnya. Spesifik untuk repository ini, bukan panduan umum.
 
+> **Baca lebih dulu:** [`docs/development/WIBEX_DEVELOPMENT_GOVERNANCE.md`](../development/WIBEX_DEVELOPMENT_GOVERNANCE.md). Dokumen tersebut adalah usulan standar organization-wide untuk peran, review gate, bukti, change safety, Git/deploy, dokumentasi, dan final acceptance, berstatus **READY FOR OWNER REVIEW**. Setelah disetujui Owner, panduan teknis proyek ini tunduk pada governance tersebut; sebelum approval, jangan menganggapnya efektif.
+
 ## 1. Identitas & Kondisi Awal
 
 | Item | Nilai |
@@ -132,7 +134,7 @@ npm run build                          # bila menyentuh routing/config
 git diff --check                       # sebelum commit
 ```
 
-Laporkan status sebenarnya (PASS/FAIL/NOT RUN). Jangan mengklaim PASS tanpa menjalankan.
+Laporkan status sebenarnya (PASS/FAIL/NOT RUN/NOT APPLICABLE/HISTORICAL). Jangan mengklaim PASS tanpa menjalankan. Status review ChatGPT (PASS/CONDITIONAL/FAIL) dan final acceptance Owner dicatat terpisah sesuai governance §5 dan §11.
 
 ## 9. Operasi Berbahaya (butuh izin eksplisit)
 

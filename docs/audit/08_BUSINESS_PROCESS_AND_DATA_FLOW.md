@@ -151,3 +151,42 @@ Tidak ada ketergantungan CMS ↔ PostgreSQL selain registry referensi gambar (ya
 | Blob gagal saat hapus | dicatat, penyimpanan tetap sukses |
 | NIP tidak dikenal | bcrypt dummy dijalankan, 401 generik |
 | Login berulang | 429 + `Retry-After`, tanpa menulis attempt baru |
+
+## 12. Knowledge Management (baru, 4 November 2026)
+
+```mermaid
+sequenceDiagram
+  participant UI as KnowledgeTable
+  participant API as PUT /api/knowledge-management/[projectId]/[type]
+  participant EV as /api/knowledge-management/**/evidence
+  participant S as service
+  participant DB as PostgreSQL
+  UI->>API: { content, picIds[], expectedUpdatedAt }
+  API->>API: getActor (sesi) + Zod (content wajib, PIC ≥ 1)
+  API->>S: upsertKnowledgeEntry(actor, input)
+  S->>S: assertManageAccess + validasi project & PIC Head Office
+  S->>DB: BEGIN
+  S->>DB: SELECT knowledge_entries (project, type)
+  alt sudah ada
+    S->>DB: UPDATE content ... WHERE id AND updated_at = token
+  else belum ada
+    S->>DB: INSERT knowledge_entries
+  end
+  S->>DB: DELETE + INSERT knowledge_pics
+  S->>DB: COMMIT (trigger 0014: minimal 1 PIC)
+  S-->>API: { entryId }
+  API-->>UI: 200 { data }
+  UI->>EV: POST/PATCH/DELETE satu evidence { name, url }
+  EV->>DB: INSERT/UPDATE/DELETE knowledge_evidence
+  Note over EV,DB: content, PIC, dan updated_at tidak disentuh
+```
+
+- **Membaca daftar:** `GET ?type=…` mengembalikan **semua** Master Project (LEFT JOIN). Proyek tanpa record tetap tampil dengan kolom knowledge kosong — tidak ada baris database yang dibuat hanya untuk itu.
+- **Inline save (content + PIC):** satu transaksi hanya menulis content dan daftar PIC; evidence tidak ikut diganti. Karena itu menyimpan konten tidak pernah menghapus evidence.
+- **Evidence per baris:** `POST /[projectId]/[type]/evidence` menambah satu baris, `PATCH/DELETE /evidence/[id]` mengubah/menghapus satu baris. Operasi ini tidak menyentuh content, PIC, maupun `updated_at`. Record harus sudah ada; bila belum → 404 dengan pesan untuk menyimpan konten dan PIC lebih dulu.
+- **Konkurensi:** token `expectedUpdatedAt` berupa string timestamp UTC mikrodetik dan dibandingkan eksak di database; hanya berlaku pada content + PIC. Editor kedua — termasuk yang menyimpan dalam milidetik yang sama — menerima 409 dan diminta memuat ulang. Timestamp baru dijamin naik ketat (minimal +1 mikrodetik), sehingga replay token lama tidak pernah diterima.
+- **Status acceptance:** Admin **PASS**; uji HTTP dua penulis simultan **NOT RUN** (tanpa lingkungan terisolasi); Head Office/Management/Project **BLOCKED** (tanpa kredensial/handoff).
+- **Menghapus:** `DELETE /entry/[id]` **405** (dinonaktifkan); evidence dihapus satu per satu dari kolom Evidence, PIC minimal satu dijaga trigger.
+- **Duplikasi:** `UNIQUE(project_id, knowledge_type)` menolak record kedua untuk submenu yang sama (409).
+- **Hapus Master Project:** ditolak **409** bila proyek masih memiliki knowledge (FK RESTRICT), sehingga knowledge tidak hilang tanpa disadari.
+- **Akses:** Admin/Head Office mengelola; Management/Project hanya membaca. Project tidak memperoleh akses ke halaman Program Kerja lain.

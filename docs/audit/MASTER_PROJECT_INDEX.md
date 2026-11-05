@@ -13,7 +13,8 @@
 | Repository | `https://github.com/hansbonatua/DivisionBuildingWika.git` |
 | Root audit | `D:\MagangHub-Wika-StaffEngDigitalisasiBuilding\progress\bdwika` |
 | Branch | `main` (tracking `origin/main`) |
-| HEAD | `84e0a90` — *feat: improve landing CMS and project details* (2026-11-02) |
+| HEAD saat implementasi Knowledge Management | `d342bda` — *feat(landing): revise landing page and add development documentation* (2026-11-04) |
+| HEAD saat audit awal | `84e0a90` — *feat: improve landing CMS and project details* (2026-11-02) |
 | Remote HEAD (terverifikasi) | `84e0a90` via `git ls-remote --heads origin` |
 | Total commit | 68 (2026-10-01 → 2026-11-02) |
 | Node / npm | v24.18.0 / 10.5.0, lockfile `package-lock.json` |
@@ -24,7 +25,7 @@
 - **Satu aplikasi Next.js 16 (App Router)** yang melayani tiga permukaan: landing publik, dashboard CMS, dan modul enterprise.
 - **Dua database**: MongoDB (5 koleksi CMS landing) + PostgreSQL 13 tabel (enterprise). Tidak ada sinkronisasi antar-DB; masing-masing modul memiliki satu sumber data.
 - **Autentikasi kustom** (NIP + password, sesi opaque di PostgreSQL) dan **RBAC terpusat** dengan empat role; Admin adalah *super-application* pada level fitur.
-- **11 modul fungsional** selesai; 1 permission dicadangkan untuk modul yang belum dimulai (`DASHBOARD_SASAA_VIEW`).
+- **12 modul fungsional** selesai; **Knowledge Management V1** ditambahkan 4 November 2026 sebagai item top-level sidebar (3 submenu, sibling Program Kerja) dan belum diverifikasi end-to-end untuk empat role. 1 permission dicadangkan untuk modul yang belum dimulai (`DASHBOARD_SASAA_VIEW`).
 - **Tanpa test otomatis dan tanpa CI.** Verifikasi saat ini bersandar pada `tsc`, ESLint, build, dan QA manual.
 
 ## Indeks Dokumen
@@ -35,9 +36,9 @@
 | [02_TECHNOLOGY_AND_CONFIGURATION.md](./02_TECHNOLOGY_AND_CONFIGURATION.md) | Versi terpasang, konfigurasi, environment | 2 |
 | [03_SYSTEM_ARCHITECTURE.md](./03_SYSTEM_ARCHITECTURE.md) | Arsitektur frontend/backend, boundary, rendering | 3 |
 | [04_DATABASE_SCHEMA.md](./04_DATABASE_SCHEMA.md) | Skema PostgreSQL + koleksi MongoDB + ERD | 4A/4B |
-| [05_API_DOCUMENTATION.md](./05_API_DOCUMENTATION.md) | 49 route handler: method, guard, service, tabel | 4D |
+| [05_API_DOCUMENTATION.md](./05_API_DOCUMENTATION.md) | 55 route handler: method, guard, service, tabel | 4D |
 | [06_AUTHENTICATION_AND_AUTHORIZATION.md](./06_AUTHENTICATION_AND_AUTHORIZATION.md) | Siklus sesi, matriks permission, risiko | 5 |
-| [07_MODULE_AND_FEATURE_INVENTORY.md](./07_MODULE_AND_FEATURE_INVENTORY.md) | 19 fitur: status, bukti, batasan | 6 |
+| [07_MODULE_AND_FEATURE_INVENTORY.md](./07_MODULE_AND_FEATURE_INVENTORY.md) | 20 fitur: status, bukti, batasan | 6 |
 | [08_BUSINESS_PROCESS_AND_DATA_FLOW.md](./08_BUSINESS_PROCESS_AND_DATA_FLOW.md) | Alur bisnis + diagram sekuens | 7 |
 | [09_INTEGRATION_AND_STORAGE.md](./09_INTEGRATION_AND_STORAGE.md) | Mongo/PG/Blob, urutan operasi upload & hapus | 8 |
 | [10_SECURITY_AND_CODE_QUALITY.md](./10_SECURITY_AND_CODE_QUALITY.md) | Validasi, error, keamanan, performa, debt | 9 |
@@ -52,6 +53,18 @@
 | [25-TECHNICAL-REMEDIATION-ROADMAP.md](./25-TECHNICAL-REMEDIATION-ROADMAP.md) | Roadmap perbaikan: klasifikasi, prioritas, wave, gate, keputusan | planning |
 | [26-PRIORITIZED-DEVELOPMENT-BACKLOG.md](./26-PRIORITIZED-DEVELOPMENT-BACKLOG.md) | 20 item backlog (RB-01…RB-20) + acceptance criteria | planning |
 | [27-CHANGE-IMPACT-ANALYSIS.md](./27-CHANGE-IMPACT-ANALYSIS.md) | Dampak per item: modul, file, regresi, rollback, test | planning |
+
+## Dokumen Pengembangan & Governance
+
+| Dokumen | Isi | Status |
+|---|---|---|
+| [WIBEX_DEVELOPMENT_GOVERNANCE.md](../development/WIBEX_DEVELOPMENT_GOVERNANCE.md) | **Usulan standar kanonik organization-wide**: peran Owner/ChatGPT/Freebuff, lifecycle, review gate, evidence, change safety, Git/deploy, dokumentasi, acceptance | **READY FOR OWNER REVIEW — v1.0** |
+| [WIBEX_ENGINEERING_WORKFLOW.md](../development/WIBEX_ENGINEERING_WORKFLOW.md) | Prosedur operasional dan konteks teknis WIBEX; tunduk pada governance | Dokumen turunan |
+| [FEATURE_REGISTER.md](../development/FEATURE_REGISTER.md) | Register fitur dan status implementasi | Aktif |
+| [DEVELOPMENT_MASTER_LOG.md](../development/DEVELOPMENT_MASTER_LOG.md) | Riwayat perubahan kode/dokumentasi | Aktif |
+| [CURRENT_PROJECT_STATE.md](../development/CURRENT_PROJECT_STATE.md) | Snapshot kondisi proyek | Perlu pembaruan berkala |
+
+Kedudukan: governance adalah usulan otoritas proses sampai Owner menyetujui; workflow adalah prosedur operasional; dokumen audit adalah bukti kondisi aktual. Jika terjadi pertentangan, ikuti urutan precedence di governance §1.2 dan catat konfliknya.
 
 ### Pemetaan ke daftar dokumen handoff yang diminta
 
@@ -81,6 +94,8 @@ Beberapa nama dokumen pada spesifikasi tumpang tindih isinya. Agar tidak ada dua
 | `MASTER_PROJECT_INDEX.md` | dokumen ini |
 | `SECOND_PASS_GAP_REGISTER` / `SECOND_PASS_AUDIT_REPORT` | `23-...` / `24-...` (audit lanjutan) |
 | `TECHNICAL_REMEDIATION_ROADMAP` / `PRIORITIZED_DEVELOPMENT_BACKLOG` / `CHANGE_IMPACT_ANALYSIS` | `25-...` / `26-...` / `27-...` (perencanaan) |
+| `DEVELOPMENT_GOVERNANCE.md` | `docs/development/WIBEX_DEVELOPMENT_GOVERNANCE.md` |
+| `ENGINEERING_WORKFLOW.md` | `docs/development/WIBEX_ENGINEERING_WORKFLOW.md` |
 
 ## Aturan Arsitektur Wajib
 
@@ -92,6 +107,7 @@ Beberapa nama dokumen pada spesifikasi tumpang tindih isinya. Agar tidak ada dua
 6. Payload publik hanya lewat projection `*Public`; `blobPathname`/`imageSource`/`passwordHash` tidak pernah keluar.
 7. Storage: verifikasi objek sebelum simpan; tulis DB dulu; hapus objek lama setelah sukses dan hanya jika tidak direferensikan.
 8. Landing tidak pernah menampilkan konten karangan (empty state netral).
+9. Governance: setiap pekerjaan mengikuti `docs/development/WIBEX_DEVELOPMENT_GOVERNANCE.md`; review gate dan final acceptance tidak boleh dilewati.
 
 ## Modul Terlindungi (Protected)
 

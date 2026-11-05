@@ -1,8 +1,8 @@
 # 05 — API DOCUMENTATION
 
-**49 file** `route.ts` di `src/app/api`, mengekspor **83 method handler** (`GET`/`POST`/`PATCH`/`PUT`/`DELETE`). Semua respons memakai amplop `{ data }` (sukses) atau `{ error: { message, details? } }` (gagal). Aktor **selalu** dari sesi cookie `wibex_session`.
+**55 file** `route.ts` di `src/app/api`, mengekspor **90 method handler** (`GET`/`POST`/`PATCH`/`PUT`/`DELETE`). Semua respons memakai amplop `{ data }` (sukses) atau `{ error: { message, details? } }` (gagal). Aktor **selalu** dari sesi cookie `wibex_session`.
 
-Setiap domain enterprise memakai `src/app/api/<domain>/_helpers.ts` (5 file) untuk `getActor`, `mapDomainError`, `parseJsonBody`, `isUuid`.
+Setiap domain enterprise memakai `src/app/api/<domain>/_helpers.ts` (6 file, termasuk `knowledge-management`) untuk `getActor`, `mapDomainError`, `parseJsonBody`, `isUuid`.
 
 Kode singkat guard: **P** = publik tanpa sesi · **A** = sesi aktif saja · **ADM** = `CMS_MANAGE`/`USER_MANAGE` (efektif Admin) · **PERM(…)** = permission tertentu.
 
@@ -157,6 +157,32 @@ Parsing query eksplisit (`/^\d+$/`) — `2026.5`, `abc`, string kosong ditolak 4
 
 ## 12. Catatan Validitas
 
-- Semua endpoint di atas **ada** di repository (diverifikasi dari daftar `git ls-files 'src/app/api/*route.ts'` + `export function`): 49 file, 83 method — seluruhnya tercantum di dokumen ini.
+- Semua endpoint di atas **ada** di repository (diverifikasi dari daftar `git ls-files 'src/app/api/*route.ts'` + `export function`): 55 file, 90 method — seluruhnya tercantum di dokumen ini.
+
+## 13. Knowledge Management (baru, 4 November 2026)
+
+| Method | Path | Guard | Service | Efek |
+|---|---|---|---|---|
+| GET | `/api/knowledge-management?type=…` | `getActor` + `KNOWLEDGE_MANAGEMENT_VIEW` (service) | `listKnowledgeProjectRows` | semua Master Project (LEFT JOIN), plus content/evidence/PIC/`updatedAt` bila ada |
+| PUT | `/api/knowledge-management/[projectId]/[type]` | `getActor` + `KNOWLEDGE_MANAGEMENT_MANAGE` (service) | `upsertKnowledgeEntry` | **inline save**: content + PIC; evidence tidak disentuh |
+| POST | `/api/knowledge-management/[projectId]/[type]/evidence` | idem | `addKnowledgeEvidence` | tambah **satu** evidence (**201**) |
+| PATCH | `/api/knowledge-management/evidence/[id]` | idem | `updateKnowledgeEvidenceById` | ubah **satu** evidence |
+| DELETE | `/api/knowledge-management/evidence/[id]` | idem | `deleteKnowledgeEvidenceById` | hapus **satu** evidence |
+| DELETE | `/api/knowledge-management/entry/[id]` | — | — | **405 — dinonaktifkan (KM-02)**: penghapusan seluruh record belum disetujui |
+| GET | `/api/knowledge-management/pic-options` | `getActor` + `KNOWLEDGE_MANAGEMENT_MANAGE` | `listKnowledgePicOptions` | Head Office **tanpa filter status** (`{ id, name, status, position }`) |
+
+- `type` wajib ∈ `lesson_learn` | `best_practice` | `va_ve`; nilai lain → 400.
+- Body `PUT` divalidasi `upsertKnowledgeEntrySchema` (strict): `content` 1–20.000 karakter (**wajib, tidak boleh kosong**), `picIds` **minimal 1** dan maksimal 50 UUID, `expectedUpdatedAt` opsional. Tidak ada field `evidence` — mengirimkannya ditolak **400** karena evidence punya kontrak sendiri.
+- Body `POST`/`PATCH` evidence divalidasi `evidencePayloadSchema` (strict): `{ name, url }`, keduanya wajib. URL hanya `http`/`https` absolut; `javascript:`, `data:`, `file:`, `//host`, dan hostname telanjang ditolak **400**.
+- **Evidence opsional:** record boleh belum punya evidence dan evidence boleh ditambah kapan pun setelah record ada. Menambah evidence tanpa record → **404** "Simpan konten dan PIC terlebih dahulu...".
+- **PIC minimal satu** divalidasi tiga lapis: Zod (`min(1)`), service (user ada & role `Head Office`), dan database (constraint trigger `0014` → `23514` dipetakan **400** "Minimal 1 PIC"). Status akun **tidak** difilter.
+- `projectId`/`id` non-UUID → 400 sebelum menyentuh database.
+- **KM-03:** `expectedUpdatedAt` adalah **string timestamp UTC presisi mikrodetik** (`YYYY-MM-DDTHH:MM:SS.ffffffZ`) atau `null`, dan hanya melindungi **content + PIC**. Token berasal langsung dari PostgreSQL (bukan `Date` JavaScript) lalu dibandingkan eksak di `UPDATE … WHERE updated_at = $token::timestamptz`; perbedaan 1 mikrodetik dalam milidetik yang sama tetap **409**, sehingga dua penulis tidak dapat lolos bersamaan. Bila berbeda → **409** "Data sudah diubah oleh pengguna lain. Muat ulang data lalu coba lagi." Perubahan evidence **tidak** mengubah `updated_at`, sehingga tidak memicu 409 palsu pada editor konten. Nilai `updated_at` baru selalu **naik ketat** melalui `GREATEST(clock_timestamp(), updated_at + INTERVAL '1 microsecond')`, sehingga token lama tidak dapat cocok kembali meskipun jam sistem berhenti atau mundur.
+- FK `23503`/`23001` (mis. PIC dihapus bersamaan) dipetakan ke **409**, bukan 500; check violation `23514` dari trigger PIC dipetakan ke **400**.
+- `GET` mengembalikan `updatedAt` per baris (null bila record belum ada) sebagai token eksak 6 digit mikrodetik untuk penyimpanan berikutnya. Klien wajib mengembalikan string itu apa adanya, tanpa parsing/perhitungan tanggal.
+
+**Status acceptance (4 November 2026):** Admin **PASS** (API + browser + cleanup). Uji HTTP dua penulis simultan **NOT RUN** (tidak ada DB uji terisolasi; fixture produksi tambahan tidak disetujui). Head Office, Management, Project **BLOCKED** (tidak ada kredensial/handoff browser).
+
+**Verifikasi runtime (4 November 2026, dev server `localhost:3000`).** Tanpa sesi: seluruh endpoint KM **401**, `DELETE /entry/[id]` **405**, dashboard **307**. Terautentikasi **Admin**: 40 cek API (36 PASS; 4 FAIL karena bug presisi token yang kemudian diperbaiki), verifikasi ulang **10/10 PASS**, tiga submenu dan inline editing di browser **PASS**, fixture dibersihkan. Head Office, Management, dan Project: **BLOCKED** karena kredensial tidak tersedia; 403 role lain belum diuji.
 - Contoh body/response rinci per field sengaja tidak dikarang: bentuk otoritatif ada di `src/lib/<domain>/schema.ts`.
 - Efek samping (Blob delete, cascade) hanya ditulis bila terlihat di service.

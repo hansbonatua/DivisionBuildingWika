@@ -40,6 +40,9 @@ export const PERMISSIONS = {
   ENGINEERING_DATABASE_VIEW: "ENGINEERING_DATABASE_VIEW",
   ENGINEERING_DATABASE_MANAGE: "ENGINEERING_DATABASE_MANAGE",
 
+  KNOWLEDGE_MANAGEMENT_VIEW: "KNOWLEDGE_MANAGEMENT_VIEW",
+  KNOWLEDGE_MANAGEMENT_MANAGE: "KNOWLEDGE_MANAGEMENT_MANAGE",
+
   MSL_VIEW: "MSL_VIEW",
   MSL_MANAGE: "MSL_MANAGE",
 
@@ -79,6 +82,13 @@ const NON_ADMIN_PERMISSION_ROLES: Record<Permission, readonly UserRole[]> = {
 
   ENGINEERING_DATABASE_VIEW: [HEAD_OFFICE_ROLE, PROJECT_ROLE, MANAGEMENT_ROLE],
   ENGINEERING_DATABASE_MANAGE: [HEAD_OFFICE_ROLE, PROJECT_ROLE],
+
+  // Knowledge Management is its own top-level sidebar module (a sibling of
+  // Program Kerja) with a SEPARATE permission namespace: Admin and Head Office
+  // manage, Management and Project are view-only. Program Kerja itself stays
+  // invisible to the Project role (PROGRAM_KERJA_VIEW is unchanged).
+  KNOWLEDGE_MANAGEMENT_VIEW: [HEAD_OFFICE_ROLE, PROJECT_ROLE, MANAGEMENT_ROLE],
+  KNOWLEDGE_MANAGEMENT_MANAGE: [HEAD_OFFICE_ROLE],
 
   // MSL Engineering: Head Office is a ROLE-level read-only viewer. Management
   // is deliberately absent from both lists — a Management user is eligible only

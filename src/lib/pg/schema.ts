@@ -262,6 +262,93 @@ export const templateForms = pgTable(
 export type PgTemplateForm = typeof templateForms.$inferSelect;
 export type NewPgTemplateForm = typeof templateForms.$inferInsert;
 
+// ---------------------------------------------------------------------------
+// Core Enterprise: Knowledge Management (V1).
+//
+// ONE shared table for the three submenus (Lesson Learn, Best Practice / KI KM,
+// VA/VE) instead of three identical tables: the columns are identical, the only
+// difference is `knowledge_type`. UNIQUE(project_id, knowledge_type) is the
+// business rule "at most one record per project per submenu", enforced by the
+// database (not only by the service).
+//
+// project_id is ON DELETE RESTRICT: a Master Project that already carries
+// knowledge cannot be hard-deleted, so user-entered knowledge is never silently
+// destroyed. Master Project already maps 23503/23001 to a 409 conflict.
+export const knowledgeEntries = pgTable(
+  "knowledge_entries",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => masterProjects.id, { onDelete: "restrict" }),
+    knowledgeType: text("knowledge_type").notNull(),
+    // Plain multiline text (paragraphs, "- " bullets, "1. " numbered lists).
+    // Line breaks are preserved verbatim; no HTML/Markdown is ever rendered.
+    content: text("content").notNull(),
+    createdBy: uuid("created_by")
+      .notNull()
+      .references(() => users.id, { onDelete: "no action" }),
+    updatedBy: uuid("updated_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    unique("knowledge_entries_project_type_unique").on(table.projectId, table.knowledgeType),
+    index("knowledge_entries_type_idx").on(table.knowledgeType),
+    index("knowledge_entries_created_by_idx").on(table.createdBy),
+    check(
+      "knowledge_entries_type_check",
+      sql`${table.knowledgeType} in ('lesson_learn', 'best_practice', 'va_ve')`,
+    ),
+    check("knowledge_entries_content_check", sql`length(btrim(${table.content})) > 0`),
+  ],
+);
+
+export type PgKnowledgeEntry = typeof knowledgeEntries.$inferSelect;
+export type NewPgKnowledgeEntry = typeof knowledgeEntries.$inferInsert;
+
+// Multiple evidence links per knowledge record. Name + http(s) URL only —
+// WIBEX never uploads or copies the referenced files.
+export const knowledgeEvidence = pgTable(
+  "knowledge_evidence",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    knowledgeEntryId: uuid("knowledge_entry_id")
+      .notNull()
+      .references(() => knowledgeEntries.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    url: text("url").notNull(),
+    sortOrder: integer("sort_order").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("knowledge_evidence_entry_id_idx").on(table.knowledgeEntryId),
+    check("knowledge_evidence_name_check", sql`length(btrim(${table.name})) > 0`),
+    check("knowledge_evidence_url_check", sql`${table.url} ~* '^https?://'`),
+  ],
+);
+
+export type PgKnowledgeEvidence = typeof knowledgeEvidence.$inferSelect;
+
+// Multiple PIC users per knowledge record (Head Office eligibility is a service
+// rule, not a CHECK). Deleting a record cascades its assignments; deleting a
+// user with assignments is refused so assignment history is never lost.
+export const knowledgePics = pgTable(
+  "knowledge_pics",
+  {
+    knowledgeEntryId: uuid("knowledge_entry_id")
+      .notNull()
+      .references(() => knowledgeEntries.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "no action" }),
+    assignedAt: timestamp("assigned_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [primaryKey({ columns: [table.knowledgeEntryId, table.userId] })],
+);
+
+export type PgKnowledgePic = typeof knowledgePics.$inferSelect;
+
 // Canonical project directory. A project belongs to EXACTLY ONE year: there is
 // deliberately no start_year/end_year pair and no project↔year join table, so
 // "the year of a project" has a single source of truth for every consumer

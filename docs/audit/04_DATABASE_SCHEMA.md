@@ -1,6 +1,6 @@
 # 04 — DATABASE SCHEMA
 
-Sumber: `src/lib/pg/schema.ts` (572 baris) + `drizzle/0000…0012` + repository Mongo. Kondisi database produksi **BELUM DIKETAHUI** (tidak ada koneksi DB dibuka saat audit).
+Sumber: `src/lib/pg/schema.ts` + `drizzle/0000…0013` + repository Mongo. Kondisi database produksi **BELUM DIKETAHUI** (tidak ada koneksi DB dibuka saat audit).
 
 ## 1. ERD PostgreSQL
 
@@ -21,6 +21,11 @@ erDiagram
   program_kerja ||--o{ program_kerja_pics : "cascade"
   master_projects ||--o{ engineering_database_entries : "RESTRICT"
   master_projects ||--o{ msl_assessments : "RESTRICT"
+  master_projects ||--o{ knowledge_entries : "RESTRICT (V1 baru)"
+  knowledge_entries ||--o{ knowledge_evidence : "cascade"
+  knowledge_entries ||--o{ knowledge_pics : "cascade"
+  users ||--o{ knowledge_entries : "created_by / updated_by"
+  users ||--o{ knowledge_pics : "PIC Head Office"
 ```
 
 ## 2. Tabel PostgreSQL
@@ -202,7 +207,53 @@ Catatan validitas:
 
 ## 5. Skema vs Migration
 
-- 13 migration bernama acak (drizzle-kit) tetapi berurutan; drizzle-kit menulis snapshot di `drizzle/meta/`.
+- 15 migration bernama acak (drizzle-kit) tetapi berurutan; drizzle-kit menulis snapshot di `drizzle/meta/`.
 - Tidak ada migration yang menghapus tabel; semuanya aditif/ALTER, konsisten dengan riwayat fitur.
 - **Drift produksi BELUM DIKETAHUI** — tidak ada `SELECT` yang dijalankan.
 - Jika menambah kolom: buat file migration **baru**, jangan edit yang lama, dan perbarui `schema.ts` pada perubahan yang sama.
+
+## 6. Knowledge Management V1 (migrasi `0013`, 4 November 2026)
+
+Satu tabel bersama untuk tiga submenu, bukan tiga tabel identik: kolomnya sama, pembedanya hanya `knowledge_type`.
+
+### 6.1 `knowledge_entries`
+| Kolom | Tipe | Null | Default | Catatan |
+|---|---|---|---|---|
+| id | uuid | no | `gen_random_uuid()` | PK |
+| project_id | uuid | no | — | FK → `master_projects.id`, **ON DELETE RESTRICT** |
+| knowledge_type | text | no | — | CHECK ∈ `lesson_learn`, `best_practice`, `va_ve` |
+| content | text | no | — | teks multiline apa adanya; CHECK `length(btrim) > 0` |
+| created_by / updated_by | uuid | no / yes | — | FK → `users.id` (NO ACTION / SET NULL) |
+| created_at / updated_at | timestamptz | no | now() | |
+
+Constraint kunci: **`UNIQUE(project_id, knowledge_type)`** — "paling banyak satu data per proyek per submenu" ditegakkan database, bukan hanya service. Index: `knowledge_type`, `created_by`.
+
+### 6.2 `knowledge_evidence`
+| Kolom | Tipe | Catatan |
+|---|---|---|
+| id | uuid PK | |
+| knowledge_entry_id | uuid | FK → `knowledge_entries.id`, cascade |
+| name | text | CHECK `length(btrim) > 0` |
+| url | text | CHECK regex `^https?://` (lapis kedua setelah Zod) |
+| sort_order | integer | urutan tampilan |
+| created_at | timestamptz | |
+
+### 6.3 `knowledge_pics`
+PK komposit `(knowledge_entry_id, user_id)`; entry cascade, user NO ACTION (assignment tidak hilang diam-diam). Tidak ada CHECK role: kelayakan Head Office adalah aturan service. Sejak `0014`, jumlah PIC per entry dijaga minimal satu oleh constraint trigger deferred (lihat bagian 7).
+
+### 6.4 Keputusan penghapusan
+`project_id` memakai **RESTRICT**: Master Project yang sudah memiliki knowledge tidak dapat di-hard-delete, sehingga isi knowledge tidak hilang tanpa disadari. Master Project sudah memetakan `23503`/`23001` menjadi **409**, jadi perilakunya terdefinisi (bukan 500).
+
+### 6.5 Catatan snapshot Drizzle
+Rantai snapshot `drizzle/meta/` tidak memiliki `0011`/`0012` (kedua migration itu ditulis manual). Akibatnya `drizzle-kit generate` ikut mengeluarkan ulang objek `organization_structure` dan kolom MSL. Statement tersebut **dihapus** dari `0013`; migration hanya berisi objek Knowledge Management. Snapshot `0013` tetap menggambarkan skema penuh, sehingga `generate` berikutnya tidak mengulang drift.
+
+## 7. Knowledge PIC minimum (migrasi `0014`, 4 November 2026)
+
+Aturan bisnis baru: setiap record Knowledge Management wajib memiliki **minimal satu PIC** ber-role Head Office. CHECK biasa tidak dapat menegakkan invariant lintas tabel, sehingga migration aditif ini menambahkan dua constraint trigger `DEFERRABLE INITIALLY DEFERRED`:
+
+- `knowledge_entries_require_pic_trigger` — `AFTER INSERT OR UPDATE` pada `knowledge_entries`, gagal `23514` bila entry tidak punya baris `knowledge_pics`. Deferred karena service menulis entry dan PIC dalam satu transaksi (PIC di-`DELETE` lalu di-`INSERT`); pemeriksaan harus melihat keadaan akhir saat COMMIT.
+- `knowledge_pics_require_remaining_trigger` — `AFTER DELETE` pada `knowledge_pics`, mencegah PIC terakhir dihapus; dilewati bila parent entry ikut terhapus (cascade).
+
+Konsekuensi: Zod dan service sudah menolak lebih awal (400), sedangkan trigger menjadi jaring pengaman untuk penulisan SQL langsung. Service memetakan `23514` menjadi **400** "Minimal 1 PIC".
+
+Catatan snapshot: trigger tidak direpresentasikan di `drizzle/schema.ts`, jadi `0014` ditulis manual dan tidak memiliki snapshot baru; `npx drizzle-kit check` tetap PASS. **Status eksekusi (4 November 2026): APPLIED** pada database `neondb` (Neon, PostgreSQL 18.6) setelah owner mengesahkan target. Audit riwayat menunjukkan 13 migrasi historis `0000`–`0012` sudah teraplikasi dengan hash yang cocok, tanpa objek Knowledge Management, sehingga hanya `0013` dan `0014` yang dijalankan. Verifikasi objek dan perilaku constraint: 23/23 PASS (tabel, 11 constraint, 2 trigger deferred, penolakan PIC kosong/penghapusan PIC terakhir, CHECK content/URL, UNIQUE, duplikasi) di dalam transaksi yang di-rollback — 0 baris data tertinggal. Rincian di `docs/development/DEVELOPMENT_MASTER_LOG.md` (DL-2026-11-04-05).

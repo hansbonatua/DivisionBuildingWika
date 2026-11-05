@@ -10,6 +10,7 @@ import {
   canViewEngineeringDatabase,
 } from "@/lib/engineering-database/access";
 import { canManageCms } from "@/lib/cms/access";
+import { canViewKnowledgeManagement } from "@/lib/knowledge-management/access";
 import { canViewMasterProject } from "@/lib/master-project/access";
 import { canViewOrganizationStructure } from "@/lib/organization-structure/access";
 import { canViewMsl } from "@/lib/msl/access";
@@ -141,7 +142,7 @@ const organizationStructureMenu: SidebarItem = {
   ),
 };
 
-const programKerjaMenu: SidebarItem[] = [
+export const programKerjaMenu: SidebarItem[] = [
   {
     label: "Summary Report",
     href: "/dashboard/program-kerja/summary",
@@ -160,6 +161,44 @@ const programKerjaMenu: SidebarItem[] = [
         <rect width="8" height="8" x="13" y="3" rx="1" />
         <rect width="8" height="8" x="3" y="13" rx="1" />
         <rect width="8" height="8" x="13" y="13" rx="1" />
+      </MenuIcon>
+    ),
+  },
+];
+
+// Knowledge Management is its own top-level sidebar item (a sibling of Program
+// Kerja), with its own accordion state. Its routes keep the separate
+// /dashboard/knowledge-management namespace and guard: PROGRAM_KERJA_VIEW stays
+// closed to Project, while KNOWLEDGE_MANAGEMENT_VIEW is open to all four roles.
+export const knowledgeMenu: SidebarItem[] = [
+  {
+    label: "Lesson Learn",
+    href: "/dashboard/knowledge-management/lesson-learn",
+    icon: (
+      <MenuIcon>
+        <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+        <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+      </MenuIcon>
+    ),
+  },
+  {
+    label: "Best Practice / KI KM",
+    href: "/dashboard/knowledge-management/best-practice",
+    icon: (
+      <MenuIcon>
+        <path d="M9 18h6" />
+        <path d="M10 22h4" />
+        <path d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z" />
+      </MenuIcon>
+    ),
+  },
+  {
+    label: "VA/VE",
+    href: "/dashboard/knowledge-management/va-ve",
+    icon: (
+      <MenuIcon>
+        <path d="M3 3v18h18" />
+        <path d="m7 14 4-4 3 3 5-6" />
       </MenuIcon>
     ),
   },
@@ -237,6 +276,101 @@ const engineeringDatabaseMenu: SidebarItem[] = [
   })),
 ];
 
+const KNOWLEDGE_MANAGEMENT_ROOT = "/dashboard/knowledge-management";
+
+export function isKnowledgeManagementPath(pathname: string): boolean {
+  return (
+    pathname === KNOWLEDGE_MANAGEMENT_ROOT ||
+    pathname.startsWith(`${KNOWLEDGE_MANAGEMENT_ROOT}/`)
+  );
+}
+
+export type SidebarVisibility = {
+  showProgramKerja: boolean;
+  showKnowledgeManagement: boolean;
+  showTemplateForm: boolean;
+  showMasterProject: boolean;
+  showEngineeringDatabase: boolean;
+  showMsl: boolean;
+  showOrganizationStructure: boolean;
+  showCms: boolean;
+  showUserDirectory: boolean;
+  showCoreEnterprise: boolean;
+};
+
+// Pure visibility model for the sidebar. Exported so navigation regressions can
+// be tested without a DOM; the component below renders exclusively from it.
+export function getSidebarVisibility(
+  userRole: string | undefined,
+  mslAccess: boolean | undefined,
+): SidebarVisibility {
+  const role = userRole ?? "";
+  const showProgramKerja = canViewProgramKerja(role);
+  const showKnowledgeManagement = canViewKnowledgeManagement(role);
+  const showTemplateForm = canViewTemplateForm(role);
+  const showMasterProject = canViewMasterProject(role);
+  const showEngineeringDatabase = canViewEngineeringDatabase(role);
+  const showMsl = canViewMsl({ role, mslAccess: mslAccess === true });
+  const showOrganizationStructure = canViewOrganizationStructure(role);
+  // Landing Page Manager and User Directory are Admin-only, resolved through the
+  // central permission layer (CMS_MANAGE / USER_MANAGE) rather than a local
+  // `role === "Admin"` literal.
+  const showCms = canManageCms(role);
+  const showUserDirectory = canManageUsers(role);
+
+  return {
+    showProgramKerja,
+    showKnowledgeManagement,
+    showTemplateForm,
+    showMasterProject,
+    showEngineeringDatabase,
+    showMsl,
+    showOrganizationStructure,
+    showCms,
+    showUserDirectory,
+    showCoreEnterprise:
+      showOrganizationStructure ||
+      showProgramKerja ||
+      showKnowledgeManagement ||
+      showTemplateForm ||
+      showMasterProject ||
+      showEngineeringDatabase ||
+      showMsl,
+  };
+}
+
+export type SidebarAccordionState = {
+  landingOpen: boolean;
+  programKerjaOpen: boolean;
+  knowledgeOpen: boolean;
+  masterProjectOpen: boolean;
+  engineeringDatabaseOpen: boolean;
+};
+
+// Initial accordion state: Knowledge Management is expanded by default for
+// every authorized role and stays independent of Program Kerja.
+export function getInitialSidebarAccordionState(
+  pathname: string,
+  userRole: string | undefined,
+): SidebarAccordionState {
+  const isLandingRoute = landingSubMenu.some(
+    (item) => pathname === item.href || pathname.startsWith(`${item.href}/`),
+  );
+  const isProgramKerjaRoute = programKerjaMenu.some(
+    (item) => pathname === item.href || pathname.startsWith(`${item.href}/`),
+  );
+
+  return {
+    landingOpen: isLandingRoute,
+    programKerjaOpen: isProgramKerjaRoute,
+    knowledgeOpen:
+      isKnowledgeManagementPath(pathname) ||
+      canViewKnowledgeManagement(userRole ?? ""),
+    masterProjectOpen: pathname.startsWith("/dashboard/master-project"),
+    engineeringDatabaseOpen: pathname.startsWith("/dashboard/engineering-database"),
+  };
+}
+
 export default function DashboardSidebar({
   open,
   onClose,
@@ -246,24 +380,18 @@ export default function DashboardSidebar({
   const pathname = usePathname();
   const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
-  const showProgramKerja = canViewProgramKerja(userRole ?? "");
-  const showTemplateForm = canViewTemplateForm(userRole ?? "");
-  const showMasterProject = canViewMasterProject(userRole ?? "");
-  const showEngineeringDatabase = canViewEngineeringDatabase(userRole ?? "");
-  const showMsl = canViewMsl({ role: userRole ?? "", mslAccess: mslAccess === true });
-  const showOrganizationStructure = canViewOrganizationStructure(userRole ?? "");
-  // Landing Page Manager and User Directory are Admin-only, resolved through the
-  // central permission layer (CMS_MANAGE / USER_MANAGE) rather than a local
-  // `role === "Admin"` literal.
-  const showCms = canManageCms(userRole ?? "");
-  const showUserDirectory = canManageUsers(userRole ?? "");
-  const showCoreEnterprise =
-    showOrganizationStructure ||
-    showProgramKerja ||
-    showTemplateForm ||
-    showMasterProject ||
-    showEngineeringDatabase ||
-    showMsl;
+  const {
+    showProgramKerja,
+    showKnowledgeManagement,
+    showTemplateForm,
+    showMasterProject,
+    showEngineeringDatabase,
+    showMsl,
+    showOrganizationStructure,
+    showCms,
+    showUserDirectory,
+    showCoreEnterprise,
+  } = getSidebarVisibility(userRole, mslAccess);
   const landingRoutes = landingSubMenu.map((item) => item.href);
   const isLandingRoute = landingRoutes.some(
     (route) => pathname === route || pathname.startsWith(`${route}/`),
@@ -272,15 +400,22 @@ export default function DashboardSidebar({
   const isProgramKerjaRoute = programKerjaRoutes.some(
     (route) => pathname === route || pathname.startsWith(`${route}/`),
   );
+  const isKnowledgeManagementRoute = isKnowledgeManagementPath(pathname);
   const isMasterProjectRoute = pathname.startsWith("/dashboard/master-project");
   const isEngineeringDatabaseRoute = pathname.startsWith(
     "/dashboard/engineering-database",
   );
-  const [landingOpen, setLandingOpen] = useState(isLandingRoute);
-  const [programKerjaOpen, setProgramKerjaOpen] = useState(isProgramKerjaRoute);
-  const [masterProjectOpen, setMasterProjectOpen] = useState(isMasterProjectRoute);
+  const initialAccordions = getInitialSidebarAccordionState(pathname, userRole);
+  const [landingOpen, setLandingOpen] = useState(initialAccordions.landingOpen);
+  const [programKerjaOpen, setProgramKerjaOpen] = useState(
+    initialAccordions.programKerjaOpen,
+  );
+  const [knowledgeOpen, setKnowledgeOpen] = useState(initialAccordions.knowledgeOpen);
+  const [masterProjectOpen, setMasterProjectOpen] = useState(
+    initialAccordions.masterProjectOpen,
+  );
   const [engineeringDatabaseOpen, setEngineeringDatabaseOpen] = useState(
-    isEngineeringDatabaseRoute,
+    initialAccordions.engineeringDatabaseOpen,
   );
   const [previousPathname, setPreviousPathname] = useState(pathname);
 
@@ -291,6 +426,9 @@ export default function DashboardSidebar({
     }
     if (isProgramKerjaRoute) {
       setProgramKerjaOpen(true);
+    }
+    if (isKnowledgeManagementRoute) {
+      setKnowledgeOpen(true);
     }
     if (isMasterProjectRoute) {
       setMasterProjectOpen(true);
@@ -468,9 +606,58 @@ export default function DashboardSidebar({
                     </button>
                   </div>
                   {programKerjaOpen ? (
-                    <div id="program-kerja-menu">
-                      <nav className="ml-4 space-y-1 border-l-2 border-slate-100 pl-3" aria-label="Program Kerja">
-                        {programKerjaMenu.map(renderItem)}
+                    <div id="program-kerja-menu" className="space-y-1">
+                      {showProgramKerja ? (
+                        <nav className="ml-4 space-y-1 border-l-2 border-slate-100 pl-3" aria-label="Program Kerja">
+                          {programKerjaMenu.map(renderItem)}
+                        </nav>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+              {showKnowledgeManagement ? (
+                <div className="mt-1">
+                  <div className="px-1">
+                    <button
+                      type="button"
+                      aria-expanded={knowledgeOpen}
+                      aria-controls="knowledge-management-menu"
+                      onClick={() => setKnowledgeOpen((prev) => !prev)}
+                      className="flex w-full items-center justify-between rounded-lg border border-transparent px-2.5 py-2 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+                    >
+                      <span className="flex items-center gap-2.5">
+                        <span className="text-secondary">
+                          <MenuIcon>
+                            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+                          </MenuIcon>
+                        </span>
+                        <span>Knowledge Management</span>
+                      </span>
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                        className={`text-slate-400 transition-transform duration-200 ${knowledgeOpen ? "rotate-180" : "rotate-0"}`}
+                      >
+                        <path d="m6 9 6 6 6-6" />
+                      </svg>
+                    </button>
+                  </div>
+                  {knowledgeOpen ? (
+                    <div id="knowledge-management-menu">
+                      <nav
+                        className="ml-4 space-y-1 border-l-2 border-slate-100 pl-3"
+                        aria-label="Knowledge Management"
+                      >
+                        {knowledgeMenu.map(renderItem)}
                       </nav>
                     </div>
                   ) : null}

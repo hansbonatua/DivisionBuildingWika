@@ -24,7 +24,8 @@ Klasifikasi memakai label yang diminta. "Bukti" = hal yang benar-benar diperiksa
 | 16 | MSL Engineering | **COMPLETE AND VERIFIED** (frozen: PERLU VERIFIKASI) | backend + UI + PDF |
 | 17 | Organization Structure | **COMPLETE AND VERIFIED** (frozen: PERLU VERIFIKASI) | singleton + upload |
 | 18 | Dashboard SASAA | **NOT STARTED** | hanya permission |
-| 19 | Test & CI | **NOT STARTED** | 0 file test, tanpa workflow |
+| 19 | Test & CI | **PARTIALLY IMPLEMENTED** | 21 unit test Knowledge Management (`npm test`), belum ada CI |
+| 20 | Knowledge Management (Lesson Learn, Best Practice / KI KM, VA/VE) | **IMPLEMENTED BUT NOT FULLY VERIFIED** | 3 halaman + 6 route + `knowledge_entries`/`knowledge_evidence`/`knowledge_pics`; migration `0013`/`0014` belum dijalankan |
 
 ## 2. Public Landing Page
 
@@ -141,3 +142,31 @@ Pola seragam untuk 5 modul: list → form → preview → status publikasi → `
 ## 11. Modul yang Tidak Ditemukan
 
 Tidak ada modul notifikasi, email, audit log umum, pencarian global, export Excel, atau manajemen dokumen versi. Jangan mengasumsikan keberadaannya.
+
+## 12. Knowledge Management V1 (baru, 4 November 2026)
+
+| Submenu | Route | Isi kolom |
+|---|---|---|
+| Lesson Learn | `/dashboard/knowledge-management/lesson-learn` | No · Nama Proyek · Lesson Learn · Evidence · PIC · Aksi |
+| Best Practice / KI KM | `/dashboard/knowledge-management/best-practice` | idem, kolom knowledge = Best Practice / KI KM |
+| VA/VE | `/dashboard/knowledge-management/va-ve` | idem, kolom knowledge = VA/VE |
+
+**Navigasi (diperbarui 4 November 2026).** Knowledge Management adalah item top-level di sidebar, sibling Program Kerja (bukan lagi accordion di dalamnya). Accordion-nya punya state sendiri, default terbuka untuk Admin/Head Office/Management/Project, dan otomatis terbuka pada route KM. Urutan grup: Struktur Organisasi → Program Kerja → Knowledge Management → Template & Form → Master Project → Engineering Databases. Route dan guard tidak berubah. Verifikasi browser Head Office (desktop/mobile, active route) **PASS**; Admin/Management/Project **NOT RUN**.
+
+**Sumber baris.** Seluruh Master Project selalu tampil di ketiga tabel lewat `LEFT JOIN`; tidak ada baris placeholder yang ditulis ke database. Proyek baru otomatis muncul. Satu proyek maksimal satu record per submenu (`UNIQUE(project_id, knowledge_type)`), sehingga maksimal tiga record total.
+
+**Mekanik (inline table editing).** Satu baris diedit pada satu waktu: kolom Knowledge Content menjadi `<textarea>` dan kolom PIC menjadi daftar checkbox Head Office, dengan tombol Simpan/Batal di kolom Aksi. Tidak ada modal dan tidak ada halaman form terpisah.
+
+**Isi knowledge.** `<textarea>` multiline, disimpan sebagai teks apa adanya (paragraf, `-` bullet, `1.` numbered list, line break dipertahankan), dirender `whitespace-pre-wrap` tanpa truncation. Tidak ada rich-text editor maupun Markdown renderer. **Wajib diisi** dan tidak boleh hanya spasi.
+
+**Evidence.** Banyak link per record, nama + URL, ditampilkan sebagai hyperlink `target="_blank"` + `rel="noopener noreferrer"` di kolom Evidence. Setiap baris evidence punya tombol `Ubah`/`Hapus` sendiri, dan `+ Tambah evidence` membuka form kecil di sel yang sama — semuanya lewat endpoint evidence tersendiri sehingga tidak mengubah konten/PIC dan tidak memicu konflik editor konten. Evidence **opsional**: record boleh dibuat tanpa evidence dan evidence boleh ditambahkan kapan saja. URL divalidasi Zod di server (hanya http/https absolut). Record harus sudah ada sebelum evidence pertama dapat ditambahkan.
+
+**PIC.** **Minimal satu** user Head Office per record, disimpan sebagai `user_id`. Status akun tidak difilter sehingga user suspended tetap eligible dan ditandai "(non-aktif)" pada pilihan. Batas minimal ditegakkan Zod, service, dan constraint trigger database. Admin dan Head Office dapat mengubah; Management dan Project hanya melihat.
+
+**Konkurensi.** Token `updatedAt` adalah string UTC presisi mikrodetik yang dikembalikan PostgreSQL apa adanya (tanpa konversi `Date`); guard `updated_at = token::timestamptz` menolak penulisan basi hingga 1 mikrodetik. Token hanya berlaku untuk content + PIC; perubahan evidence tidak mengubah token. Setiap update sukses menulis `updated_at = GREATEST(clock_timestamp(), updated_at + 1 microsecond)`, menjamin timestamp baru selalu naik ketat.
+
+**Status acceptance.** Admin **PASS** (API + browser). Uji HTTP paralel **NOT RUN** (tanpa DB uji terisolasi/fixture tambahan). Head Office, Management, Project **BLOCKED** (tanpa kredensial/handoff). Monotonicity **PASS** via unit test dan bukti SQL tabel sementara.
+
+**Status database.** `0013` dan `0014` sudah **APPLIED** pada `neondb` (PostgreSQL 18.6, 4 November 2026); 3 tabel, 11 constraint, dan 2 trigger deferred terverifikasi, dengan 23/23 uji constraint PASS di transaksi rollback (0 baris tertinggal).
+
+**Batasan.** Uji API terautentikasi (200/201/400/403/404/409) dan uji browser empat role **NOT RUN** karena tidak ada kredensial akun uji. Yang terverifikasi runtime tanpa sesi: 401 pada semua endpoint, 405 pada hapus record, 307 pada halaman dashboard. Status karena itu `IMPLEMENTED BUT NOT FULLY VERIFIED`.
