@@ -7,10 +7,17 @@ import {
   type KnowledgeType,
 } from "@/lib/knowledge-management/schema";
 import KnowledgeFormDialog from "@/components/dashboard/knowledge-management/KnowledgeFormDialog";
+import KnowledgeFilterToolbar from "@/components/dashboard/knowledge-management/KnowledgeFilterToolbar";
+import KnowledgeViewDialog from "@/components/dashboard/knowledge-management/KnowledgeViewDialog";
 import {
+  EMPTY_KNOWLEDGE_FILTERS,
   EMPTY_VALUE,
+  filterKnowledgeRecords,
   formatKnowledgeDate,
+  getAvailableProjects,
+  getAvailableYears,
   groupKnowledgeRecords,
+  type KnowledgeFilters,
   type KnowledgeRecordDto,
 } from "@/components/dashboard/knowledge-management/types";
 
@@ -40,6 +47,11 @@ export default function KnowledgeTable({
   const [reloadToken, setReloadToken] = useState(0);
   const [formState, setFormState] = useState<FormState | null>(null);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
+  const [filters, setFilters] = useState<KnowledgeFilters>(EMPTY_KNOWLEDGE_FILTERS);
+  const [pdfMenuOpen, setPdfMenuOpen] = useState(false);
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+  const [viewRecord, setViewRecord] = useState<KnowledgeRecordDto | null>(null);
 
   const hasLoadedRef = useRef(false);
   const requestIdRef = useRef(0);
@@ -105,7 +117,16 @@ export default function KnowledgeTable({
     return () => window.clearTimeout(timer);
   }, [feedback]);
 
-  const groups = useMemo(() => groupKnowledgeRecords(records), [records]);
+  const filteredRecords = useMemo(
+    () => filterKnowledgeRecords(records, filters),
+    [records, filters],
+  );
+  const groups = useMemo(
+    () => groupKnowledgeRecords(filteredRecords),
+    [filteredRecords],
+  );
+  const years = useMemo(() => getAvailableYears(records), [records]);
+  const projects = useMemo(() => getAvailableProjects(records), [records]);
 
   function handleSaved(): void {
     setFormState(null);
@@ -124,13 +145,45 @@ export default function KnowledgeTable({
     setReloadToken((value) => value + 1);
   }
 
+  async function handlePdfExport(action: "view" | "download"): Promise<void> {
+    if (pdfBusy || filteredRecords.length === 0) return;
+    setPdfMenuOpen(false);
+    setPdfBusy(true);
+    setPdfError(null);
+    try {
+      const exporter = await import(
+        "@/components/dashboard/knowledge-management/knowledgeExportPdf"
+      );
+      if (action === "view") {
+        await exporter.viewKnowledgeTablePdf(filteredRecords, knowledgeType, filters);
+      } else {
+        await exporter.downloadKnowledgeTablePdf(filteredRecords, knowledgeType, filters);
+      }
+    } catch {
+      setPdfError("Gagal menyiapkan PDF. Izinkan pop-up lalu coba lagi.");
+    } finally {
+      setPdfBusy(false);
+    }
+  }
+
   return (
     <div className="space-y-4">
+      <KnowledgeFilterToolbar
+        years={years}
+        projects={projects}
+        filters={filters}
+        resultCount={filteredRecords.length}
+        totalCount={records.length}
+        disabled={loading}
+        onChange={setFilters}
+        onReset={() => setFilters(EMPTY_KNOWLEDGE_FILTERS)}
+      />
+
       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
         <div>
           <h2 className="text-sm font-bold text-primary">Daftar {label}</h2>
           <p className="mt-0.5 text-xs text-primary/50">
-            {records.length} record pada {groups.length} Master Project.
+            {filteredRecords.length} record pada {groups.length} Master Project.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -139,6 +192,82 @@ export default function KnowledgeTable({
               {refreshing ? "Memperbarui data..." : ""}
             </span>
           ) : null}
+          <div className="relative">
+            <button
+              type="button"
+              disabled={loading || filteredRecords.length === 0 || pdfBusy}
+              aria-expanded={pdfMenuOpen}
+              aria-haspopup="menu"
+              aria-label="Menu PDF Knowledge Management"
+              onClick={() => setPdfMenuOpen((current) => !current)}
+              className="inline-flex h-10 items-center gap-2 rounded-lg border border-outline bg-white px-4 text-xs font-bold text-slate-600 shadow-sm transition-colors hover:bg-slate-50 hover:text-primary disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <path d="M14 2v6h6" />
+                <path d="M9 15h6" />
+                <path d="M9 18h6" />
+              </svg>
+              <span>{pdfBusy ? "Menyiapkan..." : "PDF"}</span>
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="m6 9 6 6 6-6" />
+              </svg>
+            </button>
+            {pdfMenuOpen ? (
+              <div
+                role="menu"
+                aria-label="Menu PDF Knowledge Management"
+                className="absolute right-0 top-full z-50 mt-2 w-52 overflow-hidden rounded-xl border border-outline/60 bg-white py-2 shadow-lg"
+              >
+                <button
+                  type="button"
+                  role="menuitem"
+                  disabled={pdfBusy}
+                  onClick={() => void handlePdfExport("view")}
+                  className="flex w-full items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 hover:text-primary disabled:opacity-60"
+                >
+                  <span>View PDF</span>
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  disabled={pdfBusy}
+                  onClick={() => void handlePdfExport("download")}
+                  className="flex w-full items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 hover:text-primary disabled:opacity-60"
+                >
+                  <span>Download PDF</span>
+                </button>
+              </div>
+            ) : null}
+            {pdfError ? (
+              <p
+                role="alert"
+                className="absolute right-0 top-full z-50 mt-2 w-72 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[11px] font-semibold text-red-700 shadow-lg"
+              >
+                {pdfError}
+              </p>
+            ) : null}
+          </div>
           {!canManage ? (
             <span className="rounded-full bg-background px-3 py-1 text-[11px] font-semibold text-primary/60">
               Mode baca
@@ -233,6 +362,22 @@ export default function KnowledgeTable({
               </button>
             ) : null}
           </div>
+        ) : filteredRecords.length === 0 ? (
+          <div className="p-8 text-center">
+            <p className="text-sm font-bold text-primary">
+              Tidak ada record untuk filter yang dipilih.
+            </p>
+            <p className="mt-1 text-xs text-primary/60">
+              Ubah tahun atau proyek, atau reset filter untuk melihat semua record.
+            </p>
+            <button
+              type="button"
+              onClick={() => setFilters(EMPTY_KNOWLEDGE_FILTERS)}
+              className="mt-4 rounded-lg bg-primary px-5 py-2.5 text-xs font-bold text-white transition-colors hover:bg-secondary"
+            >
+              Reset filter
+            </button>
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1180px] border-collapse text-left">
@@ -245,11 +390,9 @@ export default function KnowledgeTable({
                   <th scope="col" className={headerCell}>PIC</th>
                   <th scope="col" className={headerCell}>Evidence</th>
                   <th scope="col" className={headerCell}>Record History</th>
-                  {canManage ? (
-                    <th scope="col" className={`${headerCell} text-right`}>
-                      Aksi
-                    </th>
-                  ) : null}
+                  <th scope="col" className={`${headerCell} text-right`}>
+                    Aksi
+                  </th>
                 </tr>
               </thead>
 
@@ -339,17 +482,27 @@ export default function KnowledgeTable({
                             </div>
                           </td>
 
-                          {canManage ? (
-                            <td className={`${bodyCell} whitespace-nowrap text-right`}>
+                          <td className={`${bodyCell} whitespace-nowrap text-right`}>
+                            <div className="flex justify-end gap-2">
                               <button
                                 type="button"
-                                onClick={() => setFormState({ mode: "edit", record })}
-                                className="rounded-md bg-background px-3 py-1.5 text-[11px] font-bold text-primary/70 transition-colors hover:bg-outline/50"
+                                onClick={() => setViewRecord(record)}
+                                aria-label={`Lihat ${record.project.name}`}
+                                className="rounded-md border border-outline bg-white px-3 py-1.5 text-[11px] font-bold text-primary/70 transition-colors hover:bg-background"
                               >
-                                Edit
+                                Lihat
                               </button>
-                            </td>
-                          ) : null}
+                              {canManage ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setFormState({ mode: "edit", record })}
+                                  className="rounded-md bg-background px-3 py-1.5 text-[11px] font-bold text-primary/70 transition-colors hover:bg-outline/50"
+                                >
+                                  Edit
+                                </button>
+                              ) : null}
+                            </div>
+                          </td>
                         </tr>
                       );
                     })}
@@ -370,6 +523,20 @@ export default function KnowledgeTable({
           onClose={() => setFormState(null)}
           onSaved={handleSaved}
           onDeleted={handleDeleted}
+        />
+      ) : null}
+
+      {viewRecord ? (
+        <KnowledgeViewDialog
+          record={viewRecord}
+          knowledgeType={knowledgeType}
+          onClose={() => setViewRecord(null)}
+          onDownloadPdf={async (record) => {
+            const exporter = await import(
+              "@/components/dashboard/knowledge-management/knowledgeExportPdf"
+            );
+            await exporter.downloadKnowledgeRecordPdf(record, knowledgeType);
+          }}
         />
       ) : null}
     </div>

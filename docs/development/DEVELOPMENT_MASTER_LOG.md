@@ -529,3 +529,56 @@ Commit ini menutup rangkaian DL-01…DL-16 yang sebelumnya menyatakan "belum di-
 - Tidak menyentuh modul MSL/Org
 - Migration 0015 fresh menggantikan 0015/0016/0017 (superseded)
 - Data V1 (1 test record) hilang per keputusan Owner
+
+---
+
+## DL-2026-11-05-03 — KM V2 Enhancement (View, PDF, Filter, Search)
+
+| Field | Nilai |
+|---|---|
+| Feature ID | `ENT-KNOW` (enhancement) |
+| Tanggal | 5 November 2026 |
+| Status | **IMPLEMENTED BUT NOT FULLY VERIFIED** — Admin runtime PASS (Owner confirmed); HO/Mgmt/Project BLOCKED (credentials, Owner accepted); enhancement 4 fitur terimplementasi |
+| Commit | belum di-commit (instruksi: no commit/push) |
+| Branch | `main` |
+| Baseline | `303ca9b` + enhancement A→D (uncommitted) |
+
+### Perubahan
+- F-01: Modal View read-only (`KnowledgeViewDialog`)
+- F-02a: PDF per-record (A4 portrait) dari modal View
+- F-02b: PDF seluruh tabel (A4 landscape) dari page header, filter aktif tercetak
+- F-03: Filter tahun (client-side, dari record ter-muat)
+- F-04: Search dropdown proyek (single-select, dari record ter-muat)
+- D-KM-ENH-04: Kolom Aksi di KnowledgeTable selalu render (Lihat selalu, Edit kondisional)
+
+### File impacted
+- Add: `KnowledgeViewDialog.tsx`, `KnowledgeFilterToolbar.tsx`, `KnowledgeProjectCombobox.tsx`, `knowledgeExportPdf.ts`, `knowledgeExportPdf.test.ts`
+- Modify: `KnowledgeTable.tsx`, `types.ts`, `types.test.ts`, `KnowledgeFormDialog.tsx`
+- Tidak berubah: API, schema, migration, database, MSL/Org
+
+### Verifikasi
+| Pemeriksaan | Hasil | Sumber |
+|---|---|---|
+| `npx tsc --noEmit` | PASS | Freebuff |
+| `npx eslint` | PASS | Freebuff |
+| `npm test` | 60/60 PASS (16 test enhancement baru) | Freebuff |
+| `git diff --check` | PASS | Freebuff |
+| Runtime Admin 4 fitur enhancement | PASS | **Owner confirmed** |
+| Runtime regression Form/Delete/Table | PASS | **Owner confirmed** |
+| Runtime PDF View + Download | PASS | **Owner confirmed** |
+| 4 role runtime | Admin PASS; HO/Mgmt/Project BLOCKED | **Owner confirmed** |
+| Cleanup DB | PASS | **Owner confirmed** |
+
+### Catatan sumber runtime
+Runtime test dilakukan oleh Owner di browser sendiri. Freebuff tidak dapat menjalankan runtime karena kredensial Admin tidak tersedia untuk Freebuff. Owner mengonfirmasi hasil runtime PASS untuk Sub-Fase B, C, dan D sebelum dokumentasi ini ditulis. Ini sesuai governance §11.3.
+
+### Known limitations
+- 3 role BLOCKED — credentials tidak tersedia (Owner accepted 2026-11-05, follow-up RB-21)
+- File naming collision (dua download detik sama) — konsekuensi requirement, risiko sangat rendah
+- jsPDF test smoke PASS di Node; wrapper browser hanya manual test (Owner confirmed)
+
+### Batasan
+- Tidak ada commit/push/deploy
+- Tidak menyentuh modul MSL/Org
+- MSL/Program Kerja exporter TIDAK di-refactor
+- Tidak menambah dependency

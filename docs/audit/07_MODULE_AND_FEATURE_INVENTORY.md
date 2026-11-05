@@ -149,6 +149,15 @@ Tidak ada modul notifikasi, email, audit log umum, pencarian global, export Exce
 
 **Status V2.** `IMPLEMENTED BUT NOT FULLY VERIFIED` — API/concurrency/regresi PASS; runtime browser Admin PASS; Head Office/Management/Project **BLOCKED** (tanpa kredensial). Detail: `DL-2026-11-05-02`.
 
+**Enhancement 2026-11-05 (P4).** Status tetap `IMPLEMENTED BUT NOT FULLY VERIFIED`; runtime Admin PASS (**Owner confirmed**), tiga role tetap BLOCKED. Detail: `DL-2026-11-05-03`.
+
+- **View modal (F-01).** `KnowledgeViewDialog` read-only: Master Project, kategori, isi knowledge penuh, PIC (label non-aktif), evidence (link + URL), serta Record History. Focus trap, Escape/backdrop, dan fokus kembali ke tombol Lihat.
+- **PDF tabel (F-02b).** A4 landscape dari header page; hanya record yang lolos filter; header kolom berulang, footer `Halaman x / y`.
+- **PDF per-record (F-02a).** A4 portrait dari modal View; content panjang terpaginasikan, evidence sebagai link.
+- **Filter tahun + search proyek (F-03/F-04).** Client-side, AND, opsi berasal dari record ter-muat; reset mengembalikan seluruh record. Combobox proyek reusable juga dipakai form Add/Edit.
+- **Kolom Aksi (D-KM-ENH-04).** Selalu render; Lihat untuk semua role, Edit hanya Manage.
+- **Tidak berubah.** API, schema, migration, database, MSL/Org; tanpa dependency baru.
+
 ### Detail V1 (historis — SUPERSEDED)
 
 | Submenu | Route | Isi kolom |

@@ -173,3 +173,14 @@ Matriks izin tidak berubah dari V1; yang berubah adalah cakupan operasi: V2 mena
 | Project | — | — | — | — | **BLOCKED** — tidak ada kredensial |
 
 Tidak ada impersonasi, pembuatan user, suspend, atau reset password. Head Office PIC tetap eligible walau `suspended`; tidak ada user suspended di database saat pengujian (N/A). Detail: `DL-2026-11-05-02`.
+
+## 9. Knowledge Management — Enhancement 2026-11-05
+
+Enhancement P4 tidak mengubah permission, guard, atau matriks §8. Yang berubah hanya rendering kolom Aksi di `KnowledgeTable`:
+
+- Kolom **Aksi** sekarang selalu dirender untuk semua role, termasuk Management/Project (read-only).
+- Tombol **Lihat** tersedia bagi pemegang `KNOWLEDGE_MANAGEMENT_VIEW` (semua role) dan hanya membuka modal read-only dari data yang sudah dimuat.
+- Tombol **Edit** tetap kondisional pada `KNOWLEDGE_MANAGEMENT_MANAGE` (Admin, Head Office); Create/Delete juga tetap Manage-only di UI dan ditegakkan kembali di service (`403`).
+- Tombol PDF tabel mengikuti akses View halaman; PDF per-record hanya dapat dipicu dari modal View. Keduanya client-side dan tidak menambah endpoint.
+
+**Status role.** Admin PASS (**Owner confirmed**); Head Office/Management/Project tetap **BLOCKED** karena kredensial tidak tersedia. Detail: `DL-2026-11-05-03`.

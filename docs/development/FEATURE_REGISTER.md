@@ -24,7 +24,7 @@ Status memakai: `COMPLETE AND VERIFIED` · `IMPLEMENTED BUT NOT FULLY VERIFIED` 
 | `ENT-ENGDB` | Engineering Databases | Enterprise | COMPLETE AND VERIFIED | — |
 | `ENT-MSL` | MSL Engineering (protected) | Enterprise | COMPLETE AND VERIFIED | — |
 | `ENT-ORG` | Struktur Organisasi (protected) | Enterprise | COMPLETE AND VERIFIED | — |
-| `ENT-KNOW` | **Knowledge Management V2** (Lesson Learn, Best Practice / KI KM, VA/VE) | Enterprise | **IMPLEMENTED BUT NOT FULLY VERIFIED** — V1→V2 via drop+rebuild; `0015_knowledge_management_v2_fresh` APPLIED 2026-11-05; Admin PASS, HO/Mgmt/Project BLOCKED (credentials). Lihat DL-2026-11-05-02 | belum di-commit |
+| `ENT-KNOW` | **Knowledge Management V2** (Lesson Learn, Best Practice / KI KM, VA/VE) | Enterprise | **IMPLEMENTED BUT NOT FULLY VERIFIED** — V1→V2 via drop+rebuild; `0015_knowledge_management_v2_fresh` APPLIED 2026-11-05; Admin PASS, HO/Mgmt/Project BLOCKED (credentials). Enhancement 2026-11-05: View modal, PDF (tabel + per-record), filter tahun, search proyek. Runtime PASS (Owner confirmed). Lihat DL-2026-11-05-03 | belum di-commit |
 | `ENT-SASAA` | Dashboard SASAA | Enterprise | NOT STARTED | — |
 | `GOV-WIBEX-001` | **WIBEX Development Governance** — standar organization-wide | Governance | **IMPLEMENTED BUT NOT FULLY VERIFIED — READY FOR OWNER REVIEW** — preliminary review selesai; koreksi diterapkan; final review & approval Owner pending | belum di-commit |
 
@@ -59,6 +59,24 @@ Status memakai: `COMPLETE AND VERIFIED` · `IMPLEMENTED BUT NOT FULLY VERIFIED` 
 > **V2 (5 November 2026).** Model V1 digantikan **drop+rebuild**: multiple records per project/kategori, form modal Add/Edit, evidence exactly-one, optimistic concurrency berbasis `version` integer, dan permanent delete. `0015_knowledge_management_v2_fresh` **APPLIED** di `neondb`; journal 16 entry. Seluruh rincian V1 di bawah ditandai **SUPERSEDED** dan dipertahankan sebagai sejarah. V1.1: **SUPERSEDED by V2** — lihat `DL-2026-11-05-02` (commit V1 `c75d426` tercatat di `DL-2026-11-05-01`).
 >
 > **Status V2.** `IMPLEMENTED BUT NOT FULLY VERIFIED` — API 71/73 lalu dua temuan diperbaiki di E+ (updated_by null saat create, pesan validasi spesifik); concurrency 4/4 PASS; regresi 7/7 PASS; runtime browser Admin PASS (gate Owner); Head Office/Management/Project **BLOCKED** (tanpa kredensial).
+
+### Enhancement 2026-11-05 (P4) — View, PDF, Filter, Search
+
+**Status.** `IMPLEMENTED BUT NOT FULLY VERIFIED` — empat fitur enhancement terimplementasi; runtime Admin PASS (**Owner confirmed**); Head Office/Management/Project tetap **BLOCKED**. Detail: `DL-2026-11-05-03`.
+
+**Perubahan.**
+- F-01: modal View read-only (`KnowledgeViewDialog`) dengan focus trap, Escape/backdrop, dan data dari record yang sudah dimuat (tanpa fetch baru).
+- F-02a: PDF per-record A4 portrait dari modal View.
+- F-02b: PDF seluruh tabel A4 landscape dari header page; hanya record yang lolos filter yang dicetak.
+- F-03: filter tahun client-side dari record ter-muat.
+- F-04: search dropdown proyek single-select dari record ter-muat (bukan `project-options`, yang Manage-only dan dibatasi 50).
+- D-KM-ENH-04: kolom Aksi selalu render; **Lihat** untuk semua role, **Edit** hanya Manage.
+
+**File.** Add `KnowledgeViewDialog.tsx`, `KnowledgeFilterToolbar.tsx`, `KnowledgeProjectCombobox.tsx`, `knowledgeExportPdf.ts`, `knowledgeExportPdf.test.ts`; modify `KnowledgeTable.tsx`, `types.ts`, `types.test.ts`, `KnowledgeFormDialog.tsx` (hanya ekstraksi combobox).
+
+**Tidak berubah.** API, schema, migration, database, MSL/Org; tidak ada dependency baru. Filter dan PDF sepenuhnya client-side.
+
+**Verifikasi.** `tsc` PASS, `eslint` PASS, `npm test` 60/60 PASS (16 test enhancement baru), `git diff --check` PASS (semua Freebuff); runtime Admin dan cleanup PASS (**Owner confirmed**).
 
 ### Detail V1 (historis — SUPERSEDED)
 

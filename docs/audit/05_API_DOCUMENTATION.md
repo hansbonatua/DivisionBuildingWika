@@ -208,3 +208,20 @@ Seluruh endpoint V1 di §13 (`[projectId]/[type]`, `[projectId]/[type]/evidence`
 - `updated_by` bernilai **null** sampai update pertama; `updated_at = created_at` pada record baru.
 
 **Status verifikasi (Sub-Fase E/E+, 5 November 2026).** API 71/73 PASS lalu dua temuan diperbaiki (updated_by, pesan validasi) dan diverifikasi runtime; concurrency 4/4 PASS. Admin PASS; Head Office/Management/Project **BLOCKED** (tanpa kredensial). Detail: `DL-2026-11-05-02`.
+
+## 15. Knowledge Management — Enhancement 2026-11-05
+
+Enhancement P4 tidak menambah atau mengubah kontrak API. Filter tahun/proyek, modal View, dan kedua varian PDF bekerja sepenuhnya di browser dari record yang sudah dimuat; tidak ada request baru dan tidak ada endpoint export.
+
+| Area | Dampak pada API |
+|---|---|
+| Filter tahun + search proyek (F-03/F-04) | Tidak ada — memfilter `KnowledgeRecordDto[]` hasil `GET /api/knowledge-management?type=…` |
+| Modal View (F-01) | Tidak ada — memakai record dari list; tidak memanggil `GET /[id]` |
+| PDF tabel + per-record (F-02b/F-02a) | Tidak ada — jsPDF + jspdf-autotable diimpor dinamis di client |
+| Kolom Aksi (D-KM-ENH-04) | Tidak ada — hanya render kondisional tombol |
+
+- Method, path, guard, body, status code, dan urutan data endpoint V2 di §14 **tidak berubah**.
+- `project-options` tetap hanya untuk form Add/Edit (Manage-only, limit 50); filter memakai opsi dari record ter-muat.
+- Tidak ada migration, tabel, atau kolom baru.
+
+**Status verifikasi.** `tsc`/`eslint`/`npm test` (60/60)/`git diff --check` PASS (Freebuff). Runtime Admin untuk View, filter, dan PDF PASS (**Owner confirmed**); Head Office/Management/Project tetap **BLOCKED**. Detail: `DL-2026-11-05-03`.
