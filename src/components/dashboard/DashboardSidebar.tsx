@@ -12,6 +12,8 @@ import {
 import { canManageCms } from "@/lib/cms/access";
 import { canViewKnowledgeManagement } from "@/lib/knowledge-management/access";
 import { canViewMasterProject } from "@/lib/master-project/access";
+import { canViewMetodeKerja } from "@/lib/metode-kerja-standar/access";
+import { DISIPLIN_LIST } from "@/lib/metode-kerja-standar/constants";
 import { canViewOrganizationStructure } from "@/lib/organization-structure/access";
 import { canViewMsl } from "@/lib/msl/access";
 import { canViewProgramKerja } from "@/lib/program-kerja/access";
@@ -204,6 +206,46 @@ export const knowledgeMenu: SidebarItem[] = [
   },
 ];
 
+// Metode Kerja Standar is its own top-level module with its own accordion.
+// Summary is always first (D-D-02), followed by the six disciplines A–F. Labels
+// and slugs come from the domain constants, so the submenu cannot drift from the
+// values the API and page routes use.
+const metodeKerjaDisiplinIcon = (
+  <MenuIcon>
+    <path d="M9 11l3 3L22 4" />
+    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+  </MenuIcon>
+);
+
+export const metodeKerjaMenu: SidebarItem[] = [
+  {
+    label: "Summary",
+    href: "/dashboard/metode-kerja-standar/summary",
+    icon: (
+      <MenuIcon>
+        <path d="M3 3v18h18" />
+        <path d="M7 15v3" />
+        <path d="M12 10v8" />
+        <path d="M17 6v12" />
+      </MenuIcon>
+    ),
+  },
+  ...DISIPLIN_LIST.map((disiplin) => ({
+    label: `${disiplin.code}. ${disiplin.name}`,
+    href: `/dashboard/metode-kerja-standar/${disiplin.slug}`,
+    icon: metodeKerjaDisiplinIcon,
+  })),
+];
+
+const METODE_KERJA_ROOT = "/dashboard/metode-kerja-standar";
+
+export function isMetodeKerjaPath(pathname: string): boolean {
+  return (
+    pathname === METODE_KERJA_ROOT ||
+    pathname.startsWith(`${METODE_KERJA_ROOT}/`)
+  );
+}
+
 const templateFormMenu: SidebarItem = {
   label: "Template & Form",
   href: "/dashboard/template-form",
@@ -288,6 +330,7 @@ export function isKnowledgeManagementPath(pathname: string): boolean {
 export type SidebarVisibility = {
   showProgramKerja: boolean;
   showKnowledgeManagement: boolean;
+  showMetodeKerja: boolean;
   showTemplateForm: boolean;
   showMasterProject: boolean;
   showEngineeringDatabase: boolean;
@@ -307,6 +350,7 @@ export function getSidebarVisibility(
   const role = userRole ?? "";
   const showProgramKerja = canViewProgramKerja(role);
   const showKnowledgeManagement = canViewKnowledgeManagement(role);
+  const showMetodeKerja = canViewMetodeKerja(role);
   const showTemplateForm = canViewTemplateForm(role);
   const showMasterProject = canViewMasterProject(role);
   const showEngineeringDatabase = canViewEngineeringDatabase(role);
@@ -321,6 +365,7 @@ export function getSidebarVisibility(
   return {
     showProgramKerja,
     showKnowledgeManagement,
+    showMetodeKerja,
     showTemplateForm,
     showMasterProject,
     showEngineeringDatabase,
@@ -332,6 +377,7 @@ export function getSidebarVisibility(
       showOrganizationStructure ||
       showProgramKerja ||
       showKnowledgeManagement ||
+      showMetodeKerja ||
       showTemplateForm ||
       showMasterProject ||
       showEngineeringDatabase ||
@@ -343,6 +389,7 @@ export type SidebarAccordionState = {
   landingOpen: boolean;
   programKerjaOpen: boolean;
   knowledgeOpen: boolean;
+  metodeKerjaOpen: boolean;
   masterProjectOpen: boolean;
   engineeringDatabaseOpen: boolean;
 };
@@ -366,6 +413,10 @@ export function getInitialSidebarAccordionState(
     knowledgeOpen:
       isKnowledgeManagementPath(pathname) ||
       canViewKnowledgeManagement(userRole ?? ""),
+    // MKS is deliberately asymmetric with KM: it starts collapsed and only
+    // opens on an active MKS route (P4 Sub-Fase D). KM's default-open behaviour
+    // is a separate governance decision (DL-2026-11-04-15) and stays as is.
+    metodeKerjaOpen: isMetodeKerjaPath(pathname),
     masterProjectOpen: pathname.startsWith("/dashboard/master-project"),
     engineeringDatabaseOpen: pathname.startsWith("/dashboard/engineering-database"),
   };
@@ -383,6 +434,7 @@ export default function DashboardSidebar({
   const {
     showProgramKerja,
     showKnowledgeManagement,
+    showMetodeKerja,
     showTemplateForm,
     showMasterProject,
     showEngineeringDatabase,
@@ -401,6 +453,7 @@ export default function DashboardSidebar({
     (route) => pathname === route || pathname.startsWith(`${route}/`),
   );
   const isKnowledgeManagementRoute = isKnowledgeManagementPath(pathname);
+  const isMetodeKerjaRoute = isMetodeKerjaPath(pathname);
   const isMasterProjectRoute = pathname.startsWith("/dashboard/master-project");
   const isEngineeringDatabaseRoute = pathname.startsWith(
     "/dashboard/engineering-database",
@@ -411,6 +464,9 @@ export default function DashboardSidebar({
     initialAccordions.programKerjaOpen,
   );
   const [knowledgeOpen, setKnowledgeOpen] = useState(initialAccordions.knowledgeOpen);
+  const [metodeKerjaOpen, setMetodeKerjaOpen] = useState(
+    initialAccordions.metodeKerjaOpen,
+  );
   const [masterProjectOpen, setMasterProjectOpen] = useState(
     initialAccordions.masterProjectOpen,
   );
@@ -429,6 +485,9 @@ export default function DashboardSidebar({
     }
     if (isKnowledgeManagementRoute) {
       setKnowledgeOpen(true);
+    }
+    if (isMetodeKerjaRoute) {
+      setMetodeKerjaOpen(true);
     }
     if (isMasterProjectRoute) {
       setMasterProjectOpen(true);
@@ -658,6 +717,53 @@ export default function DashboardSidebar({
                         aria-label="Knowledge Management"
                       >
                         {knowledgeMenu.map(renderItem)}
+                      </nav>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+              {showMetodeKerja ? (
+                <div className="mt-1">
+                  <div className="px-1">
+                    <button
+                      type="button"
+                      aria-expanded={metodeKerjaOpen}
+                      aria-controls="metode-kerja-standar-menu"
+                      onClick={() => setMetodeKerjaOpen((prev) => !prev)}
+                      className="flex w-full items-center justify-between rounded-lg border border-transparent px-2.5 py-2 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+                    >
+                      <span className="flex items-center gap-2.5">
+                        <span className="text-secondary">
+                          <MenuIcon>
+                            <path d="M9 11l3 3L22 4" />
+                            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+                          </MenuIcon>
+                        </span>
+                        <span>Metode Kerja Standar</span>
+                      </span>
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                        className={`text-slate-400 transition-transform duration-200 ${metodeKerjaOpen ? "rotate-180" : "rotate-0"}`}
+                      >
+                        <path d="m6 9 6 6 6-6" />
+                      </svg>
+                    </button>
+                  </div>
+                  {metodeKerjaOpen ? (
+                    <div id="metode-kerja-standar-menu">
+                      <nav
+                        className="ml-4 space-y-1 border-l-2 border-slate-100 pl-3"
+                        aria-label="Metode Kerja Standar"
+                      >
+                        {metodeKerjaMenu.map(renderItem)}
                       </nav>
                     </div>
                   ) : null}

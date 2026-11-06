@@ -736,3 +736,164 @@ export const organizationStructure = pgTable(
 
 export type PgOrganizationStructure = typeof organizationStructure.$inferSelect;
 export type NewPgOrganizationStructure = typeof organizationStructure.$inferInsert;
+
+// ---------------------------------------------------------------------------
+// Core Enterprise: Metode Kerja Standar (MKS) — database foundation.
+//
+// Enam disiplin A–F adalah konstanta aplikasi, bukan tabel/seed: F. Lainnya
+// harus selalu tersedia meskipun belum punya sub-kategori. Disiplin disimpan
+// sebagai text + CHECK (pola users.role/program_kerja.unit), bukan enum type.
+//
+// Item tidak menduplikasi `disiplin`; disiplin selalu diturunkan dari
+// sub-kategori induk agar hanya ada satu sumber kebenaran. Kode unik per
+// parent, case-insensitive melalui expression index lower(btrim(kode)).
+//
+// PIC memakai satu tabel relasi dengan dua nullable FK (sub-kategori atau
+// item) dan CHECK tepat satu target. Ini menjaga FK nyata ke users sekaligus
+// mencegah PIC ganda lewat partial unique index. PIC sub-kategori opsional;
+// PIC item minimal satu (dijaga deferred trigger di migration 0016).
+//
+// Trigger DDL sengaja berada di migration, karena pgTable tidak punya trigger
+// builder:
+// - metode_kerja_item_require_pic_trigger (AFTER INSERT OR UPDATE, deferred)
+//   menolak item tanpa PIC saat COMMIT;
+// - metode_kerja_pic_require_remaining_trigger (AFTER DELETE, deferred)
+//   menolak penghapusan PIC terakhir dari item yang masih ada, tetapi tidak
+//   menghalangi cascade delete item. Sub-kategori tidak punya trigger minimum
+//   karena PIC-nya opsional.
+export const metodeKerjaSubKategori = pgTable(
+  "metode_kerja_sub_kategori",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    disiplin: text("disiplin").notNull(),
+    kode: text("kode").notNull(),
+    nama: text("nama").notNull(),
+    sortOrder: integer("sort_order").notNull().default(0),
+    evidenceUrl: text("evidence_url"),
+    note: text("note"),
+    createdBy: uuid("created_by")
+      .notNull()
+      .references(() => users.id, { onDelete: "no action" }),
+    updatedBy: uuid("updated_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("metode_kerja_sub_kategori_disiplin_sort_idx").on(
+      table.disiplin,
+      table.sortOrder,
+      table.id,
+    ),
+    uniqueIndex("metode_kerja_sub_kategori_disiplin_kode_unique").on(
+      table.disiplin,
+      sql`lower(btrim(${table.kode}))`,
+    ),
+    index("metode_kerja_sub_kategori_created_by_idx").on(table.createdBy),
+    index("metode_kerja_sub_kategori_updated_by_idx").on(table.updatedBy),
+    check(
+      "metode_kerja_sub_kategori_disiplin_check",
+      sql`${table.disiplin} in ('A', 'B', 'C', 'D', 'E', 'F')`,
+    ),
+    check(
+      "metode_kerja_sub_kategori_kode_check",
+      sql`length(btrim(${table.kode})) between 1 and 30`,
+    ),
+    check("metode_kerja_sub_kategori_sort_check", sql`${table.sortOrder} >= 0`),
+    check(
+      "metode_kerja_sub_kategori_evidence_check",
+      sql`${table.evidenceUrl} is null or ${table.evidenceUrl} ~ '^https?://'`,
+    ),
+    check(
+      "metode_kerja_sub_kategori_note_check",
+      sql`${table.note} is null or length(${table.note}) <= 2000`,
+    ),
+  ],
+);
+
+export type PgMetodeKerjaSubKategori = typeof metodeKerjaSubKategori.$inferSelect;
+export type NewPgMetodeKerjaSubKategori = typeof metodeKerjaSubKategori.$inferInsert;
+
+export const metodeKerjaItem = pgTable(
+  "metode_kerja_item",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    subKategoriId: uuid("sub_kategori_id")
+      .notNull()
+      .references(() => metodeKerjaSubKategori.id, { onDelete: "restrict" }),
+    kode: text("kode").notNull(),
+    nama: text("nama").notNull(),
+    sortOrder: integer("sort_order").notNull().default(0),
+    evidenceUrl: text("evidence_url"),
+    note: text("note"),
+    createdBy: uuid("created_by")
+      .notNull()
+      .references(() => users.id, { onDelete: "no action" }),
+    updatedBy: uuid("updated_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("metode_kerja_item_sub_kategori_sort_idx").on(
+      table.subKategoriId,
+      table.sortOrder,
+      table.id,
+    ),
+    uniqueIndex("metode_kerja_item_sub_kategori_kode_unique").on(
+      table.subKategoriId,
+      sql`lower(btrim(${table.kode}))`,
+    ),
+    index("metode_kerja_item_created_by_idx").on(table.createdBy),
+    index("metode_kerja_item_updated_by_idx").on(table.updatedBy),
+    check(
+      "metode_kerja_item_kode_check",
+      sql`length(btrim(${table.kode})) between 1 and 30`,
+    ),
+    check("metode_kerja_item_sort_check", sql`${table.sortOrder} >= 0`),
+    check(
+      "metode_kerja_item_evidence_check",
+      sql`${table.evidenceUrl} is null or ${table.evidenceUrl} ~ '^https?://'`,
+    ),
+    check(
+      "metode_kerja_item_note_check",
+      sql`${table.note} is null or length(${table.note}) <= 2000`,
+    ),
+  ],
+);
+
+export type PgMetodeKerjaItem = typeof metodeKerjaItem.$inferSelect;
+export type NewPgMetodeKerjaItem = typeof metodeKerjaItem.$inferInsert;
+
+export const metodeKerjaPic = pgTable(
+  "metode_kerja_pic",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    subKategoriId: uuid("sub_kategori_id").references(() => metodeKerjaSubKategori.id, {
+      onDelete: "cascade",
+    }),
+    itemId: uuid("item_id").references(() => metodeKerjaItem.id, {
+      onDelete: "cascade",
+    }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "no action" }),
+    assignedAt: timestamp("assigned_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    check(
+      "metode_kerja_pic_target_check",
+      sql`((${table.subKategoriId} is not null)::int + (${table.itemId} is not null)::int) = 1`,
+    ),
+    uniqueIndex("metode_kerja_pic_sub_kategori_user_unique")
+      .on(table.subKategoriId, table.userId)
+      .where(sql`${table.subKategoriId} is not null`),
+    uniqueIndex("metode_kerja_pic_item_user_unique")
+      .on(table.itemId, table.userId)
+      .where(sql`${table.itemId} is not null`),
+    index("metode_kerja_pic_sub_kategori_idx").on(table.subKategoriId),
+    index("metode_kerja_pic_item_idx").on(table.itemId),
+    index("metode_kerja_pic_user_idx").on(table.userId),
+  ],
+);
+
+export type PgMetodeKerjaPic = typeof metodeKerjaPic.$inferSelect;
+export type NewPgMetodeKerjaPic = typeof metodeKerjaPic.$inferInsert;

@@ -43,6 +43,10 @@ export const PERMISSIONS = {
   KNOWLEDGE_MANAGEMENT_VIEW: "KNOWLEDGE_MANAGEMENT_VIEW",
   KNOWLEDGE_MANAGEMENT_MANAGE: "KNOWLEDGE_MANAGEMENT_MANAGE",
 
+  METODE_KERJA_VIEW: "METODE_KERJA_VIEW",
+  METODE_KERJA_MANAGE: "METODE_KERJA_MANAGE",
+  METODE_KERJA_DELETE: "METODE_KERJA_DELETE",
+
   MSL_VIEW: "MSL_VIEW",
   MSL_MANAGE: "MSL_MANAGE",
 
@@ -89,6 +93,13 @@ const NON_ADMIN_PERMISSION_ROLES: Record<Permission, readonly UserRole[]> = {
   // invisible to the Project role (PROGRAM_KERJA_VIEW is unchanged).
   KNOWLEDGE_MANAGEMENT_VIEW: [HEAD_OFFICE_ROLE, PROJECT_ROLE, MANAGEMENT_ROLE],
   KNOWLEDGE_MANAGEMENT_MANAGE: [HEAD_OFFICE_ROLE],
+
+  // Metode Kerja Standar is its own master-reference module. Admin is granted
+  // all permissions by the super-application rule; Head Office may create/edit
+  // but never delete; Management and Project are read-only.
+  METODE_KERJA_VIEW: [HEAD_OFFICE_ROLE, PROJECT_ROLE, MANAGEMENT_ROLE],
+  METODE_KERJA_MANAGE: [HEAD_OFFICE_ROLE],
+  METODE_KERJA_DELETE: [],
 
   // MSL Engineering: Head Office is a ROLE-level read-only viewer. Management
   // is deliberately absent from both lists — a Management user is eligible only

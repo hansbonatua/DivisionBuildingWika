@@ -1,0 +1,497 @@
+"use client";
+
+import { Fragment } from "react";
+
+import type {
+  MetodeKerjaItemDto,
+  MetodeKerjaPicDto,
+  MetodeKerjaSubKategoriDto,
+} from "@/lib/metode-kerja-standar/service";
+
+// Three-level Metode Kerja Standar table (P3 Section H).
+//
+// One <tbody> per discipline: a full-width discipline header row, then
+// sub-kategori rows (level 1, bold, pl-4) each followed by their items (level
+// 2, pl-10). A sub-kategori without items is never hidden: it keeps its row,
+// shows 0 in the Item column and a "Belum ada item" note under its name.
+//
+// The pure row helpers at the top are exported so ordering/numbering
+// regressions can be tested without a DOM (the repository has no jsdom).
+
+export const EMPTY_VALUE = "—";
+
+export const DISIPLIN_ROW_COLUMN_COUNT = 8;
+
+export type MetodeKerjaTableRow =
+  | {
+      key: string;
+      level: 1;
+      subKategoriId: string;
+      itemId: null;
+    }
+  | {
+      key: string;
+      level: 2;
+      subKategoriId: string;
+      itemId: string;
+    };
+
+export function subKategoriRowKey(id: string): string {
+  return `sub-${id}`;
+}
+
+export function itemRowKey(id: string): string {
+  return `item-${id}`;
+}
+
+// Display order: each sub-kategori immediately followed by its own items.
+export function buildTableRows(
+  subKategori: readonly MetodeKerjaSubKategoriDto[],
+): MetodeKerjaTableRow[] {
+  const rows: MetodeKerjaTableRow[] = [];
+  for (const sub of subKategori) {
+    rows.push({
+      key: subKategoriRowKey(sub.id),
+      level: 1,
+      subKategoriId: sub.id,
+      itemId: null,
+    });
+    for (const item of sub.items) {
+      rows.push({
+        key: itemRowKey(item.id),
+        level: 2,
+        subKategoriId: sub.id,
+        itemId: item.id,
+      });
+    }
+  }
+  return rows;
+}
+
+// Returns a new array with the item moved one slot, or null when the move is
+// out of bounds. Never mutates the input.
+export function moveWithin<T>(
+  items: readonly T[],
+  index: number,
+  direction: "up" | "down",
+): T[] | null {
+  if (index < 0 || index >= items.length) return null;
+  const target = direction === "up" ? index - 1 : index + 1;
+  if (target < 0 || target >= items.length) return null;
+
+  const next = [...items];
+  const moved = next[index] as T;
+  next.splice(index, 1);
+  next.splice(target, 0, moved);
+  return next;
+}
+
+export function subKategoriReorderIds(
+  subKategori: readonly MetodeKerjaSubKategoriDto[],
+  index: number,
+  direction: "up" | "down",
+): string[] | null {
+  const moved = moveWithin(subKategori, index, direction);
+  return moved ? moved.map((row) => row.id) : null;
+}
+
+export function itemReorderIds(
+  items: readonly MetodeKerjaItemDto[],
+  index: number,
+  direction: "up" | "down",
+): string[] | null {
+  const moved = moveWithin(items, index, direction);
+  return moved ? moved.map((row) => row.id) : null;
+}
+
+export function formatMetodeKerjaDate(iso: string | null): string {
+  if (!iso) return EMPTY_VALUE;
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return EMPTY_VALUE;
+  return date.toLocaleDateString("id-ID", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+const headerCell =
+  "whitespace-nowrap border-b border-outline bg-background px-3 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-primary/60";
+const bodyCell =
+  "border-b border-outline/50 px-3 py-3 align-top text-xs text-primary/80";
+const actionButton =
+  "rounded-md border border-outline bg-white px-2 py-1 text-[11px] font-bold text-primary/70 transition-colors hover:bg-background disabled:cursor-not-allowed disabled:opacity-40";
+const dangerButton =
+  "rounded-md border border-red-200 bg-white px-2 py-1 text-[11px] font-bold text-red-700 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40";
+
+function PicChips({ pics }: { pics: MetodeKerjaPicDto[] }) {
+  if (pics.length === 0) {
+    return <span className="text-primary/40">{EMPTY_VALUE}</span>;
+  }
+  return (
+    <div className="flex flex-wrap gap-1">
+      {pics.map((pic) => (
+        <span
+          key={pic.user_id}
+          className="rounded-full bg-background px-2 py-1 text-[11px] font-semibold text-primary/70"
+        >
+          {pic.name}
+          {pic.status !== "active" ? (
+            <span className="ml-1 font-medium text-primary/40">(non-aktif)</span>
+          ) : null}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function EvidenceCell({ url }: { url: string | null }) {
+  if (!url) return <span className="text-primary/40">{EMPTY_VALUE}</span>;
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      title={url}
+      className="block max-w-[200px] truncate text-[11px] font-semibold text-secondary underline decoration-secondary/30 underline-offset-2 hover:decoration-secondary"
+    >
+      {url}
+    </a>
+  );
+}
+
+function NoteCell({ note }: { note: string | null }) {
+  if (!note) return <span className="text-primary/40">{EMPTY_VALUE}</span>;
+  return (
+    <span
+      title={note}
+      className="block max-w-[220px] overflow-hidden text-[11px] font-medium leading-relaxed text-primary/70 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:3]"
+    >
+      {note}
+    </span>
+  );
+}
+
+export default function MetodeKerjaTable({
+  disiplinCode,
+  disiplinName,
+  subKategori,
+  canManage,
+  canDelete,
+  reorderBusyKey,
+  onAddSubKategori,
+  onAddItem,
+  onEditSubKategori,
+  onEditItem,
+  onDeleteSubKategori,
+  onDeleteItem,
+  onReorderSubKategori,
+  onReorderItem,
+}: {
+  disiplinCode: string;
+  disiplinName: string;
+  subKategori: MetodeKerjaSubKategoriDto[];
+  canManage: boolean;
+  canDelete: boolean;
+  reorderBusyKey: string | null;
+  onAddSubKategori: () => void;
+  onAddItem: (sub: MetodeKerjaSubKategoriDto) => void;
+  onEditSubKategori: (sub: MetodeKerjaSubKategoriDto) => void;
+  onEditItem: (sub: MetodeKerjaSubKategoriDto, item: MetodeKerjaItemDto) => void;
+  onDeleteSubKategori: (sub: MetodeKerjaSubKategoriDto) => void;
+  onDeleteItem: (sub: MetodeKerjaSubKategoriDto, item: MetodeKerjaItemDto) => void;
+  onReorderSubKategori: (
+    sub: MetodeKerjaSubKategoriDto,
+    direction: "up" | "down",
+  ) => void;
+  onReorderItem: (
+    sub: MetodeKerjaSubKategoriDto,
+    item: MetodeKerjaItemDto,
+    direction: "up" | "down",
+  ) => void;
+}) {
+  const rows = buildTableRows(subKategori);
+  const rowNumbers = new Map(rows.map((row, index) => [row.key, index + 1]));
+  const reorderBusy = reorderBusyKey !== null;
+
+  return (
+    <TableFrame
+      disiplinCode={disiplinCode}
+      disiplinName={disiplinName}
+      subKategoriCount={subKategori.length}
+    >
+      <tbody>
+        <tr>
+          <th
+            colSpan={DISIPLIN_ROW_COLUMN_COUNT}
+            scope="colgroup"
+            className="border-b border-outline bg-primary px-3 py-2 text-left text-[11px] font-bold uppercase tracking-wider text-white"
+          >
+            {disiplinCode}. {disiplinName.toUpperCase()}
+          </th>
+        </tr>
+
+        {subKategori.length === 0 ? (
+          <tr>
+            <td
+              colSpan={DISIPLIN_ROW_COLUMN_COUNT}
+              className="border-b border-outline/50 px-3 py-10 text-center"
+            >
+              <p className="text-sm font-bold text-primary">Belum ada sub-kategori.</p>
+              <p className="mt-1 text-xs text-primary/60">
+                {canManage
+                  ? "Tambahkan sub-kategori pertama untuk disiplin ini."
+                  : "Belum ada data yang dapat ditampilkan."}
+              </p>
+              {canManage ? (
+                <button
+                  type="button"
+                  onClick={onAddSubKategori}
+                  className="mt-3 rounded-lg bg-primary px-4 py-2 text-[11px] font-bold text-white transition-colors hover:bg-secondary"
+                >
+                  Tambah Sub-Kategori
+                </button>
+              ) : null}
+            </td>
+          </tr>
+        ) : (
+          subKategori.map((sub, subIndex) => {
+            const items = sub.items;
+            return (
+              <Fragment key={sub.id}>
+                <tr className="bg-background/40 transition-colors hover:bg-background/70">
+                  <td className={`${bodyCell} tabular-nums text-primary/45`}>
+                    {rowNumbers.get(subKategoriRowKey(sub.id))}
+                  </td>
+                  <td className={bodyCell}>
+                    <span className="font-mono text-[11px] font-bold text-primary/70">
+                      {sub.kode}
+                    </span>
+                  </td>
+                  <th scope="row" className={`${bodyCell} pl-4 text-left`}>
+                    <span className="block font-bold text-primary">{sub.nama}</span>
+                    {items.length === 0 ? (
+                      <span className="mt-0.5 block text-[11px] font-medium italic text-amber-700">
+                        Belum ada item
+                      </span>
+                    ) : null}
+                  </th>
+                  <td className={`${bodyCell} min-w-[170px]`}>
+                    <PicChips pics={sub.pics} />
+                  </td>
+                  <td className={`${bodyCell} min-w-[150px]`}>
+                    <EvidenceCell url={sub.evidence_url} />
+                  </td>
+                  <td className={`${bodyCell} min-w-[170px]`}>
+                    <NoteCell note={sub.note} />
+                  </td>
+                  <td className={`${bodyCell} tabular-nums text-primary/60`}>
+                    {items.length}
+                  </td>
+                  <td className={`${bodyCell} whitespace-nowrap text-right`}>
+                    <div className="flex flex-wrap items-center justify-end gap-1">
+                      {canManage ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => onAddItem(sub)}
+                            aria-label={`Tambah item di bawah ${sub.nama}`}
+                            className={actionButton}
+                          >
+                            + Item
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onEditSubKategori(sub)}
+                            aria-label={`Edit sub-kategori ${sub.nama}`}
+                            className={actionButton}
+                          >
+                            Edit
+                          </button>
+                        </>
+                      ) : null}
+                      {canDelete ? (
+                        <button
+                          type="button"
+                          onClick={() => onDeleteSubKategori(sub)}
+                          aria-label={`Hapus sub-kategori ${sub.nama}`}
+                          className={dangerButton}
+                        >
+                          Hapus
+                        </button>
+                      ) : null}
+                      {canManage ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => onReorderSubKategori(sub, "up")}
+                            disabled={subIndex === 0 || reorderBusy}
+                            aria-label={`Naikkan ${sub.nama}`}
+                            title="Naikkan"
+                            className={actionButton}
+                          >
+                            ↑
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onReorderSubKategori(sub, "down")}
+                            disabled={
+                              subIndex === subKategori.length - 1 || reorderBusy
+                            }
+                            aria-label={`Turunkan ${sub.nama}`}
+                            title="Turunkan"
+                            className={actionButton}
+                          >
+                            ↓
+                          </button>
+                        </>
+                      ) : null}
+                    </div>
+                  </td>
+                </tr>
+
+                {items.map((item, itemIndex) => (
+                  <tr
+                    key={item.id}
+                    className="transition-colors hover:bg-background/60"
+                  >
+                    <td className={`${bodyCell} tabular-nums text-primary/40`}>
+                      {rowNumbers.get(itemRowKey(item.id))}
+                    </td>
+                    <td className={bodyCell}>
+                      <span className="font-mono text-[11px] font-medium text-primary/60">
+                        {item.kode}
+                      </span>
+                    </td>
+                    <th scope="row" className={`${bodyCell} pl-10 text-left`}>
+                      <span className="block font-medium text-primary/90">
+                        {item.nama}
+                      </span>
+                    </th>
+                    <td className={`${bodyCell} min-w-[170px]`}>
+                      <PicChips pics={item.pics} />
+                    </td>
+                    <td className={`${bodyCell} min-w-[150px]`}>
+                      <EvidenceCell url={item.evidence_url} />
+                    </td>
+                    <td className={`${bodyCell} min-w-[170px]`}>
+                      <NoteCell note={item.note} />
+                    </td>
+                    <td className={`${bodyCell} text-primary/40`}>{EMPTY_VALUE}</td>
+                    <td className={`${bodyCell} whitespace-nowrap text-right`}>
+                      <div className="flex flex-wrap items-center justify-end gap-1">
+                        {canManage ? (
+                          <button
+                            type="button"
+                            onClick={() => onEditItem(sub, item)}
+                            aria-label={`Edit item ${item.nama}`}
+                            className={actionButton}
+                          >
+                            Edit
+                          </button>
+                        ) : null}
+                        {canDelete ? (
+                          <button
+                            type="button"
+                            onClick={() => onDeleteItem(sub, item)}
+                            aria-label={`Hapus item ${item.nama}`}
+                            className={dangerButton}
+                          >
+                            Hapus
+                          </button>
+                        ) : null}
+                        {canManage ? (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => onReorderItem(sub, item, "up")}
+                              disabled={itemIndex === 0 || reorderBusy}
+                              aria-label={`Naikkan ${item.nama}`}
+                              title="Naikkan"
+                              className={actionButton}
+                            >
+                              ↑
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                onReorderItem(sub, item, "down")
+                              }
+                              disabled={
+                                itemIndex === items.length - 1 || reorderBusy
+                              }
+                              aria-label={`Turunkan ${item.nama}`}
+                              title="Turunkan"
+                              className={actionButton}
+                            >
+                              ↓
+                            </button>
+                          </>
+                        ) : null}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </Fragment>
+            );
+          })
+        )}
+      </tbody>
+    </TableFrame>
+  );
+}
+
+// A tbody can only hold <tr> children, so grouping a sub-kategori with its item
+// rows uses a Fragment rather than a wrapper element. Fragment imports are
+// handled above.
+function TableFrame({
+  disiplinCode,
+  disiplinName,
+  subKategoriCount,
+  children,
+}: {
+  disiplinCode: string;
+  disiplinName: string;
+  subKategoriCount: number;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="overflow-x-auto rounded-2xl border border-outline/60 bg-white shadow-sm">
+      <table className="w-full min-w-[1080px] border-collapse text-left">
+        <caption className="sr-only">
+          Metode Kerja Standar — Disiplin {disiplinCode}. {disiplinName}.{" "}
+          {subKategoriCount} sub-kategori.
+        </caption>
+        <thead className="sticky top-0 z-20">
+          <tr>
+            <th scope="col" className={`${headerCell} w-12`}>
+              No
+            </th>
+            <th scope="col" className={`${headerCell} w-[100px]`}>
+              Kode
+            </th>
+            <th scope="col" className={`${headerCell} min-w-[240px]`}>
+              Nama
+            </th>
+            <th scope="col" className={`${headerCell} min-w-[170px]`}>
+              PIC
+            </th>
+            <th scope="col" className={`${headerCell} min-w-[150px]`}>
+              Evidence
+            </th>
+            <th scope="col" className={`${headerCell} min-w-[170px]`}>
+              Catatan
+            </th>
+            <th scope="col" className={`${headerCell} w-[64px]`}>
+              Item
+            </th>
+            <th scope="col" className={`${headerCell} w-[150px] text-right`}>
+              Aksi
+            </th>
+          </tr>
+        </thead>
+        {children}
+      </table>
+    </div>
+  );
+}
