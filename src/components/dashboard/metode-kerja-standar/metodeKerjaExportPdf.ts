@@ -39,8 +39,9 @@ const EMPTY_ITEM = "Belum ada item";
 const EMPTY_SUB_KATEGORI = "Belum ada sub-kategori";
 const CONTINUATION_BRAND = "WIKA - Metode Kerja Standar";
 
+// The ordinal "No" column is gone: Disiplin + Kode already identify a row, and
+// the freed width goes to the descriptive columns below.
 const TABLE_HEADERS = [
-  "No",
   "Disiplin",
   "Sub-Kategori",
   "Item",
@@ -52,10 +53,9 @@ const TABLE_HEADERS = [
 
 // Relative widths; scaled to the actual printable width so A4 and A3 both fill
 // the page instead of leaving a gap.
-const BASE_COLUMN_WIDTHS = [9, 26, 46, 52, 44, 44, 28, 24];
+const BASE_COLUMN_WIDTHS = [30, 48, 56, 46, 46, 28, 24];
 
 export type SummaryPdfCells = {
-  no: string;
   disiplin: string;
   subKategori: string;
   item: string;
@@ -93,12 +93,8 @@ function formatPics(row: SummaryRow): string {
 
 // Pure SummaryRow -> cell text mapping. Exported so the empty-discipline
 // rendering (D-D-03) is testable without parsing PDF bytes.
-export function summaryPdfCells(
-  row: SummaryRow,
-  index: number,
-): SummaryPdfCells {
+export function summaryPdfCells(row: SummaryRow): SummaryPdfCells {
   return {
-    no: String(index + 1),
     disiplin: `${row.disiplin.code}. ${row.disiplin.name}`,
     subKategori: row.sub_kategori
       ? `${row.sub_kategori.kode} ${row.sub_kategori.nama}`
@@ -170,14 +166,10 @@ export function buildMetodeKerjaSummaryPdf(
             },
           ],
         ]
-      : rows.map((row, index) => {
-          const cells = summaryPdfCells(row, index);
+      : rows.map((row) => {
+          const cells = summaryPdfCells(row);
           const empty = row.status !== "item";
           return [
-            {
-              content: cells.no,
-              styles: { halign: "center", textColor: MUTED_TEXT },
-            },
             {
               content: cells.disiplin,
               styles: { fontStyle: "bold", textColor: NAVY },

@@ -71,7 +71,7 @@ Jangan `reset`, `checkout --`, `stash`, atau `clean` — seluruh pekerjaan KM V2
 - **Cakupan:** 3 tabel domain (sub-kategori, item, PIC), 10 route API, 7 komponen frontend + exporter PDF, route `/dashboard/metode-kerja-standar/{summary,[disiplin]}`.
 - **Migration:** `0016_metode_kerja_standar` **APPLIED**; journal 17 entry; object terverifikasi (3 tabel, 16 index, 2 constraint trigger, CHECK disiplin A–F, unique kode per disiplin).
 - **Sidebar:** sejak 8 November 2026, KM dan MKS sama-sama route-driven (default collapsed). Keputusan ini menggantikan perilaku awal DL-2026-11-04-15; visibilitas per role tidak berubah.
-- **Tabel:** 8 kolom (acuan P3 Section H), baris lebih ringkas (`py-2`), tombol aksi seragam `h-7` tanpa pembungkusan, kolom Aksi 200px.
+- **Tabel:** 7 kolom (kolom "No" dihapus 8 November 2026; acuan awal P3 Section H), baris ringkas (`py-2`), sub-kategori `bg-blue-50`, tombol aksi seragam `h-7` tanpa pembungkusan, kolom Aksi 240px, `min-w` 1130px. PDF Summary juga tanpa kolom No.
 - **Detail:** `docs/design/MKS_P4_FINALIZATION.md`; keputusan `DL-2026-11-08-01`.
 - **Known limitation:** tidak ada auto-collapse antar-route dalam satu sesi; role Head Office/Management/Project belum diuji runtime karena kredensial tidak tersedia.
 

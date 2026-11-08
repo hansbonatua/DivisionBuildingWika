@@ -20,7 +20,9 @@ import type {
 
 export const EMPTY_VALUE = "—";
 
-export const DISIPLIN_ROW_COLUMN_COUNT = 8;
+// Kode already identifies every row (A.1, A.4.2, …), so the ordinal "No"
+// column was removed: seven columns remain.
+export const DISIPLIN_ROW_COLUMN_COUNT = 7;
 
 export type MetodeKerjaTableRow =
   | {
@@ -224,8 +226,6 @@ export default function MetodeKerjaTable({
     direction: "up" | "down",
   ) => void;
 }) {
-  const rows = buildTableRows(subKategori);
-  const rowNumbers = new Map(rows.map((row, index) => [row.key, index + 1]));
   const reorderBusy = reorderBusyKey !== null;
 
   return (
@@ -277,9 +277,6 @@ export default function MetodeKerjaTable({
                     stay readable at a glance: discipline header (dark), level 1
                     (blue), level 2 items (white). */}
                 <tr className="bg-blue-50 transition-colors hover:bg-blue-100/70">
-                  <td className={`${bodyCell} tabular-nums text-blue-600/70`}>
-                    {rowNumbers.get(subKategoriRowKey(sub.id))}
-                  </td>
                   <td className={bodyCell}>
                     <span className="font-mono text-[11px] font-bold text-blue-800">
                       {sub.kode}
@@ -372,9 +369,6 @@ export default function MetodeKerjaTable({
                     key={item.id}
                     className="bg-white transition-colors hover:bg-background/60"
                   >
-                    <td className={`${bodyCell} tabular-nums text-primary/40`}>
-                      {rowNumbers.get(itemRowKey(item.id))}
-                    </td>
                     <td className={bodyCell}>
                       <span className="font-mono text-[11px] font-medium text-primary/60">
                         {item.kode}
@@ -474,16 +468,13 @@ function TableFrame({
 }) {
   return (
     <div className="overflow-x-auto rounded-2xl border border-outline/60 bg-white shadow-sm">
-      <table className="w-full min-w-[1180px] border-collapse text-left">
+      <table className="w-full min-w-[1130px] border-collapse text-left">
         <caption className="sr-only">
           Metode Kerja Standar — Disiplin {disiplinCode}. {disiplinName}.{" "}
           {subKategoriCount} sub-kategori.
         </caption>
         <thead className="sticky top-0 z-20">
           <tr>
-            <th scope="col" className={`${headerCell} w-12`}>
-              No
-            </th>
             <th scope="col" className={`${headerCell} w-[100px]`}>
               Kode
             </th>

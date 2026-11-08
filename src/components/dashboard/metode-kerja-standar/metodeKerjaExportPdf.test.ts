@@ -49,7 +49,7 @@ test("D-D-03: empty disiplin F still renders printable rows", () => {
   assert.equal(fRow.sub_kategori, null);
   assert.equal(fRow.item, null);
 
-  const cells = summaryPdfCells(fRow, 5);
+  const cells = summaryPdfCells(fRow);
   assert.equal(cells.disiplin, "F. Lainnya");
   assert.equal(cells.subKategori, "Belum ada sub-kategori");
   assert.equal(cells.item, "Belum ada item");
@@ -99,9 +99,8 @@ test("summary cells carry item, sub-kategori, PIC and evidence", () => {
     ["disiplin-kosong", "disiplin-kosong", "disiplin-kosong", "disiplin-kosong", "disiplin-kosong"],
   );
 
-  const cells = summaryPdfCells(rows[0], 0);
+  const cells = summaryPdfCells(rows[0]);
 
-  assert.equal(cells.no, "1");
   assert.equal(cells.disiplin, "A. Struktur");
   assert.equal(cells.subKategori, "K-0 Sub 0");
   assert.equal(cells.item, "K-0.1 Pekerjaan Pondasi");

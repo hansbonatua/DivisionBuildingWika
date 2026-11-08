@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   buildTableRows,
+  DISIPLIN_ROW_COLUMN_COUNT,
   itemReorderIds,
   moveWithin,
   subKategoriReorderIds,
@@ -59,6 +60,10 @@ function makeSub(
     updated_at: AUDIT.updated_at,
   };
 }
+
+test("the discipline table renders seven columns (no ordinal column)", () => {
+  assert.equal(DISIPLIN_ROW_COLUMN_COUNT, 7);
+});
 
 test("buildTableRows puts each sub-kategori immediately before its own items", () => {
   const subKategori = [

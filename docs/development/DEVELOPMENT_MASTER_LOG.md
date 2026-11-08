@@ -599,7 +599,8 @@ Runtime test dilakukan oleh Owner di browser sendiri. Freebuff tidak dapat menja
 ### Perubahan
 - Sidebar KM: `knowledgeOpen` menjadi `isKnowledgeManagementPath(pathname)` saja (menyimpang dari DL-2026-11-04-15 atas keputusan Owner 8 November 2026). MKS dan KM kini sama-sama route-driven.
 - `getInitialSidebarAccordionState(pathname)` tidak lagi menerima parameter role; parameter dihapus agar tidak menyesatkan pembaca.
-- Tabel MKS: padding baris `py-3` → `py-2`, header `py-2.5`, chip PIC `py-0.5`, catatan clamp 2 baris, tombol aksi seragam `h-7` + `shrink-0` (↑/↓ menjadi tombol ikon `w-7`), kontainer aksi `whitespace-nowrap`, sel Aksi `align-middle`, baris sub-kategori `bg-blue-50` dengan teks biru (item tetap putih), kolom Aksi 150px → 240px, `min-w` tabel 1080px → 1180px.
+- Tabel MKS: padding baris `py-3` → `py-2`, header `py-2.5`, chip PIC `py-0.5`, catatan clamp 2 baris, tombol aksi seragam `h-7` + `shrink-0` (↑/↓ menjadi tombol ikon `w-7`), kontainer aksi `whitespace-nowrap`, sel Aksi `align-middle`, baris sub-kategori `bg-blue-50` dengan teks biru (item tetap putih), kolom Aksi 150px → 240px, `min-w` tabel 1080px → 1130px.
+- Kolom **No dihapus** dari tabel disiplin (8 → 7 kolom; `colSpan` header/empty state ikut 7) dan dari PDF Summary (`TABLE_HEADERS`, `BASE_COLUMN_WIDTHS`, `summaryPdfCells` tanpa `index`/`no`; lebar kolom lain diskalakan ulang).
 - Dokumentasi: laporan `docs/design/MKS_P4_FINALIZATION.md`, koreksi klaim KM di `docs/audit/06`, penanda resolusi di `SIDEBAR_ACCORDION_AUDIT.md`.
 
 ### File impacted

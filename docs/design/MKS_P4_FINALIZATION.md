@@ -102,15 +102,37 @@ terbuka sepanjang sesi" tetap pekerjaan terpisah (lihat
 | Sel Aksi | `align-top` (ikut sel isi) | `align-middle` (konstanta terpisah) | Tombol tidak "mengambang" di atas saat sel lain lebih tinggi |
 | Latar sub-kategori | `bg-background/40` | `bg-blue-50`, teks `text-blue-900`/`text-blue-800`, hover `bg-blue-100/70` | Level 1 mudah dibedakan; baris item tetap putih |
 | Baris item | transparan | `bg-white` | Kontras tiga level konsisten |
+| Kolom No | ada (8 kolom) | **dihapus** (7 kolom) | Kode (A.1, A.4.2) sudah mengidentifikasi baris; nomor urut ambigu |
+| `colSpan` header disiplin & empty state | 8 | 7 | Menyesuaikan jumlah kolom |
 | Kolom Aksi | `w-[150px]` | `w-[240px]` | Lima kontrol muat satu baris |
-| Lebar minimum tabel | `min-w-[1080px]` | `min-w-[1180px]` | Mengimbangi kolom Aksi yang lebih lebar |
+| Lebar minimum tabel | `min-w-[1080px]` | `min-w-[1130px]` | Berkurang bersama kolom No (~50px) |
 
 **Penyimpangan dari P3 Section H.2 (didokumentasikan):** desain menyebut kolom
 Aksi 140px. Dengan lima kontrol (Tambah Item, Edit, Hapus, ↑, ↓) kolom 140px
 memaksa `flex-wrap` dan justru menambah tinggi baris — masalah yang dilaporkan
 Owner. Lebar 240px dipilih agar toolbar tetap satu baris (total label ≈ 208px +
-padding sel); kolom lain dan urutan delapan kolom (No, Kode, Nama, PIC, Evidence,
-Catatan, Item, Aksi) tidak berubah.
+padding sel).
+
+**Penghapusan kolom No (8 November 2026).** Desain P3 Section H memakai delapan
+kolom dengan "No" di paling kiri. Owner menghapusnya karena identifikasi baris
+sudah jelas lewat Kode (A.1, A.4.2, …). Urutan final tujuh kolom: **Kode, Nama,
+PIC, Evidence, Catatan, Item, Aksi**; `DISIPLIN_ROW_COLUMN_COUNT` menjadi 7 dan
+dipakai oleh header disiplin serta empty state, sehingga `colSpan` tidak bisa
+drift. PDF Summary juga kehilangan kolom "No" (lihat §C.1).
+
+### C.1 PDF Summary
+
+`metodeKerjaExportPdf.ts` mencetak Summary (bukan tabel disiplin), dengan urutan
+kolom sebelumnya: No, Disiplin, Sub-Kategori, Item, PIC, Evidence, Status,
+Diperbarui.
+
+| Aspek | Sesudah |
+|---|---|
+| `TABLE_HEADERS` | "No" dihapus; 7 kolom |
+| `BASE_COLUMN_WIDTHS` | `[9, 26, 46, 52, 44, 44, 28, 24]` → `[30, 48, 56, 46, 46, 28, 24]` |
+| `summaryPdfCells()` | tidak lagi menerima `index` dan tidak mengembalikan `no` |
+| Body autoTable | satu sel per kolom; `colSpan` empty-state memakai `TABLE_HEADERS.length` (otomatis 7) |
+| Kolom melebar | `columnWidths()` menskalakan lebar relatif ke lebar cetak, sehingga Disiplin/Sub-Kategori/Item mengisi ruang bekas kolom No |
 
 **Tidak berubah:** struktur tiga level (header disiplin → sub-kategori → item),
 `colSpan` header disiplin, inden `pl-4`/`pl-10`, empty state, `aria-label` setiap
