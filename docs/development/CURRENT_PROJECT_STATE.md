@@ -1,6 +1,6 @@
 # CURRENT PROJECT STATE — BDWIKA / WIBEX
 
-Terakhir diperbarui: 5 November 2026 (setelah Sub-Fase E — KM V2 enhancement, dokumentasi berbasis runtime Owner confirmed).
+Terakhir diperbarui: 8 November 2026 (setelah finalisasi MKS P4 Sub-Fase E — sidebar KM, UI tabel, regresi & dokumentasi).
 
 ## 1. Repository
 
@@ -8,11 +8,11 @@ Terakhir diperbarui: 5 November 2026 (setelah Sub-Fase E — KM V2 enhancement, 
 |---|---|
 | Root | `D:\MagangHub-Wika-StaffEngDigitalisasiBuilding\progress\bdwika` |
 | Branch | `main` (tracking `origin/main`) |
-| HEAD | `303ca9b` (belum ada commit enhancement) |
+| HEAD | `ea70ba2` (belum ada commit enhancement) |
 | Stack | Next.js 16.3.8 · React 19.2.8 · TypeScript 5.9.3 · Tailwind 4 · Drizzle ORM · PostgreSQL (Neon) · MongoDB · Vercel Blob |
 | Node / npm | v24 · npm 10 |
 | Dev server | tidak dikelola Freebuff pada E; runtime dilakukan Owner (Owner confirmed) |
-| Database | `neondb` (PostgreSQL 18.6), migration journal **16 entry** |
+| Database | `neondb` (PostgreSQL 18.6), migration journal **17 entry** (`0016` MKS APPLIED) |
 
 ## 2. Working Tree (belum di-commit)
 
@@ -38,7 +38,7 @@ Jangan `reset`, `checkout --`, `stash`, atau `clean` — seluruh pekerjaan KM V2
 |---|---|---|---|
 | TypeScript | `npx tsc --noEmit` | 0 | PASS |
 | ESLint (file KM) | `npx eslint src/lib/knowledge-management src/app/api/knowledge-management src/components/dashboard/knowledge-management` | 0 | PASS |
-| Test otomatis | `npm test` | 0 | **60/60 PASS** (19 suite; 16 test enhancement baru) |
+| Test otomatis | `npm test` | 0 | **115/115 PASS** (30 suite; termasuk 4 test sidebar MKS baru) |
 | Diff hygiene | `git diff --check` | 0 | PASS |
 | Drift Drizzle | `npx drizzle-kit generate` | 0 | **No schema changes** (snapshot 0015 sinkron) |
 | Migration | `npx drizzle-kit migrate` | — | **tidak dijalankan di F** (0015 sudah APPLIED) |
@@ -64,8 +64,19 @@ Jangan `reset`, `checkout --`, `stash`, atau `clean` — seluruh pekerjaan KM V2
 - Feed publik Green Building masih 0 item (empty state).
 - `schema.ts` kini identik dengan database (4 drift M selesai) dan snapshot `0015_snapshot.json` tersedia.
 
-## 6. Langkah Berikutnya
+## 6. Metode Kerja Standar (P4)
 
-1. Commit enhancement + dokumentasi (menunggu otorisasi Owner; tanpa push/deploy pada instruksi ini).
-2. Final acceptance review Owner/ChatGPT atas DL-2026-11-05-03.
+**Status:** `IMPLEMENTED BUT NOT FULLY VERIFIED` — static checks PASS, migration APPLIED, runtime Owner confirmed untuk fitur; penyesuaian UI tabel (8 November) belum diverifikasi visual.
+
+- **Cakupan:** 3 tabel domain (sub-kategori, item, PIC), 10 route API, 7 komponen frontend + exporter PDF, route `/dashboard/metode-kerja-standar/{summary,[disiplin]}`.
+- **Migration:** `0016_metode_kerja_standar` **APPLIED**; journal 17 entry; object terverifikasi (3 tabel, 16 index, 2 constraint trigger, CHECK disiplin A–F, unique kode per disiplin).
+- **Sidebar:** sejak 8 November 2026, KM dan MKS sama-sama route-driven (default collapsed). Keputusan ini menggantikan perilaku awal DL-2026-11-04-15; visibilitas per role tidak berubah.
+- **Tabel:** 8 kolom (acuan P3 Section H), baris lebih ringkas (`py-2`), tombol aksi seragam `h-7` tanpa pembungkusan, kolom Aksi 200px.
+- **Detail:** `docs/design/MKS_P4_FINALIZATION.md`; keputusan `DL-2026-11-08-01`.
+- **Known limitation:** tidak ada auto-collapse antar-route dalam satu sesi; role Head Office/Management/Project belum diuji runtime karena kredensial tidak tersedia.
+
+## 7. Langkah Berikutnya
+
+1. Commit enhancement + dokumentasi MKS P4 (menunggu otorisasi Owner; tanpa push/deploy pada instruksi ini).
+2. Verifikasi visual tabel MKS di satu halaman disiplin (desktop + mobile) lalu final acceptance Owner/ChatGPT atas `DL-2026-11-08-01`.
 3. Setelah commit: acceptance role Head Office/Management/Project bila Owner menyediakan kredensial uji (tetap BLOCKED sampai saat itu).

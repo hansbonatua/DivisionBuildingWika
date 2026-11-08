@@ -582,3 +582,42 @@ Runtime test dilakukan oleh Owner di browser sendiri. Freebuff tidak dapat menja
 - Tidak menyentuh modul MSL/Org
 - MSL/Program Kerja exporter TIDAK di-refactor
 - Tidak menambah dependency
+
+---
+
+## DL-2026-11-08-01 — MKS P4 Finalization (Sidebar KM, Table UI, Sub-Fase E)
+
+| Field | Nilai |
+|---|---|
+| Feature ID | `ENT-MKS` |
+| Tanggal | 8 November 2026 |
+| Status | **IMPLEMENTED BUT NOT FULLY VERIFIED** — static checks PASS; runtime visual menunggu Owner |
+| Commit | belum di-commit (instruksi: no commit/push/deploy) |
+| Branch | `main` |
+| Baseline | `ea70ba2` + MKS A–D (uncommitted); migration `0016` APPLIED |
+
+### Perubahan
+- Sidebar KM: `knowledgeOpen` menjadi `isKnowledgeManagementPath(pathname)` saja (menyimpang dari DL-2026-11-04-15 atas keputusan Owner 8 November 2026). MKS dan KM kini sama-sama route-driven.
+- `getInitialSidebarAccordionState(pathname)` tidak lagi menerima parameter role; parameter dihapus agar tidak menyesatkan pembaca.
+- Tabel MKS: padding baris `py-3` → `py-2`, header `py-2.5`, chip PIC `py-0.5`, catatan clamp 2 baris, tombol aksi seragam `h-7` + `shrink-0` (↑/↓ menjadi tombol ikon `w-7`), kontainer aksi `whitespace-nowrap`, sel Aksi `align-middle`, baris sub-kategori `bg-blue-50` dengan teks biru (item tetap putih), kolom Aksi 150px → 240px, `min-w` tabel 1080px → 1180px.
+- Dokumentasi: laporan `docs/design/MKS_P4_FINALIZATION.md`, koreksi klaim KM di `docs/audit/06`, penanda resolusi di `SIDEBAR_ACCORDION_AUDIT.md`.
+
+### File impacted
+- Modify: `DashboardSidebar.tsx`, `DashboardSidebar.test.ts`, `metodeKerjaSidebar.test.ts`, `MetodeKerjaTable.tsx`
+- Add: `docs/design/MKS_P4_FINALIZATION.md`
+- Tidak berubah: API, service, repository, schema, migration, database, modul MSL/Org
+
+### Verifikasi
+| Pemeriksaan | Hasil | Sumber |
+|---|---|---|
+| `npx tsc --noEmit` | PASS | Freebuff |
+| `npx eslint` (sidebar + folder MKS) | PASS, 0 warning | Freebuff |
+| `npm test` | 115/115 PASS (30 suite) | Freebuff |
+| `git diff --check` | PASS | Freebuff |
+| Migration `0016` | APPLIED sebelum fase ini; tidak dijalankan ulang | Freebuff |
+| Runtime visual tabel | NOT RUN | menunggu Owner |
+
+### Batasan
+- Tidak ada commit/push/deploy/migration
+- Tidak ada dependency baru, tidak ada auto-collapse logic
+- Kolom Aksi 200px menyimpang dari P3 H.2 (140px) agar toolbar tidak membungkus

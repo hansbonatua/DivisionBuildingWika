@@ -44,37 +44,45 @@ describe("sidebar Knowledge Management visibility", () => {
 });
 
 describe("Knowledge Management independent top-level accordion", () => {
-  it("defaults open while Program Kerja stays collapsed on the dashboard", () => {
-    const state = getInitialSidebarAccordionState("/dashboard", "Head Office");
-    assert.equal(state.knowledgeOpen, true);
+  it("starts collapsed on the dashboard, like every other route-driven module", () => {
+    // The helper no longer takes a role: expansion is purely route-driven, so
+    // this assertion cannot depend on which role is signed in.
+    const state = getInitialSidebarAccordionState("/dashboard");
+    assert.equal(state.knowledgeOpen, false);
     assert.equal(state.programKerjaOpen, false);
   });
 
-  it("is independent of Program Kerja state on routes without either module", () => {
-    const state = getInitialSidebarAccordionState("/dashboard/users", "Admin");
-    assert.equal(state.knowledgeOpen, true);
+  it("stays collapsed on routes without either module", () => {
+    const state = getInitialSidebarAccordionState("/dashboard/users");
+    assert.equal(state.knowledgeOpen, false);
     assert.equal(state.programKerjaOpen, false);
   });
 
   it("opens automatically on a Knowledge Management route", () => {
     const state = getInitialSidebarAccordionState(
       "/dashboard/knowledge-management/lesson-learn",
-      "Project",
     );
     assert.equal(state.knowledgeOpen, true);
   });
 
   it("still opens Program Kerja for its own route", () => {
-    const state = getInitialSidebarAccordionState(
-      "/dashboard/program-kerja/summary",
-      "Head Office",
-    );
+    const state = getInitialSidebarAccordionState("/dashboard/program-kerja/summary");
     assert.equal(state.programKerjaOpen, true);
   });
 
-  it("does not force Knowledge Management open for a role without permission", () => {
-    const state = getInitialSidebarAccordionState("/dashboard", "Guest");
-    assert.equal(state.knowledgeOpen, false);
+  it("derives the initial state from the route, not from the role", () => {
+    // A role without KNOWLEDGE_MANAGEMENT_VIEW resolves the same route-based
+    // value; visibility (showKnowledgeManagement) decides whether it renders.
+    assert.equal(getSidebarVisibility("Guest", false).showKnowledgeManagement, false);
+    assert.equal(
+      getInitialSidebarAccordionState("/dashboard").knowledgeOpen,
+      false,
+    );
+    assert.equal(
+      getInitialSidebarAccordionState("/dashboard/knowledge-management/va-ve")
+        .knowledgeOpen,
+      true,
+    );
   });
 });
 

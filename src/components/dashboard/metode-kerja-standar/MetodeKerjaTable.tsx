@@ -116,13 +116,27 @@ export function formatMetodeKerjaDate(iso: string | null): string {
 }
 
 const headerCell =
-  "whitespace-nowrap border-b border-outline bg-background px-3 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-primary/60";
+  "whitespace-nowrap border-b border-outline bg-background px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wide text-primary/60";
+// Compact rhythm: rows must stay scannable when a sub-kategori carries PIC
+// chips, an evidence link and a note. Vertical padding is py-2 (not py-3) and
+// every action control is h-7, so a row's height is driven by its content
+// instead of by the toolbar.
 const bodyCell =
-  "border-b border-outline/50 px-3 py-3 align-top text-xs text-primary/80";
+  "border-b border-outline/50 px-3 py-2 align-top text-xs text-primary/80";
+// The action cell is aligned independently: when another cell in the row is
+// taller (e.g. several PIC chips), centred buttons stay visually attached to
+// the row instead of floating at its top edge.
+const actionBodyCell =
+  "border-b border-outline/50 px-3 py-2 align-middle text-xs text-primary/80";
+const actionCell = "flex items-center justify-end gap-1 whitespace-nowrap";
+// `shrink-0` keeps every control on one line: without it the flex row can
+// squeeze a button narrower than its label and the text wraps inside h-7.
 const actionButton =
-  "rounded-md border border-outline bg-white px-2 py-1 text-[11px] font-bold text-primary/70 transition-colors hover:bg-background disabled:cursor-not-allowed disabled:opacity-40";
+  "inline-flex h-7 shrink-0 items-center justify-center rounded-md border border-outline bg-white px-2 text-[11px] font-bold leading-none text-primary/70 transition-colors hover:bg-background disabled:cursor-not-allowed disabled:opacity-40";
+const reorderButton =
+  "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-outline bg-white text-[12px] font-bold leading-none text-primary/70 transition-colors hover:bg-background disabled:cursor-not-allowed disabled:opacity-40";
 const dangerButton =
-  "rounded-md border border-red-200 bg-white px-2 py-1 text-[11px] font-bold text-red-700 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40";
+  "inline-flex h-7 shrink-0 items-center justify-center rounded-md border border-red-200 bg-white px-2 text-[11px] font-bold leading-none text-red-700 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40";
 
 function PicChips({ pics }: { pics: MetodeKerjaPicDto[] }) {
   if (pics.length === 0) {
@@ -133,7 +147,7 @@ function PicChips({ pics }: { pics: MetodeKerjaPicDto[] }) {
       {pics.map((pic) => (
         <span
           key={pic.user_id}
-          className="rounded-full bg-background px-2 py-1 text-[11px] font-semibold text-primary/70"
+          className="rounded-full bg-background px-2 py-0.5 text-[11px] font-semibold leading-tight text-primary/70"
         >
           {pic.name}
           {pic.status !== "active" ? (
@@ -165,7 +179,7 @@ function NoteCell({ note }: { note: string | null }) {
   return (
     <span
       title={note}
-      className="block max-w-[220px] overflow-hidden text-[11px] font-medium leading-relaxed text-primary/70 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:3]"
+      className="block max-w-[220px] overflow-hidden text-[11px] font-medium leading-snug text-primary/70 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]"
     >
       {note}
     </span>
@@ -259,17 +273,20 @@ export default function MetodeKerjaTable({
             const items = sub.items;
             return (
               <Fragment key={sub.id}>
-                <tr className="bg-background/40 transition-colors hover:bg-background/70">
-                  <td className={`${bodyCell} tabular-nums text-primary/45`}>
+                {/* Sub-kategori rows carry a light blue tint so the three levels
+                    stay readable at a glance: discipline header (dark), level 1
+                    (blue), level 2 items (white). */}
+                <tr className="bg-blue-50 transition-colors hover:bg-blue-100/70">
+                  <td className={`${bodyCell} tabular-nums text-blue-600/70`}>
                     {rowNumbers.get(subKategoriRowKey(sub.id))}
                   </td>
                   <td className={bodyCell}>
-                    <span className="font-mono text-[11px] font-bold text-primary/70">
+                    <span className="font-mono text-[11px] font-bold text-blue-800">
                       {sub.kode}
                     </span>
                   </td>
                   <th scope="row" className={`${bodyCell} pl-4 text-left`}>
-                    <span className="block font-bold text-primary">{sub.nama}</span>
+                    <span className="block font-bold text-blue-900">{sub.nama}</span>
                     {items.length === 0 ? (
                       <span className="mt-0.5 block text-[11px] font-medium italic text-amber-700">
                         Belum ada item
@@ -288,8 +305,8 @@ export default function MetodeKerjaTable({
                   <td className={`${bodyCell} tabular-nums text-primary/60`}>
                     {items.length}
                   </td>
-                  <td className={`${bodyCell} whitespace-nowrap text-right`}>
-                    <div className="flex flex-wrap items-center justify-end gap-1">
+                  <td className={`${actionBodyCell} whitespace-nowrap text-right`}>
+                    <div className={actionCell}>
                       {canManage ? (
                         <>
                           <button
@@ -328,7 +345,7 @@ export default function MetodeKerjaTable({
                             disabled={subIndex === 0 || reorderBusy}
                             aria-label={`Naikkan ${sub.nama}`}
                             title="Naikkan"
-                            className={actionButton}
+                            className={reorderButton}
                           >
                             ↑
                           </button>
@@ -340,7 +357,7 @@ export default function MetodeKerjaTable({
                             }
                             aria-label={`Turunkan ${sub.nama}`}
                             title="Turunkan"
-                            className={actionButton}
+                            className={reorderButton}
                           >
                             ↓
                           </button>
@@ -353,7 +370,7 @@ export default function MetodeKerjaTable({
                 {items.map((item, itemIndex) => (
                   <tr
                     key={item.id}
-                    className="transition-colors hover:bg-background/60"
+                    className="bg-white transition-colors hover:bg-background/60"
                   >
                     <td className={`${bodyCell} tabular-nums text-primary/40`}>
                       {rowNumbers.get(itemRowKey(item.id))}
@@ -379,7 +396,7 @@ export default function MetodeKerjaTable({
                     </td>
                     <td className={`${bodyCell} text-primary/40`}>{EMPTY_VALUE}</td>
                     <td className={`${bodyCell} whitespace-nowrap text-right`}>
-                      <div className="flex flex-wrap items-center justify-end gap-1">
+                      <div className={actionCell}>
                         {canManage ? (
                           <button
                             type="button"
@@ -408,7 +425,7 @@ export default function MetodeKerjaTable({
                               disabled={itemIndex === 0 || reorderBusy}
                               aria-label={`Naikkan ${item.nama}`}
                               title="Naikkan"
-                              className={actionButton}
+                              className={reorderButton}
                             >
                               ↑
                             </button>
@@ -422,7 +439,7 @@ export default function MetodeKerjaTable({
                               }
                               aria-label={`Turunkan ${item.nama}`}
                               title="Turunkan"
-                              className={actionButton}
+                              className={reorderButton}
                             >
                               ↓
                             </button>
@@ -457,7 +474,7 @@ function TableFrame({
 }) {
   return (
     <div className="overflow-x-auto rounded-2xl border border-outline/60 bg-white shadow-sm">
-      <table className="w-full min-w-[1080px] border-collapse text-left">
+      <table className="w-full min-w-[1180px] border-collapse text-left">
         <caption className="sr-only">
           Metode Kerja Standar — Disiplin {disiplinCode}. {disiplinName}.{" "}
           {subKategoriCount} sub-kategori.
@@ -485,7 +502,7 @@ function TableFrame({
             <th scope="col" className={`${headerCell} w-[64px]`}>
               Item
             </th>
-            <th scope="col" className={`${headerCell} w-[150px] text-right`}>
+            <th scope="col" className={`${headerCell} w-[240px] text-right`}>
               Aksi
             </th>
           </tr>

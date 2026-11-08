@@ -10,6 +10,16 @@
 | File baru | dokumen ini saja |
 | File diubah | **tidak ada** |
 
+> **RESOLUSI (8 November 2026).** Owner memilih **Opsi B** untuk MKS pada
+> 7 November 2026, lalu memutuskan KM mengikuti perilaku yang sama pada
+> 8 November 2026 (efektif Opsi C). Implementasi akhir:
+> `knowledgeOpen: isKnowledgeManagementPath(pathname)` dan
+> `metodeKerjaOpen: isMetodeKerjaPath(pathname)`, dengan parameter role dihapus
+> dari `getInitialSidebarAccordionState`. Matriks di §D dan klaim "default open"
+> di dokumen lain karenanya bersifat historis. Batasan §F.3 (tidak ada
+> auto-collapse antar-route dalam satu sesi) **tetap berlaku**. Detail:
+> `docs/design/MKS_P4_FINALIZATION.md` dan `DL-2026-11-08-01`.
+
 ---
 
 ## A. Executive Summary

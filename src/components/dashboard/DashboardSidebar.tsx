@@ -394,11 +394,13 @@ export type SidebarAccordionState = {
   engineeringDatabaseOpen: boolean;
 };
 
-// Initial accordion state: Knowledge Management is expanded by default for
-// every authorized role and stays independent of Program Kerja.
+// Initial accordion state: every accordion starts collapsed unless its own
+// route is active. Knowledge Management follows the same rule as Metode Kerja
+// Standar since 8 November 2026 (Owner decision); the permissive role fallback
+// that was introduced by DL-2026-11-04-15 no longer applies to the initial
+// state. The panels stay independent of each other.
 export function getInitialSidebarAccordionState(
   pathname: string,
-  userRole: string | undefined,
 ): SidebarAccordionState {
   const isLandingRoute = landingSubMenu.some(
     (item) => pathname === item.href || pathname.startsWith(`${item.href}/`),
@@ -410,12 +412,10 @@ export function getInitialSidebarAccordionState(
   return {
     landingOpen: isLandingRoute,
     programKerjaOpen: isProgramKerjaRoute,
-    knowledgeOpen:
-      isKnowledgeManagementPath(pathname) ||
-      canViewKnowledgeManagement(userRole ?? ""),
-    // MKS is deliberately asymmetric with KM: it starts collapsed and only
-    // opens on an active MKS route (P4 Sub-Fase D). KM's default-open behaviour
-    // is a separate governance decision (DL-2026-11-04-15) and stays as is.
+    // KM and MKS are both route-driven: an authorized role no longer opens the
+    // accordion implicitly. `canViewKnowledgeManagement`/`canViewMetodeKerja`
+    // still gate visibility (getSidebarVisibility), not the initial expansion.
+    knowledgeOpen: isKnowledgeManagementPath(pathname),
     metodeKerjaOpen: isMetodeKerjaPath(pathname),
     masterProjectOpen: pathname.startsWith("/dashboard/master-project"),
     engineeringDatabaseOpen: pathname.startsWith("/dashboard/engineering-database"),
@@ -458,7 +458,7 @@ export default function DashboardSidebar({
   const isEngineeringDatabaseRoute = pathname.startsWith(
     "/dashboard/engineering-database",
   );
-  const initialAccordions = getInitialSidebarAccordionState(pathname, userRole);
+  const initialAccordions = getInitialSidebarAccordionState(pathname);
   const [landingOpen, setLandingOpen] = useState(initialAccordions.landingOpen);
   const [programKerjaOpen, setProgramKerjaOpen] = useState(
     initialAccordions.programKerjaOpen,

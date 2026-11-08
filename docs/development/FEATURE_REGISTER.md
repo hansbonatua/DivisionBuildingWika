@@ -25,6 +25,7 @@ Status memakai: `COMPLETE AND VERIFIED` · `IMPLEMENTED BUT NOT FULLY VERIFIED` 
 | `ENT-MSL` | MSL Engineering (protected) | Enterprise | COMPLETE AND VERIFIED | — |
 | `ENT-ORG` | Struktur Organisasi (protected) | Enterprise | COMPLETE AND VERIFIED | — |
 | `ENT-KNOW` | **Knowledge Management V2** (Lesson Learn, Best Practice / KI KM, VA/VE) | Enterprise | **IMPLEMENTED BUT NOT FULLY VERIFIED** — V1→V2 via drop+rebuild; `0015_knowledge_management_v2_fresh` APPLIED 2026-11-05; Admin PASS, HO/Mgmt/Project BLOCKED (credentials). Enhancement 2026-11-05: View modal, PDF (tabel + per-record), filter tahun, search proyek. Runtime PASS (Owner confirmed). Lihat DL-2026-11-05-03 | belum di-commit |
+| `ENT-MKS` | **Metode Kerja Standar** (summary + 6 disiplin A–F, PIC multi, reorder, PDF) | Enterprise | **IMPLEMENTED BUT NOT FULLY VERIFIED** — `0016_metode_kerja_standar` APPLIED; static checks PASS (115/115); runtime fitur Owner confirmed, penyesuaian UI tabel belum diverifikasi visual. lihat `DL-2026-11-08-01` | belum di-commit |
 | `ENT-SASAA` | Dashboard SASAA | Enterprise | NOT STARTED | — |
 | `GOV-WIBEX-001` | **WIBEX Development Governance** — standar organization-wide | Governance | **IMPLEMENTED BUT NOT FULLY VERIFIED — READY FOR OWNER REVIEW** — preliminary review selesai; koreksi diterapkan; final review & approval Owner pending | belum di-commit |
 

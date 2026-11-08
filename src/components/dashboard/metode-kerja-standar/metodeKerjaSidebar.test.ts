@@ -106,37 +106,29 @@ test("isMetodeKerjaPath scopes only the MKS namespace", () => {
 });
 
 test("MKS starts collapsed on every non-MKS route", () => {
-  // Opsi B: MKS follows the P4 Sub-Fase D design (default collapsed) instead of
-  // the KM pattern, so an authorized role no longer opens it implicitly.
-  for (const role of ["Admin", "Head Office", "Management", "Project"]) {
+  // Expansion is purely route-driven, so there is no role fallback left to test.
+  for (const pathname of [
+    "/dashboard",
+    "/dashboard/users",
+    "/dashboard/knowledge-management/lesson-learn",
+    "/dashboard/program-kerja/summary",
+  ]) {
     assert.equal(
-      getInitialSidebarAccordionState("/dashboard", role).metodeKerjaOpen,
+      getInitialSidebarAccordionState(pathname).metodeKerjaOpen,
       false,
-      `${role} must not get MKS auto-expanded on /dashboard`,
+      `${pathname} must not expand MKS`,
     );
   }
-
-  assert.equal(
-    getInitialSidebarAccordionState("/dashboard/users", "Head Office").metodeKerjaOpen,
-    false,
-  );
-  assert.equal(
-    getInitialSidebarAccordionState(
-      "/dashboard/knowledge-management/lesson-learn",
-      "Head Office",
-    ).metodeKerjaOpen,
-    false,
-  );
 });
 
 test("MKS opens automatically on an active MKS route", () => {
-  for (const [path, role] of [
-    ["/dashboard/metode-kerja-standar/summary", "Head Office"],
-    ["/dashboard/metode-kerja-standar/c-mep", "Project"],
-    ["/dashboard/metode-kerja-standar/f-lainnya", "Management"],
-  ] as const) {
+  for (const path of [
+    "/dashboard/metode-kerja-standar/summary",
+    "/dashboard/metode-kerja-standar/c-mep",
+    "/dashboard/metode-kerja-standar/f-lainnya",
+  ]) {
     assert.equal(
-      getInitialSidebarAccordionState(path, role).metodeKerjaOpen,
+      getInitialSidebarAccordionState(path).metodeKerjaOpen,
       true,
       `${path} should expand MKS`,
     );
@@ -146,27 +138,28 @@ test("MKS opens automatically on an active MKS route", () => {
 test("expanding MKS does not drag the other modules open", () => {
   const onRoute = getInitialSidebarAccordionState(
     "/dashboard/metode-kerja-standar/c-mep",
-    "Project",
   );
 
   assert.equal(onRoute.metodeKerjaOpen, true);
   assert.equal(onRoute.programKerjaOpen, false);
   assert.equal(onRoute.masterProjectOpen, false);
   assert.equal(onRoute.engineeringDatabaseOpen, false);
-  // KM keeps its governance-approved default-open behaviour.
-  assert.equal(onRoute.knowledgeOpen, true);
+  // KM follows the same route-driven rule since the 8 November 2026 decision,
+  // so an MKS route must not drag it open either.
+  assert.equal(onRoute.knowledgeOpen, false);
 });
 
 test("the MKS initial state is route-driven, not role-driven", () => {
-  // Even an unauthorized role resolves the same route-based value; visibility
-  // (showMetodeKerja) is what decides whether the panel is rendered at all.
+  // A role without METODE_KERJA_VIEW resolves the same route-based value;
+  // visibility (showMetodeKerja) is what decides whether the panel renders.
+  assert.equal(getSidebarVisibility("Guest", false).showMetodeKerja, false);
   assert.equal(
-    getInitialSidebarAccordionState("/dashboard/metode-kerja-standar/summary", "Guest")
+    getInitialSidebarAccordionState("/dashboard/metode-kerja-standar/summary")
       .metodeKerjaOpen,
     true,
   );
   assert.equal(
-    getInitialSidebarAccordionState("/dashboard", "Guest").metodeKerjaOpen,
+    getInitialSidebarAccordionState("/dashboard").metodeKerjaOpen,
     false,
   );
 });
