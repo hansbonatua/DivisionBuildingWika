@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { DISIPLIN_LIST } from "@/lib/metode-kerja-standar/constants";
 import {
+  buildSummaryTree,
   filterSummaryRows,
   type SummaryFilter,
   type SummaryRow,
@@ -19,10 +20,21 @@ import {
 // All six disciplines always appear, including empty ones: F. Lainnya stays
 // visible with "Belum ada sub-kategori" / "Belum ada item" instead of being
 // dropped (D-D-03).
+//
+// Rows are grouped under one full-width discipline header (A. Struktur,
+// B. Perencanaan, …) the way Program Kerja does it, so the discipline is no
+// longer repeated in every row. Grouping runs on the already-filtered rows, so
+// a PIC/search filter never resurrects a discipline the filter excluded.
 
 const headerCell =
   "whitespace-nowrap border-b border-outline bg-background px-3 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-primary/60";
 const bodyCell = "border-b border-outline/50 px-3 py-3 align-top text-xs text-primary/80";
+const disiplinHeaderCell =
+  "border-y border-primary/30 bg-primary px-4 py-2 text-left text-xs font-bold uppercase tracking-wide text-white";
+
+// Sub-Kategori, Item, PIC, Evidence, Status: Disiplin moved into the group
+// header row below, so it no longer needs a column of its own.
+export const SUMMARY_COLUMN_COUNT = 5;
 
 const EMPTY_FILTERS: SummaryFilter = {
   disiplin: "",
@@ -40,17 +52,6 @@ export function summaryStatusClass(status: SummaryRowStatus): string {
   if (status === "item") return "border-green-200 bg-green-50 text-green-800";
   if (status === "sub-kategori-kosong") return "border-amber-200 bg-amber-50 text-amber-800";
   return "border-slate-200 bg-slate-50 text-slate-600";
-}
-
-export function formatSummaryDate(iso: string | null): string {
-  if (!iso) return "—";
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return "—";
-  return date.toLocaleDateString("id-ID", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
 }
 
 export default function MetodeKerjaSummaryPage() {
@@ -116,6 +117,12 @@ export default function MetodeKerjaSummaryPage() {
     () => filterSummaryRows(rows, filters),
     [rows, filters],
   );
+
+  // Three-level tree (Disiplin → Sub-Kategori → Item) built from the filtered
+  // rows only: a discipline whose every row was filtered out produces no group,
+  // and `subKategori[].rows.length` is exactly the amount of rows that will be
+  // visible, i.e. the Sub-Kategori rowSpan. Shared with the PDF export.
+  const groupedRows = useMemo(() => buildSummaryTree(filteredRows), [filteredRows]);
 
   // PIC filter options come from the rows themselves: Summary is read-only and
   // /pic-options is a manage-only endpoint.
@@ -445,19 +452,16 @@ export default function MetodeKerjaSummaryPage() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1080px] border-collapse text-left">
+            <table className="w-full min-w-[960px] border-collapse text-left">
               <caption className="sr-only">
                 Summary Metode Kerja Standar per disiplin, sub-kategori, dan item
               </caption>
               <thead className="sticky top-0 z-20">
                 <tr>
-                  <th scope="col" className={`${headerCell} w-[190px]`}>
-                    Disiplin
-                  </th>
-                  <th scope="col" className={`${headerCell} min-w-[200px]`}>
+                  <th scope="col" className={`${headerCell} min-w-[220px]`}>
                     Sub-Kategori
                   </th>
-                  <th scope="col" className={`${headerCell} min-w-[220px]`}>
+                  <th scope="col" className={`${headerCell} min-w-[240px]`}>
                     Item
                   </th>
                   <th scope="col" className={`${headerCell} min-w-[190px]`}>
@@ -469,105 +473,119 @@ export default function MetodeKerjaSummaryPage() {
                   <th scope="col" className={`${headerCell} w-[130px]`}>
                     Status
                   </th>
-                  <th scope="col" className={`${headerCell} w-[120px]`}>
-                    Diperbarui
-                  </th>
                 </tr>
               </thead>
               <tbody>
-                {filteredRows.map((row, index) => {
-                  const key = `${row.disiplin.code}-${row.sub_kategori?.id ?? "none"}-${
-                    row.item?.id ?? "none"
-                  }-${index}`;
-                  return (
-                    <tr key={key} className="transition-colors hover:bg-background/60">
-                      <th scope="row" className={`${bodyCell} text-left`}>
-                        <span className="block text-[11px] font-bold text-primary/50">
-                          {row.disiplin.code}
-                        </span>
-                        <span className="block font-bold text-primary">
-                          {row.disiplin.name}
-                        </span>
+                {groupedRows.map((group) => (
+                  <Fragment key={group.code}>
+                    <tr>
+                      <th
+                        scope="colgroup"
+                        colSpan={SUMMARY_COLUMN_COUNT}
+                        className={disiplinHeaderCell}
+                      >
+                        {group.label}
                       </th>
-                      <td className={bodyCell}>
-                        {row.sub_kategori ? (
-                          <>
-                            <span className="block font-mono text-[11px] font-semibold text-primary/60">
-                              {row.sub_kategori.kode}
-                            </span>
-                            <span className="block font-semibold text-primary/85">
-                              {row.sub_kategori.nama}
-                            </span>
-                          </>
-                        ) : (
-                          <span className="italic text-primary/45">
-                            Belum ada sub-kategori
-                          </span>
-                        )}
-                      </td>
-                      <td className={bodyCell}>
-                        {row.item ? (
-                          <>
-                            <span className="block font-mono text-[11px] font-semibold text-primary/60">
-                              {row.item.kode}
-                            </span>
-                            <span className="block text-primary/85">{row.item.nama}</span>
-                          </>
-                        ) : (
-                          <span className="italic text-primary/45">Belum ada item</span>
-                        )}
-                      </td>
-                      <td className={bodyCell}>
-                        {row.pics.length === 0 ? (
-                          <span className="text-primary/40">—</span>
-                        ) : (
-                          <div className="flex flex-wrap gap-1">
-                            {row.pics.map((pic) => (
-                              <span
-                                key={pic.user_id}
-                                className="rounded-full bg-background px-2 py-1 text-[11px] font-semibold text-primary/70"
-                              >
-                                {pic.name}
-                                {pic.status !== "active" ? (
-                                  <span className="ml-1 font-medium text-primary/40">
-                                    (non-aktif)
-                                  </span>
-                                ) : null}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </td>
-                      <td className={bodyCell}>
-                        {row.evidence_url ? (
-                          <a
-                            href={row.evidence_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            title={row.evidence_url}
-                            className="block max-w-[200px] truncate text-[11px] font-semibold text-secondary underline decoration-secondary/30 underline-offset-2 hover:decoration-secondary"
-                          >
-                            {row.evidence_url}
-                          </a>
-                        ) : (
-                          <span className="text-primary/40">—</span>
-                        )}
-                      </td>
-                      <td className={bodyCell}>
-                        <span
-                          className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-bold ${summaryStatusClass(
-                            row.status,
-                          )}`}
-                        >
-                          {summaryStatusLabel(row.status)}
-                        </span>
-                      </td>
-                      <td className={`${bodyCell} text-[11px] text-primary/60`}>
-                        {formatSummaryDate(row.updated_at)}
-                      </td>
                     </tr>
-                  );
-                })}
+                    {group.empty ? (
+                      <tr className="bg-white">
+                        <td
+                          colSpan={SUMMARY_COLUMN_COUNT}
+                          className="border-b border-outline/50 px-4 py-3 text-xs italic text-primary/45"
+                        >
+                          Belum ada sub-kategori
+                        </td>
+                      </tr>
+                    ) : (
+                      group.subKategori.map((sub) =>
+                        sub.rows.map((row, index) => {
+                          const key = `${sub.key}-${row.item?.id ?? "none"}-${index}`;
+                          return (
+                            <tr
+                              key={key}
+                              className="bg-white transition-colors hover:bg-background/60"
+                            >
+                              {index === 0 ? (
+                                <td
+                                  rowSpan={sub.rows.length}
+                                  className="border-b border-outline/50 px-3 py-3 align-top text-xs text-primary/80"
+                                >
+                                  <span className="block font-mono text-[11px] font-semibold text-primary/60">
+                                    {sub.sub_kategori?.kode}
+                                  </span>
+                                  <span className="block font-semibold text-primary/85">
+                                    {sub.sub_kategori?.nama}
+                                  </span>
+                                </td>
+                              ) : null}
+                              <td className={bodyCell}>
+                                {row.item ? (
+                                  <>
+                                    <span className="block font-mono text-[11px] font-semibold text-primary/60">
+                                      {row.item.kode}
+                                    </span>
+                                    <span className="block text-primary/85">
+                                      {row.item.nama}
+                                    </span>
+                                  </>
+                                ) : (
+                                  <span className="italic text-primary/45">
+                                    Belum ada item
+                                  </span>
+                                )}
+                              </td>
+                              <td className={bodyCell}>
+                                {row.pics.length === 0 ? (
+                                  <span className="text-primary/40">—</span>
+                                ) : (
+                                  <div className="flex flex-wrap gap-1">
+                                    {row.pics.map((pic) => (
+                                      <span
+                                        key={pic.user_id}
+                                        className="rounded-full bg-background px-2 py-1 text-[11px] font-semibold text-primary/70"
+                                      >
+                                        {pic.name}
+                                        {pic.status !== "active" ? (
+                                          <span className="ml-1 font-medium text-primary/40">
+                                            (non-aktif)
+                                          </span>
+                                        ) : null}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                              </td>
+                              <td className={bodyCell}>
+                                {row.evidence_url ? (
+                                  <a
+                                    href={row.evidence_url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    title={row.evidence_url}
+                                    className="block max-w-[200px] truncate text-[11px] font-semibold text-secondary underline decoration-secondary/30 underline-offset-2 hover:decoration-secondary"
+                                  >
+                                    {row.evidence_url}
+                                  </a>
+                                ) : (
+                                  <span className="text-primary/40">—</span>
+                                )}
+                              </td>
+                              <td className={bodyCell}>
+                                <span
+                                  className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-bold ${summaryStatusClass(
+                                    row.status,
+                                  )}`}
+                                >
+                                  {summaryStatusLabel(row.status)}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        }),
+                      )
+                    )}
+                  </Fragment>
+                ))}
               </tbody>
             </table>
           </div>

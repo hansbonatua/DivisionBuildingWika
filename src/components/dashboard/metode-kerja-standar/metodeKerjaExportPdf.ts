@@ -1,6 +1,9 @@
 import { jsPDF } from "jspdf";
 import autoTable, { type CellInput, type Styles } from "jspdf-autotable";
-import type { SummaryRow } from "@/lib/metode-kerja-standar/summary";
+import {
+  buildSummaryTree,
+  type SummaryRow,
+} from "@/lib/metode-kerja-standar/summary";
 
 // Metode Kerja Standar Summary PDF export.
 //
@@ -20,6 +23,11 @@ import type { SummaryRow } from "@/lib/metode-kerja-standar/summary";
 // F. Lainnya always exists even when empty (D-D-03): an empty discipline still
 // produces one printable row whose Item cell reads "Belum ada item", so the
 // PDF is always generated, never skipped and never throws.
+//
+// Rows are grouped the way the on-screen Summary now shows them: each
+// discipline prints once as a merged, dark full-width header row, and its
+// sub-kategori/item rows follow underneath instead of repeating the
+// discipline in every row.
 
 const MARGIN = 12;
 const FOOTER_RESERVE = 18;
@@ -33,53 +41,41 @@ const MUTED_TEXT: [number, number, number] = [100, 116, 139];
 const BORDER_COLOR: [number, number, number] = [226, 232, 240];
 const HEAD_FILL: [number, number, number] = [241, 245, 249];
 const HEAD_TEXT: [number, number, number] = [51, 65, 85];
+// Same navy as --primary (#001f3f) so the printed group header matches the UI.
+const DISCIPLINE_FILL: [number, number, number] = [0, 31, 63];
+const WHITE_TEXT: [number, number, number] = [255, 255, 255];
 
 const EMPTY_VALUE = "—";
 const EMPTY_ITEM = "Belum ada item";
 const EMPTY_SUB_KATEGORI = "Belum ada sub-kategori";
 const CONTINUATION_BRAND = "WIKA - Metode Kerja Standar";
 
-// The ordinal "No" column is gone: Disiplin + Kode already identify a row, and
-// the freed width goes to the descriptive columns below.
-const TABLE_HEADERS = [
-  "Disiplin",
+// Disiplin is not a column: it prints once per group as a merged header row,
+// so the table keeps only the five descriptive columns.
+export const TABLE_HEADERS = [
   "Sub-Kategori",
   "Item",
   "PIC",
   "Evidence",
   "Status",
-  "Diperbarui",
 ];
 
 // Relative widths; scaled to the actual printable width so A4 and A3 both fill
 // the page instead of leaving a gap.
-const BASE_COLUMN_WIDTHS = [30, 48, 56, 46, 46, 28, 24];
+const BASE_COLUMN_WIDTHS = [46, 64, 48, 46, 26];
 
 export type SummaryPdfCells = {
-  disiplin: string;
   subKategori: string;
   item: string;
   pic: string;
   evidence: string;
   status: string;
-  updated: string;
 };
 
 export function summaryStatusLabel(status: SummaryRow["status"]): string {
   if (status === "item") return "Item";
   if (status === "sub-kategori-kosong") return "Tanpa item";
   return "Disiplin kosong";
-}
-
-export function formatSummaryDate(iso: string | null): string {
-  if (!iso) return EMPTY_VALUE;
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return EMPTY_VALUE;
-  return date.toLocaleDateString("id-ID", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
 }
 
 function formatPics(row: SummaryRow): string {
@@ -95,7 +91,6 @@ function formatPics(row: SummaryRow): string {
 // rendering (D-D-03) is testable without parsing PDF bytes.
 export function summaryPdfCells(row: SummaryRow): SummaryPdfCells {
   return {
-    disiplin: `${row.disiplin.code}. ${row.disiplin.name}`,
     subKategori: row.sub_kategori
       ? `${row.sub_kategori.kode} ${row.sub_kategori.nama}`
       : EMPTY_SUB_KATEGORI,
@@ -103,8 +98,84 @@ export function summaryPdfCells(row: SummaryRow): SummaryPdfCells {
     pic: formatPics(row),
     evidence: row.evidence_url ?? EMPTY_VALUE,
     status: summaryStatusLabel(row.status),
-    updated: formatSummaryDate(row.updated_at),
   };
+}
+
+// Body of the autoTable, built from the same Disiplin → Sub-Kategori → Item
+// tree the page renders.
+//
+// Each discipline contributes one merged, bold header row (a merged row, not a
+// second table, keeps page breaks, borders and column widths under autoTable's
+// control). Each sub-kategori prints its code/name once and its later item rows
+// leave the cell blank, which reads as one merged block and — unlike a real
+// `rowSpan` — survives a page break without losing the label.
+export function buildSummaryPdfBody(rows: readonly SummaryRow[]): CellInput[][] {
+  const body: CellInput[][] = [];
+
+  for (const group of buildSummaryTree(rows)) {
+    body.push([
+      {
+        content: group.label,
+        colSpan: TABLE_HEADERS.length,
+        styles: {
+          fillColor: DISCIPLINE_FILL,
+          textColor: WHITE_TEXT,
+          fontStyle: "bold",
+          fontSize: 7.5,
+          cellPadding: { top: 2.6, right: 1.8, bottom: 2.6, left: 1.8 },
+        },
+      },
+    ]);
+
+    if (group.empty) {
+      body.push([
+        {
+          content: EMPTY_SUB_KATEGORI,
+          colSpan: TABLE_HEADERS.length,
+          styles: {
+            fontStyle: "italic",
+            textColor: MUTED_TEXT,
+            cellPadding: { top: 2, right: 1.8, bottom: 2, left: 4 },
+          },
+        },
+      ]);
+      continue;
+    }
+
+    for (const sub of group.subKategori) {
+      sub.rows.forEach((row, index) => {
+        const cells = summaryPdfCells(row);
+        const empty = row.status !== "item";
+        body.push([
+          index === 0
+            ? {
+                content: cells.subKategori,
+                styles: { textColor: empty ? MUTED_TEXT : SLATE_TEXT },
+              }
+            : { content: "" },
+          {
+            content: cells.item,
+            styles: {
+              cellPadding: { top: 2, right: 1.8, bottom: 2, left: 4 },
+              textColor: empty ? MUTED_TEXT : SLATE_TEXT,
+              fontStyle: empty ? "italic" : "normal",
+            },
+          },
+          { content: cells.pic, styles: { fontSize: 6.8 } },
+          {
+            content: cells.evidence,
+            styles: { fontSize: 6.4, textColor: ACCENT },
+          },
+          {
+            content: cells.status,
+            styles: { fontSize: 6.4, textColor: MUTED_TEXT },
+          },
+        ]);
+      });
+    }
+  }
+
+  return body;
 }
 
 export function metodeKerjaSummaryPdfFileName(now: Date = new Date()): string {
@@ -166,41 +237,7 @@ export function buildMetodeKerjaSummaryPdf(
             },
           ],
         ]
-      : rows.map((row) => {
-          const cells = summaryPdfCells(row);
-          const empty = row.status !== "item";
-          return [
-            {
-              content: cells.disiplin,
-              styles: { fontStyle: "bold", textColor: NAVY },
-            },
-            {
-              content: cells.subKategori,
-              styles: { textColor: empty ? MUTED_TEXT : SLATE_TEXT },
-            },
-            {
-              content: cells.item,
-              styles: {
-                cellPadding: { top: 2, right: 1.8, bottom: 2, left: 4 },
-                textColor: empty ? MUTED_TEXT : SLATE_TEXT,
-                fontStyle: empty ? "italic" : "normal",
-              },
-            },
-            { content: cells.pic, styles: { fontSize: 6.8 } },
-            {
-              content: cells.evidence,
-              styles: { fontSize: 6.4, textColor: ACCENT },
-            },
-            {
-              content: cells.status,
-              styles: { fontSize: 6.4, textColor: MUTED_TEXT },
-            },
-            {
-              content: cells.updated,
-              styles: { fontSize: 6.4, textColor: MUTED_TEXT },
-            },
-          ];
-        });
+      : buildSummaryPdfBody(rows);
 
   autoTable(doc, {
     head: [TABLE_HEADERS],

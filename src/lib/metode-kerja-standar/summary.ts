@@ -127,6 +127,72 @@ export function buildMetodeKerjaSummary(
   return rows;
 }
 
+export type SummarySubKategoriGroup = {
+  key: string;
+  sub_kategori: { id: string; kode: string; nama: string } | null;
+  rows: SummaryRow[];
+};
+
+export type SummaryDisiplinGroup = {
+  code: DisiplinCode;
+  name: string;
+  label: string;
+  // True when the discipline has no sub-kategori at all: the report prints one
+  // full-width "Belum ada sub-kategori" row instead of an empty group.
+  empty: boolean;
+  subKategori: SummarySubKategoriGroup[];
+};
+
+// Three-level view of the flat rows: Disiplin → Sub-Kategori → Item.
+//
+// Built from whatever rows survive the filter, so a sub-kategori that has five
+// items but only two matching PICs still appears once with two rows — the UI
+// turns `rows.length` into the Sub-Kategori `rowSpan`. Shared by the page and
+// the PDF export so both always agree on the grouping.
+export function buildSummaryTree(
+  rows: readonly SummaryRow[],
+): SummaryDisiplinGroup[] {
+  const groups: SummaryDisiplinGroup[] = [];
+  const byCode = new Map<string, SummaryDisiplinGroup>();
+  const bySubKategori = new Map<string, SummarySubKategoriGroup>();
+
+  for (const row of rows) {
+    let group = byCode.get(row.disiplin.code);
+    if (!group) {
+      group = {
+        code: row.disiplin.code,
+        name: row.disiplin.name,
+        label: `${row.disiplin.code}. ${row.disiplin.name}`,
+        empty: false,
+        subKategori: [],
+      };
+      byCode.set(group.code, group);
+      groups.push(group);
+    }
+
+    if (!row.sub_kategori) {
+      // "disiplin-kosong": remembered by the final `empty` pass, not rendered
+      // as a sub-kategori block.
+      continue;
+    }
+
+    const key = `${row.disiplin.code}:${row.sub_kategori.id}`;
+    let sub = bySubKategori.get(key);
+    if (!sub) {
+      sub = { key, sub_kategori: row.sub_kategori, rows: [] };
+      bySubKategori.set(key, sub);
+      group.subKategori.push(sub);
+    }
+    sub.rows.push(row);
+  }
+
+  for (const group of groups) {
+    group.empty = group.subKategori.length === 0;
+  }
+
+  return groups;
+}
+
 export function filterSummaryRows(
   rows: readonly SummaryRow[],
   filter: SummaryFilter,

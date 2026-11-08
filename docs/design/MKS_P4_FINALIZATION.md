@@ -122,17 +122,31 @@ drift. PDF Summary juga kehilangan kolom "No" (lihat §C.1).
 
 ### C.1 PDF Summary
 
-`metodeKerjaExportPdf.ts` mencetak Summary (bukan tabel disiplin), dengan urutan
-kolom sebelumnya: No, Disiplin, Sub-Kategori, Item, PIC, Evidence, Status,
-Diperbarui.
+`metodeKerjaExportPdf.ts` mencetak Summary (bukan tabel disiplin). Sejak
+8 November 2026 tabelnya — di layar maupun di PDF — mengikuti pola Program
+Kerja: **Disiplin bukan kolom lagi**, melainkan baris header gelap selebar tabel
+(merged `colSpan`) yang diikuti baris sub-kategori/item miliknya. Urutan kolom
+final: **Sub-Kategori, Item, PIC, Evidence, Status**.
 
 | Aspek | Sesudah |
 |---|---|
-| `TABLE_HEADERS` | "No" dihapus; 7 kolom |
-| `BASE_COLUMN_WIDTHS` | `[9, 26, 46, 52, 44, 44, 28, 24]` → `[30, 48, 56, 46, 46, 28, 24]` |
-| `summaryPdfCells()` | tidak lagi menerima `index` dan tidak mengembalikan `no` |
-| Body autoTable | satu sel per kolom; `colSpan` empty-state memakai `TABLE_HEADERS.length` (otomatis 7) |
-| Kolom melebar | `columnWidths()` menskalakan lebar relatif ke lebar cetak, sehingga Disiplin/Sub-Kategori/Item mengisi ruang bekas kolom No |
+| `TABLE_HEADERS` | 5 kolom (Disiplin dan "No" tidak lagi menjadi kolom) |
+| `BASE_COLUMN_WIDTHS` | `[46, 64, 48, 46, 26]`, relatif lalu diskalakan ke lebar cetak |
+| Header disiplin | `buildSummaryPdfBody()` menyisipkan satu baris `colSpan: TABLE_HEADERS.length`, `fillColor #001f3f`, teks putih bold — sama dengan `--primary` di UI |
+| `buildSummaryTree()` | helper bersama (`lib/metode-kerja-standar/summary.ts`): Disiplin → Sub-Kategori → Item, dipakai UI dan PDF agar jumlah `rowSpan` selalu sama; urutan A→F mengikuti summary builder |
+| Sub-Kategori | dicetak sekali per blok; baris item berikutnya dibiarkan kosong (ekuivalen `rowSpan` UI, dan aman saat blok terpotong page break) |
+| `summaryPdfCells()` | hanya lima sel; `disiplin` dan `updated` tidak lagi menjadi sel |
+| Body autoTable | header disiplin + placeholder `colSpan` untuk disiplin kosong + baris item; empty-state memakai `TABLE_HEADERS.length` |
+| Kolom "Diperbarui" | tidak dicetak lagi karena desain final lima kolom; tanggal export tetap ada di header/footer PDF |
+
+Di UI, `MetodeKerjaSummaryPage.tsx` memakai `SUMMARY_COLUMN_COUNT = 5` untuk
+`colSpan` header disiplin, sel Sub-Kategori memakai `rowSpan={sub.rows.length}`
+hanya pada baris pertama, dan disiplin tanpa sub-kategori menjadi satu baris
+`colSpan={5}` berisi "Belum ada sub-kategori". Grouping dijalankan pada
+`filteredRows` (bukan data mentah), sehingga filter Disiplin/PIC/Search tetap
+menentukan isi blok: sub-kategori dengan lima item yang hanya dua lolos filter
+PIC tampil dengan `rowSpan={2}` — bukan lima. Disiplin yang seluruh barisnya
+tersaring tidak muncul sebagai "Belum ada item".
 
 **Tidak berubah:** struktur tiga level (header disiplin → sub-kategori → item),
 `colSpan` header disiplin, inden `pl-4`/`pl-10`, empty state, `aria-label` setiap
