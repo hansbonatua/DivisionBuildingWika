@@ -24,8 +24,8 @@ Status memakai: `COMPLETE AND VERIFIED` · `IMPLEMENTED BUT NOT FULLY VERIFIED` 
 | `ENT-ENGDB` | Engineering Databases | Enterprise | COMPLETE AND VERIFIED | — |
 | `ENT-MSL` | MSL Engineering (protected) | Enterprise | COMPLETE AND VERIFIED | — |
 | `ENT-ORG` | Struktur Organisasi (protected) | Enterprise | COMPLETE AND VERIFIED | — |
-| `ENT-KNOW` | **Knowledge Management V2** (Lesson Learn, Best Practice / KI KM, VA/VE) | Enterprise | **IMPLEMENTED BUT NOT FULLY VERIFIED** — V1→V2 via drop+rebuild; `0015_knowledge_management_v2_fresh` APPLIED 2026-11-05; Admin PASS, HO/Mgmt/Project BLOCKED (credentials). Enhancement 2026-11-05: View modal, PDF (tabel + per-record), filter tahun, search proyek. Runtime PASS (Owner confirmed). Lihat DL-2026-11-05-03 | belum di-commit |
-| `ENT-MKS` | **Metode Kerja Standar** (summary + 6 disiplin A–F, PIC multi, reorder, PDF) | Enterprise | **IMPLEMENTED BUT NOT FULLY VERIFIED** — `0016_metode_kerja_standar` APPLIED; static checks PASS (115/115); runtime fitur Owner confirmed, penyesuaian UI tabel belum diverifikasi visual. lihat `DL-2026-11-08-01` | belum di-commit |
+| `ENT-KNOW` | **Knowledge Management V2** (Lesson Learn, Best Practice / KI KM, VA/VE) | Enterprise | **IMPLEMENTED & VERIFIED** — V1→V2 via drop+rebuild; `0015_knowledge_management_v2_fresh` APPLIED 2026-11-05; RBAC 4 role PASS (Admin, Head Office, Management, Project — Owner confirmed 2026-11-09). Enhancement 2026-11-05: View modal, PDF (tabel + per-record), filter tahun, search proyek. Lihat DL-2026-11-05-03, DL-2026-11-09-01 | belum di-commit |
+| `ENT-MKS` | **Metode Kerja Standar** (summary + 6 disiplin A–F, PIC multi, reorder, PDF) | Enterprise | **IMPLEMENTED & VERIFIED** — `0016_metode_kerja_standar` APPLIED; static checks PASS (122/122); runtime fitur, UI tabel (Summary grouping + merge Sub-Kategori) PASS; RBAC 4 role PASS (Owner confirmed 2026-11-09). Lihat `DL-2026-11-08-01`, `DL-2026-11-09-01` | belum di-commit |
 | `ENT-SASAA` | Dashboard SASAA | Enterprise | NOT STARTED | — |
 | `GOV-WIBEX-001` | **WIBEX Development Governance** — standar organization-wide | Governance | **IMPLEMENTED BUT NOT FULLY VERIFIED — READY FOR OWNER REVIEW** — preliminary review selesai; koreksi diterapkan; final review & approval Owner pending | belum di-commit |
 
@@ -59,11 +59,11 @@ Status memakai: `COMPLETE AND VERIFIED` · `IMPLEMENTED BUT NOT FULLY VERIFIED` 
 
 > **V2 (5 November 2026).** Model V1 digantikan **drop+rebuild**: multiple records per project/kategori, form modal Add/Edit, evidence exactly-one, optimistic concurrency berbasis `version` integer, dan permanent delete. `0015_knowledge_management_v2_fresh` **APPLIED** di `neondb`; journal 16 entry. Seluruh rincian V1 di bawah ditandai **SUPERSEDED** dan dipertahankan sebagai sejarah. V1.1: **SUPERSEDED by V2** — lihat `DL-2026-11-05-02` (commit V1 `c75d426` tercatat di `DL-2026-11-05-01`).
 >
-> **Status V2.** `IMPLEMENTED BUT NOT FULLY VERIFIED` — API 71/73 lalu dua temuan diperbaiki di E+ (updated_by null saat create, pesan validasi spesifik); concurrency 4/4 PASS; regresi 7/7 PASS; runtime browser Admin PASS (gate Owner); Head Office/Management/Project **BLOCKED** (tanpa kredensial).
+> **Status V2.** `IMPLEMENTED & VERIFIED` — API 71/73 lalu dua temuan diperbaiki di E+ (updated_by null saat create, pesan validasi spesifik); concurrency 4/4 PASS; regresi 7/7 PASS; runtime browser Admin PASS (gate Owner); RBAC 4 role PASS (Admin, Head Office, Management, Project — Owner confirmed 9 November 2026, `DL-2026-11-09-01`).
 
 ### Enhancement 2026-11-05 (P4) — View, PDF, Filter, Search
 
-**Status.** `IMPLEMENTED BUT NOT FULLY VERIFIED` — empat fitur enhancement terimplementasi; runtime Admin PASS (**Owner confirmed**); Head Office/Management/Project tetap **BLOCKED**. Detail: `DL-2026-11-05-03`.
+**Status.** `IMPLEMENTED & VERIFIED` — empat fitur enhancement terimplementasi; runtime Admin PASS; RBAC 4 role PASS (**Owner confirmed** 9 November 2026). Detail: `DL-2026-11-05-03`, `DL-2026-11-09-01`.
 
 **Perubahan.**
 - F-01: modal View read-only (`KnowledgeViewDialog`) dengan focus trap, Escape/backdrop, dan data dari record yang sudah dimuat (tanpa fetch baru).
@@ -109,7 +109,7 @@ Status memakai: `COMPLETE AND VERIFIED` · `IMPLEMENTED BUT NOT FULLY VERIFIED` 
 | KM-06 — pesan 409 Master Project | **FIXED** | Pesan menyebut Knowledge Management |
 | KM-08 — FK violation → 500 | **FIXED** | 23503/23001 dipetakan ke 409 dengan pesan jelas |
 
-**Status acceptance (4 November 2026).** Admin: **PASS**. Monotonic timestamp: **PASS** (unit + SQL proof). Uji HTTP dua penulis simultan: **NOT RUN** (tidak ada DB uji terisolasi; fixture produksi tambahan tidak disetujui). Head Office, Management, Project: **BLOCKED** (kredensial/handoff tidak tersedia).
+**Status acceptance (4 November 2026).** Admin: **PASS**. Monotonic timestamp: **PASS** (unit + SQL proof). Uji HTTP dua penulis simultan: **NOT RUN** (tidak ada DB uji terisolasi; fixture produksi tambahan tidak disetujui). Head Office, Management, Project: **PASS** — runtime 4 role **Owner confirmed** 9 November 2026 (pada pencatatan 4 November ketiganya belum diuji karena kredensial/handoff belum tersedia).
 
 **KM-04 — diputuskan 4 November 2026.** Owner menetapkan content **wajib** (bukan opsional), sehingga CHECK `knowledge_entries_content_check` dan `min(1)` di Zod **tetap dipertahankan**. Tidak ada migration yang diperlukan untuk content; migration `0014` hanya menambah penjaga PIC minimal satu.
 

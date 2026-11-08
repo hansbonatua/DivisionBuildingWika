@@ -491,7 +491,7 @@ Commit ini menutup rangkaian DL-01…DL-16 yang sebelumnya menyatakan "belum di-
 |---|---|
 | Feature ID | `ENT-KNOW` |
 | Tanggal | 5 November 2026 |
-| Status | **IMPLEMENTED BUT NOT FULLY VERIFIED** — Admin PASS; Head Office/Management/Project BLOCKED (credentials tidak tersedia); migration APPLIED |
+| Status | **IMPLEMENTED & VERIFIED** — Admin PASS; Head Office/Management/Project PASS (runtime 4 role, Owner confirmed 9 November 2026 — lihat `DL-2026-11-09-01`); migration APPLIED |
 | Commit | belum di-commit (instruksi: no commit/push) |
 | Branch | `main` |
 | Baseline | `c75d426` |
@@ -516,11 +516,11 @@ Commit ini menutup rangkaian DL-01…DL-16 yang sebelumnya menyatakan "belum di-
 | Concurrency test | 4/4 PASS |
 | Regression test | 7/7 PASS (MSL, Org, Program Kerja, Master Project, User, Landing CMS, Sidebar) |
 | Runtime browser | PASS (gate Owner) |
-| 4 role | Admin PASS; HO/Mgmt/Project BLOCKED |
+| 4 role | PASS — Admin, Head Office, Management, Project (diverifikasi 9 November 2026) |
 | Cleanup | PASS — 0 record, 0 test project, users identik, modul lain tidak berubah |
 
 ### Known limitations
-- Head Office, Management, Project: BLOCKED — tidak ada kredensial di `.env.local`/file secret; tidak ada impersonasi atau pembuatan user
+- Head Office, Management, Project: **PASS** sejak 9 November 2026 (runtime 4 role, Owner confirmed); sebelumnya tidak dapat diuji karena kredensial tidak tersedia dan tidak ada impersonasi pembuatan user
 - 4 drift `schema.ts` vs DB dari Sub-Fase M: diperbaiki di Sub-Fase F (termasuk snapshot `0015_snapshot.json`)
 - `drizzle.config.ts` tidak membaca `.env.local` otomatis — didokumentasikan di `docs/audit/13_DEPLOYMENT_AND_ENVIRONMENT_GUIDE.md`
 
@@ -538,7 +538,7 @@ Commit ini menutup rangkaian DL-01…DL-16 yang sebelumnya menyatakan "belum di-
 |---|---|
 | Feature ID | `ENT-KNOW` (enhancement) |
 | Tanggal | 5 November 2026 |
-| Status | **IMPLEMENTED BUT NOT FULLY VERIFIED** — Admin runtime PASS (Owner confirmed); HO/Mgmt/Project BLOCKED (credentials, Owner accepted); enhancement 4 fitur terimplementasi |
+| Status | **IMPLEMENTED & VERIFIED** — Admin runtime PASS (Owner confirmed); HO/Mgmt/Project PASS (runtime 4 role, Owner confirmed 9 November 2026); enhancement 4 fitur terimplementasi |
 | Commit | belum di-commit (instruksi: no commit/push) |
 | Branch | `main` |
 | Baseline | `303ca9b` + enhancement A→D (uncommitted) |
@@ -566,14 +566,14 @@ Commit ini menutup rangkaian DL-01…DL-16 yang sebelumnya menyatakan "belum di-
 | Runtime Admin 4 fitur enhancement | PASS | **Owner confirmed** |
 | Runtime regression Form/Delete/Table | PASS | **Owner confirmed** |
 | Runtime PDF View + Download | PASS | **Owner confirmed** |
-| 4 role runtime | Admin PASS; HO/Mgmt/Project BLOCKED | **Owner confirmed** |
+| 4 role runtime | PASS — Admin, Head Office, Management, Project | **Owner confirmed** (9 November 2026) |
 | Cleanup DB | PASS | **Owner confirmed** |
 
 ### Catatan sumber runtime
 Runtime test dilakukan oleh Owner di browser sendiri. Freebuff tidak dapat menjalankan runtime karena kredensial Admin tidak tersedia untuk Freebuff. Owner mengonfirmasi hasil runtime PASS untuk Sub-Fase B, C, dan D sebelum dokumentasi ini ditulis. Ini sesuai governance §11.3.
 
 ### Known limitations
-- 3 role BLOCKED — credentials tidak tersedia (Owner accepted 2026-11-05, follow-up RB-21)
+- RBAC 4 role **PASS** sejak 9 November 2026 (Admin, Head Office, Management, Project) — catatan lama "3 role BLOCKED" / follow-up RB-21 ditutup
 - File naming collision (dua download detik sama) — konsekuensi requirement, risiko sangat rendah
 - jsPDF test smoke PASS di Node; wrapper browser hanya manual test (Owner confirmed)
 
@@ -591,7 +591,7 @@ Runtime test dilakukan oleh Owner di browser sendiri. Freebuff tidak dapat menja
 |---|---|
 | Feature ID | `ENT-MKS` |
 | Tanggal | 8 November 2026 |
-| Status | **IMPLEMENTED BUT NOT FULLY VERIFIED** — static checks PASS; runtime visual menunggu Owner |
+| Status | **IMPLEMENTED & VERIFIED** — static checks PASS; runtime visual tabel dan RBAC 4 role PASS (Owner confirmed 9 November 2026) |
 | Commit | belum di-commit (instruksi: no commit/push/deploy) |
 | Branch | `main` |
 | Baseline | `ea70ba2` + MKS A–D (uncommitted); migration `0016` APPLIED |
@@ -618,9 +618,53 @@ Runtime test dilakukan oleh Owner di browser sendiri. Freebuff tidak dapat menja
 | `npm test` | 115/115 PASS (30 suite) | Freebuff |
 | `git diff --check` | PASS | Freebuff |
 | Migration `0016` | APPLIED sebelum fase ini; tidak dijalankan ulang | Freebuff |
-| Runtime visual tabel | NOT RUN | menunggu Owner |
+| Runtime visual tabel (Summary + Disiplin merge) | PASS | **Owner confirmed** (9 November 2026) |
+| RBAC 4 role (Admin, Head Office, Management, Project) | PASS | **Owner confirmed** (9 November 2026) — lihat `DL-2026-11-09-01` |
 
 ### Batasan
 - Tidak ada commit/push/deploy/migration
 - Tidak ada dependency baru, tidak ada auto-collapse logic
 - Kolom Aksi 200px menyimpang dari P3 H.2 (140px) agar toolbar tidak membungkus
+
+---
+
+## DL-2026-11-09-01 — RBAC 4 Roles Verification (MKS & KM V2)
+
+| Field | Nilai |
+|---|---|
+| Feature ID | `ENT-MKS`, `ENT-KNOW` |
+| Tanggal | 9 November 2026 |
+| Status | **IMPLEMENTED & VERIFIED** — RBAC 4 role PASS di runtime; tidak ada temuan |
+| Commit | belum di-commit (instruksi: no commit/push) |
+| Branch | `main` |
+| Baseline | `ea70ba2` + MKS P4 (uncommitted), termasuk redesign Summary dan merge Sub-Kategori tabel Disiplin |
+
+### Perubahan
+- Verifikasi runtime 4 role oleh Owner untuk Metode Kerja Standar (MKS) dan Knowledge Management V2 (KM V2).
+- Tiga role yang sebelumnya **BLOCKED** (Head Office, Management, Project) kini **PASS**; tidak ada perubahan source code, API, database, atau UI pada entri ini (murni dokumentasi).
+
+### Hasil RBAC
+| Role | MKS | KM V2 | Cakupan yang diverifikasi |
+|---|---|---|---|
+| Admin | PASS | PASS | Full CRUD: create, update, delete, reorder (sub-kategori, item, PIC) |
+| Head Office | PASS | PASS | CRUD tanpa Delete — tombol Hapus tidak tersedia, API menolak |
+| Management | PASS | PASS | Read-only — tanpa tombol mutasi dan tanpa endpoint mutasi |
+| Project | PASS | PASS | Read-only — termasuk tidak membuka modul/menu yang tidak diizinkan |
+
+### Verifikasi
+| Pemeriksaan | Hasil | Sumber |
+|---|---|---|
+| `npx tsc --noEmit` | PASS | Freebuff |
+| `npm test` | 122/122 PASS (30 suite) | Freebuff |
+| `git diff --check` | PASS | Freebuff |
+| Runtime 4 role MKS | PASS | **Owner confirmed** |
+| Runtime 4 role KM V2 | PASS | **Owner confirmed** |
+
+### Dampak dokumentasi
+- `FEATURE_REGISTER.md`: `ENT-KNOW` dan `ENT-MKS` menjadi **IMPLEMENTED & VERIFIED**; catatan BLOCKED pada bagian RBAC dihapus.
+- `CURRENT_PROJECT_STATE.md`: status proyek menjadi **FULLY VERIFIED**; known limitation "3 role BLOCKED" dihapus.
+- `DEVELOPMENT_MASTER_LOG.md`: status akhir `DL-2026-11-05-02`, `DL-2026-11-05-03`, dan `DL-2026-11-08-01` diperbarui; fakta historis kapan role diuji tetap dicatat apa adanya.
+
+### Batasan
+- Tidak ada commit/push/deploy
+- Tidak ada perubahan source code, API, DB, UI, atau dependency
