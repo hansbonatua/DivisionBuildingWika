@@ -115,10 +115,18 @@ padding sel).
 
 **Penghapusan kolom No (8 November 2026).** Desain P3 Section H memakai delapan
 kolom dengan "No" di paling kiri. Owner menghapusnya karena identifikasi baris
-sudah jelas lewat Kode (A.1, A.4.2, …). Urutan final tujuh kolom: **Kode, Nama,
-PIC, Evidence, Catatan, Item, Aksi**; `DISIPLIN_ROW_COLUMN_COUNT` menjadi 7 dan
-dipakai oleh header disiplin serta empty state, sehingga `colSpan` tidak bisa
-drift. PDF Summary juga kehilangan kolom "No" (lihat §C.1).
+sudah jelas lewat Kode (A.1, A.4.2, …).
+
+**Merge Sub-Kategori (8 November 2026).** Mengikuti pola Summary Report, sel
+Sub-Kategori menjadi satu sel `rowSpan={items.length + 1}` (kode + nama + catatan
+"Belum ada item") sehingga identitasnya tidak diulang pada setiap item. Karena
+sel `rowSpan` menempati kolomnya di semua baris yang dicakup, item memakai kolom
+**Item** (kode + nama) dan sub-kategori tidak punya baris item sendiri. Urutan
+final tujuh kolom: **Sub-Kategori, Item, PIC, Evidence, Catatan, Jumlah, Aksi**;
+`DISIPLIN_ROW_COLUMN_COUNT` tetap 7 dan dipakai oleh header disiplin serta empty
+state, sehingga `colSpan` tidak bisa drift. Inden `pl-4`/`pl-10` dihapus karena
+hierarki kini dibawa oleh rel biru sel yang di-merge (`bg-blue-50` + border bawah
+tunggal, tanpa garis ganda). PDF Summary juga kehilangan kolom "No" (lihat §C.1).
 
 ### C.1 PDF Summary
 

@@ -10,10 +10,13 @@ import type {
 
 // Three-level Metode Kerja Standar table (P3 Section H).
 //
-// One <tbody> per discipline: a full-width discipline header row, then
-// sub-kategori rows (level 1, bold, pl-4) each followed by their items (level
-// 2, pl-10). A sub-kategori without items is never hidden: it keeps its row,
-// shows 0 in the Item column and a "Belum ada item" note under its name.
+// One <tbody> per discipline: a full-width discipline header row, then one block
+// per sub-kategori. The sub-kategori's code and name sit in a single cell that
+// spans its own row plus every item row below it (`rowSpan = items.length + 1`),
+// so the hierarchy reads as a block instead of repeating the sub-kategori on
+// each item. The spanning cell owns column 1, which is why item rows start in
+// the "Item" column. A sub-kategori without items keeps rowSpan 1 and shows
+// "Belum ada item" under its name.
 //
 // The pure row helpers at the top are exported so ordering/numbering
 // regressions can be tested without a DOM (the repository has no jsdom).
@@ -44,6 +47,12 @@ export function subKategoriRowKey(id: string): string {
 
 export function itemRowKey(id: string): string {
   return `item-${id}`;
+}
+
+// The merged Sub-Kategori cell covers its own row plus every item row below it.
+// Exported so the merge arithmetic is testable without a DOM.
+export function subKategoriRowSpan(sub: MetodeKerjaSubKategoriDto): number {
+  return sub.items.length + 1;
 }
 
 // Display order: each sub-kategori immediately followed by its own items.
@@ -273,23 +282,32 @@ export default function MetodeKerjaTable({
             const items = sub.items;
             return (
               <Fragment key={sub.id}>
-                {/* Sub-kategori rows carry a light blue tint so the three levels
-                    stay readable at a glance: discipline header (dark), level 1
-                    (blue), level 2 items (white). */}
+                {/* Level 1: the merged cell owns column 1 for this block, so the
+                    remaining cells start at the "Item" column. A light blue tint
+                    keeps the three levels readable: discipline header (dark),
+                    sub-kategori rail (blue), items (white). */}
                 <tr className="bg-blue-50 transition-colors hover:bg-blue-100/70">
-                  <td className={bodyCell}>
-                    <span className="font-mono text-[11px] font-bold text-blue-800">
+                  <th
+                    scope="rowgroup"
+                    rowSpan={subKategoriRowSpan(sub)}
+                    className="border-b border-outline/50 bg-blue-50 px-3 py-2 align-top text-left text-xs font-normal text-primary/80"
+                  >
+                    <span className="block font-mono text-[11px] font-bold text-blue-800">
                       {sub.kode}
                     </span>
-                  </td>
-                  <th scope="row" className={`${bodyCell} pl-4 text-left`}>
-                    <span className="block font-bold text-blue-900">{sub.nama}</span>
+                    <span className="mt-0.5 block font-bold text-blue-900">
+                      {sub.nama}
+                    </span>
                     {items.length === 0 ? (
                       <span className="mt-0.5 block text-[11px] font-medium italic text-amber-700">
                         Belum ada item
                       </span>
                     ) : null}
                   </th>
+                  {/* A sub-kategori has no item of its own. */}
+                  <td className={bodyCell}>
+                    <span className="text-primary/40">{EMPTY_VALUE}</span>
+                  </td>
                   <td className={`${bodyCell} min-w-[170px]`}>
                     <PicChips pics={sub.pics} />
                   </td>
@@ -369,13 +387,13 @@ export default function MetodeKerjaTable({
                     key={item.id}
                     className="bg-white transition-colors hover:bg-background/60"
                   >
-                    <td className={bodyCell}>
-                      <span className="font-mono text-[11px] font-medium text-primary/60">
+                    {/* Column 1 is covered by the sub-kategori cell above, so
+                        the item's code and name share the "Item" column. */}
+                    <th scope="row" className={`${bodyCell} text-left`}>
+                      <span className="block font-mono text-[11px] font-medium text-primary/60">
                         {item.kode}
                       </span>
-                    </td>
-                    <th scope="row" className={`${bodyCell} pl-10 text-left`}>
-                      <span className="block font-medium text-primary/90">
+                      <span className="mt-0.5 block font-medium text-primary/90">
                         {item.nama}
                       </span>
                     </th>
@@ -468,18 +486,18 @@ function TableFrame({
 }) {
   return (
     <div className="overflow-x-auto rounded-2xl border border-outline/60 bg-white shadow-sm">
-      <table className="w-full min-w-[1130px] border-collapse text-left">
+      <table className="w-full min-w-[1290px] border-collapse text-left">
         <caption className="sr-only">
           Metode Kerja Standar — Disiplin {disiplinCode}. {disiplinName}.{" "}
           {subKategoriCount} sub-kategori.
         </caption>
         <thead className="sticky top-0 z-20">
           <tr>
-            <th scope="col" className={`${headerCell} w-[100px]`}>
-              Kode
+            <th scope="col" className={`${headerCell} min-w-[260px]`}>
+              Sub-Kategori
             </th>
             <th scope="col" className={`${headerCell} min-w-[240px]`}>
-              Nama
+              Item
             </th>
             <th scope="col" className={`${headerCell} min-w-[170px]`}>
               PIC
@@ -491,7 +509,7 @@ function TableFrame({
               Catatan
             </th>
             <th scope="col" className={`${headerCell} w-[64px]`}>
-              Item
+              Jumlah
             </th>
             <th scope="col" className={`${headerCell} w-[240px] text-right`}>
               Aksi

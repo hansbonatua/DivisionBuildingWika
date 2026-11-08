@@ -6,6 +6,7 @@ import {
   itemReorderIds,
   moveWithin,
   subKategoriReorderIds,
+  subKategoriRowSpan,
 } from "@/components/dashboard/metode-kerja-standar/MetodeKerjaTable";
 import type {
   MetodeKerjaItemDto,
@@ -63,6 +64,16 @@ function makeSub(
 
 test("the discipline table renders seven columns (no ordinal column)", () => {
   assert.equal(DISIPLIN_ROW_COLUMN_COUNT, 7);
+});
+
+test("the merged sub-kategori cell spans its own row plus every item", () => {
+  assert.equal(subKategoriRowSpan(makeSub("s1", "A.1")), 1);
+  assert.equal(
+    subKategoriRowSpan(
+      makeSub("s2", "A.2", [makeItem("i1", "A.2.1"), makeItem("i2", "A.2.2")]),
+    ),
+    3,
+  );
 });
 
 test("buildTableRows puts each sub-kategori immediately before its own items", () => {
