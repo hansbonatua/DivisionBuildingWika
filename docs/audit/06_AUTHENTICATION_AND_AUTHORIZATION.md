@@ -195,15 +195,15 @@ Enhancement P4 tidak mengubah permission, guard, atau matriks §8. Yang berubah 
 
 | Role | Layout/halaman | GET list | POST/PUT/DELETE | `pic-options` | Verdict |
 |---|---|---|---|---|---|
-| Admin | ✔ | ✔ | ✔ | ✔ | Static PASS; runtime **NOT RUN** |
-| Head Office | ✔ | ✔ | ✔ (termasuk Delete) | ✔ | Static PASS; runtime **NOT RUN** |
-| Management | ✔ | ✔ | ✗ (403) | ✗ (403) | Static PASS; runtime **NOT RUN** |
-| Project | ✔ | ✔ | ✗ (403) | ✗ (403) | Static PASS; runtime **NOT RUN** |
+| Admin | ✔ | ✔ | ✔ | ✔ | **PASS** (Owner-confirmed) |
+| Head Office | ✔ | ✔ | ✔ (termasuk Delete) | ✔ | **PASS** (Owner-confirmed) |
+| Management | ✔ | ✔ | ✗ (403) | ✗ (403) | **PASS** — read-only (Owner-confirmed) |
+| Project | ✔ | ✔ | ✗ (403) | ✗ (403) | **PASS** — read-only (Owner-confirmed) |
 
 - **Guard berlapis:** `src/app/dashboard/calculation-sheet-template/layout.tsx` memanggil `getCurrentUser()` lalu `CALCULATION_SHEET_VIEW`; API memanggil `getActor()` lalu `assertViewAccess`/`assertManageAccess` di service. UI menyembunyikan tombol mutasi untuk Management/Project, tetapi server tetap menolak bila dipanggil langsung.
 - **Berbeda dari MKS:** Head Office memiliki full CRUD termasuk Delete (satu permission `CALCULATION_SHEET_MANAGE`), bukan pola "HO tanpa Delete".
 - **PIC:** hanya user role Head Office (termasuk suspended); status dikembalikan agar UI menandai "(non-aktif)". Management/Project tidak dapat memanggil `pic-options`.
-- **Status verifikasi:** static checks PASS (174/174). Migration `0017` belum di-apply sehingga RBAC runtime belum diuji; seluruh baris tabel di atas berstatus **NOT RUN**, bukan PASS. Detail: `DL-2026-11-09-02`.
+- **Status verifikasi:** static checks PASS (233/233 total; suite CST PASS). Migration `0017` **APPLIED**; runtime visual + RBAC 4 role **PASS** (Owner-confirmed 10 November 2026); seluruh baris tabel di atas PASS. Detail: `DL-2026-11-10-04`.
 
 ## 11. Project Documentation V1 + Monthly Delta (10 November 2026)
 

@@ -1,18 +1,16 @@
 # WIBEX DEVELOPMENT GOVERNANCE
 
-**Status:** READY FOR OWNER REVIEW
-**Proposed effective date:** 4 November 2026
+**Status:** APPROVED & EFFECTIVE
+**Effective date:** 10 November 2026
 **Owner:** Pemilik produk / pemilik proyek WIBEX
 **Applies to:** Seluruh proyek, modul, fitur, perubahan, dan pemeliharaan WIBEX
 **Canonical document:** dokumen ini
 **Operational companion:** [`WIBEX_ENGINEERING_WORKFLOW.md`](./WIBEX_ENGINEERING_WORKFLOW.md)
 **Prepared by:** Freebuff (implementer)
-**Technical review:** ChatGPT — preliminary review completed; final review pending
-**Approval:** Pending Owner
+**Technical review:** ChatGPT — preliminary review completed; Owner review completed 10 November 2026
+**Approval:** Owner (Hans) — 10 November 2026
 **Version:** 1.0
 
-> **Catatan status:** Dokumen ini **belum mengikat** sampai Owner memberikan final approval. `READY FOR OWNER REVIEW` berarti dokumen siap ditinjau, bukan sudah efektif.
->
 > **Prinsip utama:** **Freebuff mengerjakan. ChatGPT mengevaluasi. Owner menyetujui.**
 >
 > Tidak ada phase yang boleh melewati review gate. Tidak ada status PASS tanpa bukti yang benar-benar dijalankan.
@@ -583,7 +581,7 @@ Perubahan wajib:
 
 | Versi | Tanggal | Perubahan | Status |
 |---|---|---|---|
-| 1.0 | 4 November 2026 | Standar awal organization-wide; KM V1.1 sebagai pilot | READY FOR OWNER REVIEW |
+| 1.0 | 4 November 2026 | Standar awal organization-wide; KM V1.1 sebagai pilot; disetujui Owner 10 November 2026 | **APPROVED & EFFECTIVE** |
 
 ---
 
@@ -603,4 +601,4 @@ Dokumen governance ini dinyatakan lengkap bila:
 - [x] menetapkan KM V1.1 sebagai penerapan pertama, bukan batas;
 - [x] tidak mengubah source code, database, atau migration.
 
-**Status dokumen:** **READY FOR OWNER REVIEW**.
+**Status dokumen:** **APPROVED & EFFECTIVE** — Owner (Hans), 10 November 2026.

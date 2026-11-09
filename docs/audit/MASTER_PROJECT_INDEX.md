@@ -58,13 +58,13 @@
 
 | Dokumen | Isi | Status |
 |---|---|---|
-| [WIBEX_DEVELOPMENT_GOVERNANCE.md](../development/WIBEX_DEVELOPMENT_GOVERNANCE.md) | **Usulan standar kanonik organization-wide**: peran Owner/ChatGPT/Freebuff, lifecycle, review gate, evidence, change safety, Git/deploy, dokumentasi, acceptance | **READY FOR OWNER REVIEW — v1.0** |
-| [WIBEX_ENGINEERING_WORKFLOW.md](../development/WIBEX_ENGINEERING_WORKFLOW.md) | Prosedur operasional dan konteks teknis WIBEX; tunduk pada governance | Dokumen turunan |
+| [WIBEX_DEVELOPMENT_GOVERNANCE.md](../development/WIBEX_DEVELOPMENT_GOVERNANCE.md) | **Standar kanonik organization-wide**: peran Owner/ChatGPT/Freebuff, lifecycle, review gate, evidence, change safety, Git/deploy, dokumentasi, acceptance | **APPROVED & EFFECTIVE — v1.0 (Owner, 10 November 2026)** |
+| [WIBEX_ENGINEERING_WORKFLOW.md](../development/WIBEX_ENGINEERING_WORKFLOW.md) | Prosedur operasional dan konteks teknis WIBEX; tunduk pada governance | **APPROVED & EFFECTIVE — dokumen turunan resmi** |
 | [FEATURE_REGISTER.md](../development/FEATURE_REGISTER.md) | Register fitur dan status implementasi | Aktif |
 | [DEVELOPMENT_MASTER_LOG.md](../development/DEVELOPMENT_MASTER_LOG.md) | Riwayat perubahan kode/dokumentasi | Aktif |
 | [CURRENT_PROJECT_STATE.md](../development/CURRENT_PROJECT_STATE.md) | Snapshot kondisi proyek | Perlu pembaruan berkala |
 
-Kedudukan: governance adalah usulan otoritas proses sampai Owner menyetujui; workflow adalah prosedur operasional; dokumen audit adalah bukti kondisi aktual. Jika terjadi pertentangan, ikuti urutan precedence di governance §1.2 dan catat konfliknya.
+Kedudukan: governance adalah otoritas proses resmi yang berlaku efektif; workflow adalah prosedur operasional resmi; dokumen audit adalah bukti kondisi aktual. Jika terjadi pertentangan, ikuti urutan precedence di governance §1.2 dan catat konfliknya.
 
 ### Pemetaan ke daftar dokumen handoff yang diminta
 

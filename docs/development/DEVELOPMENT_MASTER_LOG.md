@@ -5,6 +5,70 @@ Dokumentasi audit repository ada di `docs/audit/`; dokumen ini mencatat **peruba
 
 ---
 
+## DL-2026-11-10-05 — WIBEX Governance & Engineering Workflow approved
+
+| Field | Nilai |
+|---|---|
+| Feature ID | `GOV-WIBEX-001` |
+| Tanggal | 10 November 2026 |
+| Status | **IMPLEMENTED & VERIFIED** — Governance dan Engineering Workflow **APPROVED & EFFECTIVE** oleh Owner (Hans), 10 November 2026 |
+| Commit | Tidak ada commit/push pada pass ini; baseline `8cfef26` |
+| Branch | `main` |
+| Dokumen | Governance, Workflow, Feature Register, Current State, Master Project Index, AI Handoff Guide |
+
+### Perubahan dokumentasi
+- **WIBEX Development Governance** dinaikkan dari status tinjauan Owner menjadi **`APPROVED & EFFECTIVE`**; approval Owner (Hans) dicatat 10 November 2026.
+- **WIBEX Engineering Workflow** menjadi dokumen operasional turunan resmi dengan status **`APPROVED & EFFECTIVE`**.
+- **Feature Register** `GOV-WIBEX-001` menjadi **`COMPLETE AND VERIFIED`**; **Current State**, **Master Project Index**, dan **AI Developer Handoff Guide** diselaraskan.
+- Tidak ada perubahan aturan, source code, database, migration, API, dependency, atau config.
+
+### Verifikasi
+| Pemeriksaan | Hasil | Sumber |
+|---|---|---|
+| Pemeriksaan status tinjauan lama | **0 match pada dokumen governance aktif**; sisa match hanya entri log/design historis | Freebuff |
+| `git diff --check` | **PASS** | Freebuff |
+| `git status --short` | Hanya file dokumentasi | Freebuff |
+
+### Batasan
+- Approval berasal dari keputusan Owner; Freebuff hanya memperbarui status dan metadata.
+- Tidak ada commit, push, deploy, migration, atau perubahan runtime pada pass ini.
+
+---
+
+## DL-2026-11-10-04 — CST runtime 4 role PASS
+
+| Field | Nilai |
+|---|---|
+| Feature ID | `ENT-CST` |
+| Tanggal | 10 November 2026 |
+| Status | **IMPLEMENTED & VERIFIED** — runtime browser 4 role PASS (Owner-confirmed 10 November 2026); static checks PASS; migration `0017` APPLIED |
+| Commit kode | `5636113` — `feat: core enterprise calculation sheet template v-1`; dokumentasi pass ini belum di-commit |
+| Branch | `main` |
+| Baseline | `8cfef26` |
+| Migration | `0017_calculation_sheet_templates` **APPLIED** (Owner-confirmed melalui runtime) |
+
+### Perubahan dokumentasi
+- **Status CST dinaikkan** dari `IMPLEMENTED BUT NOT FULLY VERIFIED` menjadi **`IMPLEMENTED & VERIFIED`** setelah Owner menjalankan runtime browser 4 role.
+- **Cakupan runtime PASS:** tujuh kategori, header kategori `colSpan`, dan navigasi sidebar per kategori; inline Create/Edit/Delete; URL invalid ditolak; duplikasi kode ditolak; Admin dan Head Office dapat mengedit, Management dan Project read-only.
+- **Migration `0017`** dinyatakan **APPLIED** karena CRUD runtime berhasil terhadap tabel CST.
+- **Dokumentasi yang disinkronkan:** current state, feature register, API, authentication/authorization, dan module inventory. Tidak ada perubahan kontrak API, source, schema, dependency, atau database.
+
+### Verifikasi
+| Pemeriksaan | Hasil | Sumber |
+|---|---|---|
+| Git baseline | `HEAD` = `origin/main` = `8cfef26`; working tree clean sebelum edit | Freebuff |
+| `npx tsc --noEmit` | **PASS** | Freebuff |
+| `npm test` | **233/233 PASS** (59 suite) | Freebuff |
+| `git diff --check` | **PASS** | Freebuff |
+| Runtime browser 4 role | **PASS** — seluruh cakupan di atas | **Owner-confirmed** (10 November 2026) |
+| Migration `0017` | **APPLIED** | Owner-confirmed melalui runtime |
+
+### Batasan
+- Runtime dijalankan Owner di browser; Freebuff tidak mereproduksi sesi 4 role pada pass dokumentasi ini.
+- Tidak ada commit, push, deploy, migration, seed, atau DB write pada pass ini.
+
+---
+
 ## DL-2026-11-10-03 — PDOC runtime 4 role PASS
 
 | Field | Nilai |

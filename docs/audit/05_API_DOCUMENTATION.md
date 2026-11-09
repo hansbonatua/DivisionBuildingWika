@@ -242,9 +242,9 @@ Lima endpoint, semuanya mengembalikan `Cache-Control: no-store`. Otorisasi diteg
 - Body `PUT` memakai `updateCalculationSheetTemplateSchema` (strict) dengan field yang sama **tanpa `kategori`**; mengirim `kategori` ditolak **400** karena kategori immutable.
 - `pic_user_id` divalidasi ke database: user harus ada dan role **Head Office** (status tidak difilter). User tidak ditemukan → **404**; role lain → **400**.
 - UNIQUE `(kategori, kode)` → **409** "Kode sudah dipakai pada kategori ini". FK `23503`/`23001` → **409** (PIC sudah tidak tersedia); CHECK `23514` → **400**.
-- Tidak ada upload, reorder, PDF, atau optimistic concurrency pada modul ini.
+- Tidak ada upload, reorder, atau optimistic concurrency; PDF Summary dibentuk client-side dan tidak menambah endpoint.
 
-**Status verifikasi.** Static checks PASS (174/174 test, termasuk test schema/service/error mapping CST). Migration `0017` **BELUM di-apply**; runtime API terhadap database dan browser **NOT RUN** (Owner pending). Detail: `DL-2026-11-09-02`.
+**Status verifikasi.** Static checks PASS (233/233 test total; suite schema/service/error mapping CST PASS). Migration `0017` **APPLIED** (terbukti dari CRUD runtime). Runtime API dan UI **PASS** (Owner-confirmed 10 November 2026) untuk tujuh kategori, header `colSpan`, navigasi sidebar per kategori, inline Create/Edit/Delete, penolakan URL invalid, penolakan duplikasi kode, dan RBAC 4 role: Admin/Head Office manage, Management/Project read-only. Detail: `DL-2026-11-10-04`.
 
 ## 17. Project Documentation V1 + Monthly Delta (10 November 2026)
 

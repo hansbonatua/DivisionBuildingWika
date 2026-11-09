@@ -1,8 +1,10 @@
 # CURRENT PROJECT STATE — BDWIKA / WIBEX
 
-Terakhir diperbarui: 10 November 2026 (PDOC V1 + Monthly Delta `IMPLEMENTED & VERIFIED`; runtime browser 4 role PASS, Owner-confirmed 10 November 2026; migration `0018` dan **0019 APPLIED**).
+Terakhir diperbarui: 10 November 2026 (PDOC V1 + Monthly Delta dan CST `IMPLEMENTED & VERIFIED`; runtime browser 4 role PASS, Owner-confirmed 10 November 2026; migration `0017`, `0018`, dan **0019 APPLIED**; WIBEX Governance & Workflow **APPROVED & EFFECTIVE**, Owner Hans, 10 November 2026).
 
-**Status proyek:** `PARTIALLY VERIFIED` — MKS, KM V2, dan PDOC `IMPLEMENTED & VERIFIED` (RBAC 4 role, Owner confirmed); CST `IMPLEMENTED BUT NOT FULLY VERIFIED`. Bukti: `DL-2026-11-09-01`, `DL-2026-11-09-02`, `DL-2026-11-10-03`.
+**Status proyek:** `PARTIALLY VERIFIED` — MKS, KM V2, PDOC, dan CST `IMPLEMENTED & VERIFIED` (RBAC 4 role, Owner confirmed); modul lain mengikuti status masing-masing. Bukti: `DL-2026-11-09-01`, `DL-2026-11-09-02`, `DL-2026-11-10-03`, `DL-2026-11-10-04`, `DL-2026-11-10-05`.
+
+**Tata kelola:** WIBEX Development Governance dan WIBEX Engineering Workflow **APPROVED & EFFECTIVE** — disetujui Owner (Hans), 10 November 2026.
 
 ## 1. Repository
 
@@ -11,24 +13,26 @@ Terakhir diperbarui: 10 November 2026 (PDOC V1 + Monthly Delta `IMPLEMENTED & VE
 | Root | `D:\MagangHub-Wika-StaffEngDigitalisasiBuilding\progress\bdwika` |
 | Branch | `main` (tracking `origin/main`) |
 | Baseline fitur | `a7527e1` — `feat: project documentation monthly recap and summary report` |
-| HEAD dokumentasi | `062f8d4` — `docs: mark PDOC 0019 migration applied` (`origin/main`) |
+| HEAD / origin/main | `8cfef26` — `chore: align sidebar text and elevate PDOC status to verified` |
 | Stack | Next.js 16.3.8 · React 19.2.8 · TypeScript 5.9.3 · Tailwind 4 · Drizzle ORM · PostgreSQL (Neon) · MongoDB · Vercel Blob |
 | Node / npm | v24 · npm 10 |
 | Dev server | tidak dikelola Freebuff pada E; runtime dilakukan Owner (Owner confirmed) |
-| Database | `neondb` (PostgreSQL 18.6), journal file **20 entry**; `0018_project_documentations` **APPLIED** (Owner-confirmed); **0019 APPLIED** — `0019_project_documentation_period` (Owner-confirmed 10 November 2026) |
+| Database | `neondb` (PostgreSQL 18.6), journal file **20 entry**; `0017_calculation_sheet_templates` **APPLIED** (Owner-confirmed melalui runtime 10 November 2026); `0018_project_documentations` **APPLIED**; **0019 APPLIED** — `0019_project_documentation_period` (Owner-confirmed 10 November 2026) |
 
 ## 2. Working Tree (clean at baseline)
 
-Baseline verifikasi: `HEAD` = `origin/main` = `062f8d4`; working tree clean sebelum pass dokumentasi final. Pass ini hanya mengubah dokumentasi dan **tidak** di-commit.
+Baseline verifikasi: `HEAD` = `origin/main` = `8cfef26`; working tree clean sebelum pass dokumentasi CST. Pass ini hanya mengubah dokumentasi dan **tidak** di-commit.
 
 | Item | Nilai |
 |---|---|
-| Commit fitur | `a7527e1` — `feat: project documentation monthly recap and summary report` |
-| Commit dokumentasi | `062f8d4` — `docs: mark PDOC 0019 migration applied` |
-| Range fitur | `5636113..a7527e1`; 41 file, +15.396 / −29 |
-| Isi commit | PDOC V1 + Monthly Delta, migration `0018`/`0019`, halaman Rekap Bulanan + Summary, sidebar accordion, dan sinkronisasi dokumen |
-| Status remote | `062f8d4` sudah di-push ke `origin/main` |
-| Migration | `0018` **APPLIED** (Owner-confirmed); `0019` **APPLIED** (Owner-confirmed 10 November 2026) |
+| Commit fitur PDOC | `a7527e1` — `feat: project documentation monthly recap and summary report` |
+| Commit fitur CST | `5636113` — `feat: core enterprise calculation sheet template v-1` |
+| Commit dokumentasi PDOC | `062f8d4` — `docs: mark PDOC 0019 migration applied` |
+| Baseline dokumentasi/UI | `8cfef26` — `chore: align sidebar text and elevate PDOC status to verified` |
+| Range fitur PDOC | `5636113..a7527e1`; 41 file, +15.396 / −29 |
+| Isi commit PDOC | PDOC V1 + Monthly Delta, migration `0018`/`0019`, halaman Rekap Bulanan + Summary, sidebar accordion, dan sinkronisasi dokumen |
+| Status remote | `8cfef26` sudah di-push ke `origin/main` |
+| Migration | `0017` **APPLIED** (Owner-confirmed melalui runtime); `0018` **APPLIED** (Owner-confirmed); `0019` **APPLIED** (Owner-confirmed 10 November 2026) |
 
 Detail file historis sebelum commit tersedia di Git history; jangan menyalin tabel working tree lama sebagai kondisi saat ini.
 
@@ -43,7 +47,8 @@ Detail file historis sebelum commit tersedia di Git history; jangan menyalin tab
 | ESLint (PDOC + sidebar) | `npx eslint src/lib/project-documentation src/app/api/project-documentation src/components/dashboard/project-documentation src/components/dashboard/DashboardSidebar.tsx src/components/dashboard/projectDocumentationSidebar.test.ts src/app/dashboard/project-documentation` | 0 | PASS |
 | Diff hygiene | `git diff --check` | 0 | PASS |
 | Drift Drizzle | `npx drizzle-kit generate` | — | tidak dijalankan pada task dokumentasi; snapshot `0019` tersedia |
-| Migration | `npx drizzle-kit migrate` | — | **0018 APPLIED** dan **0019 APPLIED** (Owner-confirmed 10 November 2026); tidak dijalankan pada task ini |
+| Migration | `npx drizzle-kit migrate` | — | **0017 APPLIED** (Owner-confirmed melalui runtime), **0018 APPLIED**, dan **0019 APPLIED** (Owner-confirmed 10 November 2026); tidak dijalankan pada task ini |
+| Runtime CST | Browser, 4 role | — | **PASS** (Owner-confirmed 10 November 2026) |
 | Runtime PDOC | Browser desktop + mobile, 4 role | — | **PASS** (Owner-confirmed 10 November 2026) |
 
 ## 4. Knowledge Management V2
@@ -60,6 +65,7 @@ Detail file historis sebelum commit tersedia di Git history; jangan menyalin tab
 
 ## 5. Kondisi yang Perlu Diketahui
 
+- WIBEX Development Governance dan Engineering Workflow resmi berlaku sebagai **APPROVED & EFFECTIVE** (Owner Hans, 10 November 2026); tidak ada perubahan aturan pada pass ini.
 - PDOC V1 + Monthly Delta sudah di-commit dan di-push (`a7527e1`); working tree bersih sebelum sinkronisasi dokumentasi P8.
 - Database KM dalam keadaan bersih: `knowledge_entries/pics/evidence = 0`, tidak ada project `ZZ-KM-TEST-*` (cleanup runtime **Owner confirmed**).
 - Tidak ada user baru, suspend, atau reset password selama pengujian; baseline user 10 akun tidak berubah.
@@ -78,18 +84,18 @@ Detail file historis sebelum commit tersedia di Git history; jangan menyalin tab
 - **Detail:** `docs/design/MKS_P4_FINALIZATION.md`; keputusan `DL-2026-11-08-01`.
 - **Known limitation:** tidak ada auto-collapse antar-route dalam satu sesi. RBAC 4 role sudah PASS (9 November 2026).
 
-## 7. Calculation Sheet Template (P4, 9 November 2026)
+## 7. Calculation Sheet Template (P4, 10 November 2026)
 
-**Status:** `IMPLEMENTED BUT NOT FULLY VERIFIED` — static checks PASS; migration `0017` belum di-apply; runtime API/DB dan visual browser **belum diuji**.
+**Status:** **`IMPLEMENTED & VERIFIED`** — static checks PASS; migration `0017` **APPLIED** (terbukti dari runtime CRUD); runtime browser 4 role PASS (Owner-confirmed 10 November 2026).
 
-- **Cakupan:** master reference flat satu halaman, tujuh kategori kanonik tanpa prefix (Arsitektur, Struktur, Infrastruktur, Geoteknik, Green Building, MEEP, Lainnya), tabel inline 6 kolom, tanpa modal/upload/reorder/PDF.
+- **Cakupan:** master reference flat, tujuh kategori kanonik tanpa prefix (Arsitektur, Struktur, Infrastruktur, Geoteknik, Green Building, MEEP, Lainnya), halaman Summary Report + route per kategori, tabel inline 6 kolom, dan header kategori `colSpan={6}`.
 - **Model:** `calculation_sheet_templates`; kode unik per kategori, satu PIC Head Office, evidence URL opsional (`http`/`https`, ≤2.048), catatan ≤2.000. Tanpa optimistic concurrency.
 - **API:** `GET` list flat, `POST` create (201), `PUT`/`DELETE` per id, `GET pic-options` (Manage-only) — seluruhnya `Cache-Control: no-store`.
 - **RBAC:** `CALCULATION_SHEET_VIEW` (Admin, Head Office, Management, Project); `CALCULATION_SHEET_MANAGE` (Admin, Head Office, termasuk delete). Layout guard + API service sama-sama menegakkan.
-- **UI:** 7 `<tbody>` dengan header kategori `colSpan={6}` dan anchor id; satu baris edit dan satu create draft pada satu waktu; error validasi/API tampil di bawah baris; submenu sidebar mengikuti hash.
-- **Migration:** `drizzle/0017_calculation_sheet_templates.sql` + snapshot tersedia; status apply `0017` tidak diverifikasi ulang pada task PDOC.
-- **Verifikasi:** `tsc` PASS, `eslint` PASS, `npm test` **174/174 PASS**, `git diff --check` PASS. Tidak ada perubahan source pada Sub-fase D CST.
-- **Detail:** `docs/design/CST_P2_AUDIT.md`, `docs/design/CST_P3_TECHNICAL_DESIGN.md`, `DL-2026-11-09-02`.
+- **UI:** satu tabel inline per kategori; satu baris edit dan satu create draft pada satu waktu; error validasi/API tampil di bawah baris; navigasi sidebar per kategori membuka accordion CST. Summary Report menyediakan rekap lintas kategori dan PDF client-side.
+- **Migration:** `drizzle/0017_calculation_sheet_templates.sql` + snapshot tersedia; `0017` **APPLIED** (Owner-confirmed melalui runtime 10 November 2026); journal 20 entry.
+- **Verifikasi:** `tsc` PASS, `eslint` PASS, `npm test` **233/233 PASS**, `git diff --check` PASS. Runtime browser 4 role **PASS** (Owner-confirmed 10 November 2026): tujuh kategori + header `colSpan` + sidebar; inline Create/Edit/Delete; URL invalid ditolak; duplikasi kode ditolak; Admin/Head Office manage, Management/Project read-only.
+- **Detail:** `DL-2026-11-10-04` (runtime PASS); `DL-2026-11-09-02` (historis); `docs/design/CST_P2_AUDIT.md`, `docs/design/CST_P3_TECHNICAL_DESIGN.md`.
 
 ## 8. Project Documentation (P4 + Monthly Delta, 10 November 2026)
 
@@ -107,5 +113,4 @@ Detail file historis sebelum commit tersedia di Git history; jangan menyalin tab
 
 ## 9. Langkah Berikutnya
 
-1. Final acceptance Owner/ChatGPT atas `DL-2026-11-10-03`.
-2. Runtime CST tetap menjadi pekerjaan terpisah dan tidak dinaikkan statusnya oleh task PDOC ini.
+1. Final acceptance Owner/ChatGPT atas `DL-2026-11-10-03` dan `DL-2026-11-10-04`.

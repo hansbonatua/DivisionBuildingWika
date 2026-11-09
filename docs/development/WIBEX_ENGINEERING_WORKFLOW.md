@@ -2,7 +2,7 @@
 
 ## Prosedur Kerja Pengembangan, Audit, Implementasi, dan Dokumentasi
 
-**Status:** READY FOR OWNER REVIEW — dokumen operasional turunan; berlaku setelah governance disetujui Owner
+**Status:** APPROVED & EFFECTIVE — dokumen operasional turunan resmi
 **Proyek:** BDWIKA / WIBEX
 **Bahasa dokumentasi:** Indonesia
 **Tujuan:** Menjadi acuan kerja operasional yang konsisten untuk setiap

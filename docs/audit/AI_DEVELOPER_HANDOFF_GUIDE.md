@@ -2,7 +2,7 @@
 
 Panduan kerja untuk AI coding agent / engineer berikutnya. Spesifik untuk repository ini, bukan panduan umum.
 
-> **Baca lebih dulu:** [`docs/development/WIBEX_DEVELOPMENT_GOVERNANCE.md`](../development/WIBEX_DEVELOPMENT_GOVERNANCE.md). Dokumen tersebut adalah usulan standar organization-wide untuk peran, review gate, bukti, change safety, Git/deploy, dokumentasi, dan final acceptance, berstatus **READY FOR OWNER REVIEW**. Setelah disetujui Owner, panduan teknis proyek ini tunduk pada governance tersebut; sebelum approval, jangan menganggapnya efektif.
+> **Baca lebih dulu:** [`docs/development/WIBEX_DEVELOPMENT_GOVERNANCE.md`](../development/WIBEX_DEVELOPMENT_GOVERNANCE.md). Dokumen tersebut adalah standar resmi organization-wide untuk peran, review gate, bukti, change safety, Git/deploy, dokumentasi, dan final acceptance, berstatus **APPROVED & EFFECTIVE** (Owner Hans, 10 November 2026). Panduan teknis proyek ini tunduk pada governance tersebut.
 
 ## 1. Identitas & Kondisi Awal
 
