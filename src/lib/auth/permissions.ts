@@ -47,6 +47,9 @@ export const PERMISSIONS = {
   METODE_KERJA_MANAGE: "METODE_KERJA_MANAGE",
   METODE_KERJA_DELETE: "METODE_KERJA_DELETE",
 
+  CALCULATION_SHEET_VIEW: "CALCULATION_SHEET_VIEW",
+  CALCULATION_SHEET_MANAGE: "CALCULATION_SHEET_MANAGE",
+
   MSL_VIEW: "MSL_VIEW",
   MSL_MANAGE: "MSL_MANAGE",
 
@@ -100,6 +103,12 @@ const NON_ADMIN_PERMISSION_ROLES: Record<Permission, readonly UserRole[]> = {
   METODE_KERJA_VIEW: [HEAD_OFFICE_ROLE, PROJECT_ROLE, MANAGEMENT_ROLE],
   METODE_KERJA_MANAGE: [HEAD_OFFICE_ROLE],
   METODE_KERJA_DELETE: [],
+
+  // Calculation Sheet Template is a FLAT master reference. Head Office has
+  // full CRUD (including delete, unlike MKS), Management and Project are
+  // read-only, and Admin receives both through the super-application rule.
+  CALCULATION_SHEET_VIEW: [HEAD_OFFICE_ROLE, PROJECT_ROLE, MANAGEMENT_ROLE],
+  CALCULATION_SHEET_MANAGE: [HEAD_OFFICE_ROLE],
 
   // MSL Engineering: Head Office is a ROLE-level read-only viewer. Management
   // is deliberately absent from both lists — a Management user is eligible only

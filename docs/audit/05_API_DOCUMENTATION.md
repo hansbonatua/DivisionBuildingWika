@@ -225,3 +225,23 @@ Enhancement P4 tidak menambah atau mengubah kontrak API. Filter tahun/proyek, mo
 - Tidak ada migration, tabel, atau kolom baru.
 
 **Status verifikasi.** `tsc`/`eslint`/`npm test` (60/60)/`git diff --check` PASS (Freebuff). Runtime Admin untuk View, filter, dan PDF PASS (**Owner confirmed**); Head Office/Management/Project tetap **BLOCKED**. Detail: `DL-2026-11-05-03`.
+
+## 16. Calculation Sheet Template (9 November 2026)
+
+Lima endpoint, semuanya mengembalikan `Cache-Control: no-store`. Otorisasi ditegakkan di service (`assertViewAccess`/`assertManageAccess`), bukan hanya di route.
+
+| Method | Path | Guard | Service | Efek |
+|---|---|---|---|---|
+| GET | `/api/calculation-sheet-template` | `getActor` + `CALCULATION_SHEET_VIEW` | `listTemplates` | **200** — `{ data: { rows } }`, daftar flat seluruh kategori, urut kategori → `lower(btrim(kode))` → id; grouping 7 kategori dilakukan UI |
+| POST | `/api/calculation-sheet-template` | `getActor` + `CALCULATION_SHEET_MANAGE` | `createTemplate` | **201** — `{ data }` row hasil join PIC/creator/updater |
+| GET | `/api/calculation-sheet-template/pic-options` | `getActor` + `CALCULATION_SHEET_MANAGE` | `listPicOptions` | **200** — `{ data }`: Head Office termasuk suspended (`{ user_id, name, status, position }`) |
+| PUT | `/api/calculation-sheet-template/[id]` | `getActor` + `CALCULATION_SHEET_MANAGE` | `updateTemplateById` | **200** — `{ data }`; UUID tidak valid → **400**, tidak ada → **404** |
+| DELETE | `/api/calculation-sheet-template/[id]` | `getActor` + `CALCULATION_SHEET_MANAGE` | `deleteTemplateById` | **200** — `{ data: { deleted: true, id } }`; tidak ada → **404** |
+
+- Body `POST` divalidasi `createCalculationSheetTemplateSchema` (strict): `kategori` ∈ tujuh id kanonik (`arsitektur`, `struktur`, `infrastruktur`, `geoteknik`, `green_building`, `meep`, `lainnya`), `kode` 1–30, `nama` 1–200, `pic_user_id` UUID, `evidence_url` opsional ≤2.048 dan hanya `http`/`https` absolut, `catatan` opsional ≤2.000.
+- Body `PUT` memakai `updateCalculationSheetTemplateSchema` (strict) dengan field yang sama **tanpa `kategori`**; mengirim `kategori` ditolak **400** karena kategori immutable.
+- `pic_user_id` divalidasi ke database: user harus ada dan role **Head Office** (status tidak difilter). User tidak ditemukan → **404**; role lain → **400**.
+- UNIQUE `(kategori, kode)` → **409** "Kode sudah dipakai pada kategori ini". FK `23503`/`23001` → **409** (PIC sudah tidak tersedia); CHECK `23514` → **400**.
+- Tidak ada upload, reorder, PDF, atau optimistic concurrency pada modul ini.
+
+**Status verifikasi.** Static checks PASS (174/174 test, termasuk test schema/service/error mapping CST). Migration `0017` **BELUM di-apply**; runtime API terhadap database dan browser **NOT RUN** (Owner pending). Detail: `DL-2026-11-09-02`.

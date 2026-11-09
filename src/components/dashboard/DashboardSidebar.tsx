@@ -3,6 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { PERMISSIONS, hasPermission } from "@/lib/auth/permissions";
+import { CST_CATEGORIES } from "@/lib/calculation-sheet-template/constants";
 import {
   ENGINEERING_DATABASE_CATEGORIES,
   ENGINEERING_DATABASE_CATEGORY_LABELS,
@@ -20,7 +22,7 @@ import { canViewProgramKerja } from "@/lib/program-kerja/access";
 import { canViewTemplateForm } from "@/lib/template-form/access";
 import { canManageUsers } from "@/lib/users/access";
 
-type SidebarItem = {
+export type SidebarItem = {
   label: string;
   href: string;
   icon: React.ReactNode;
@@ -246,6 +248,46 @@ export function isMetodeKerjaPath(pathname: string): boolean {
   );
 }
 
+const CALCULATION_SHEET_ROOT = "/dashboard/calculation-sheet-template";
+
+export function isCalculationSheetPath(pathname: string): boolean {
+  return (
+    pathname === CALCULATION_SHEET_ROOT ||
+    pathname.startsWith(`${CALCULATION_SHEET_ROOT}/`)
+  );
+}
+
+const calculationSheetIcon = (
+  <MenuIcon>
+    <rect width="18" height="18" x="3" y="3" rx="2" />
+    <path d="M3 9h18" />
+    <path d="M9 21V9" />
+  </MenuIcon>
+);
+
+// Multi-page menu: Summary Report first, then one route per canonical category.
+// Labels and hrefs come from the canonical constants so the sidebar can never
+// drift from the table and API category ids.
+export const calculationSheetMenu: SidebarItem[] = [
+  {
+    label: "Summary Report",
+    href: `${CALCULATION_SHEET_ROOT}/summary`,
+    icon: (
+      <MenuIcon>
+        <path d="M3 3v18h18" />
+        <path d="M7 15v3" />
+        <path d="M12 10v8" />
+        <path d="M17 6v12" />
+      </MenuIcon>
+    ),
+  },
+  ...CST_CATEGORIES.map((category) => ({
+    label: category.label,
+    href: `${CALCULATION_SHEET_ROOT}/${category.id}`,
+    icon: calculationSheetIcon,
+  })),
+];
+
 const templateFormMenu: SidebarItem = {
   label: "Template & Form",
   href: "/dashboard/template-form",
@@ -331,6 +373,7 @@ export type SidebarVisibility = {
   showProgramKerja: boolean;
   showKnowledgeManagement: boolean;
   showMetodeKerja: boolean;
+  showCalculationSheet: boolean;
   showTemplateForm: boolean;
   showMasterProject: boolean;
   showEngineeringDatabase: boolean;
@@ -351,6 +394,11 @@ export function getSidebarVisibility(
   const showProgramKerja = canViewProgramKerja(role);
   const showKnowledgeManagement = canViewKnowledgeManagement(role);
   const showMetodeKerja = canViewMetodeKerja(role);
+  // CST has no module access helper; it reads the central permission table.
+  const showCalculationSheet = hasPermission(
+    role,
+    PERMISSIONS.CALCULATION_SHEET_VIEW,
+  );
   const showTemplateForm = canViewTemplateForm(role);
   const showMasterProject = canViewMasterProject(role);
   const showEngineeringDatabase = canViewEngineeringDatabase(role);
@@ -366,6 +414,7 @@ export function getSidebarVisibility(
     showProgramKerja,
     showKnowledgeManagement,
     showMetodeKerja,
+    showCalculationSheet,
     showTemplateForm,
     showMasterProject,
     showEngineeringDatabase,
@@ -378,6 +427,7 @@ export function getSidebarVisibility(
       showProgramKerja ||
       showKnowledgeManagement ||
       showMetodeKerja ||
+      showCalculationSheet ||
       showTemplateForm ||
       showMasterProject ||
       showEngineeringDatabase ||
@@ -390,6 +440,7 @@ export type SidebarAccordionState = {
   programKerjaOpen: boolean;
   knowledgeOpen: boolean;
   metodeKerjaOpen: boolean;
+  calculationSheetOpen: boolean;
   masterProjectOpen: boolean;
   engineeringDatabaseOpen: boolean;
 };
@@ -417,6 +468,7 @@ export function getInitialSidebarAccordionState(
     // still gate visibility (getSidebarVisibility), not the initial expansion.
     knowledgeOpen: isKnowledgeManagementPath(pathname),
     metodeKerjaOpen: isMetodeKerjaPath(pathname),
+    calculationSheetOpen: isCalculationSheetPath(pathname),
     masterProjectOpen: pathname.startsWith("/dashboard/master-project"),
     engineeringDatabaseOpen: pathname.startsWith("/dashboard/engineering-database"),
   };
@@ -435,6 +487,7 @@ export default function DashboardSidebar({
     showProgramKerja,
     showKnowledgeManagement,
     showMetodeKerja,
+    showCalculationSheet,
     showTemplateForm,
     showMasterProject,
     showEngineeringDatabase,
@@ -454,6 +507,7 @@ export default function DashboardSidebar({
   );
   const isKnowledgeManagementRoute = isKnowledgeManagementPath(pathname);
   const isMetodeKerjaRoute = isMetodeKerjaPath(pathname);
+  const isCalculationSheetRoute = isCalculationSheetPath(pathname);
   const isMasterProjectRoute = pathname.startsWith("/dashboard/master-project");
   const isEngineeringDatabaseRoute = pathname.startsWith(
     "/dashboard/engineering-database",
@@ -466,6 +520,9 @@ export default function DashboardSidebar({
   const [knowledgeOpen, setKnowledgeOpen] = useState(initialAccordions.knowledgeOpen);
   const [metodeKerjaOpen, setMetodeKerjaOpen] = useState(
     initialAccordions.metodeKerjaOpen,
+  );
+  const [calculationSheetOpen, setCalculationSheetOpen] = useState(
+    initialAccordions.calculationSheetOpen,
   );
   const [masterProjectOpen, setMasterProjectOpen] = useState(
     initialAccordions.masterProjectOpen,
@@ -488,6 +545,9 @@ export default function DashboardSidebar({
     }
     if (isMetodeKerjaRoute) {
       setMetodeKerjaOpen(true);
+    }
+    if (isCalculationSheetRoute) {
+      setCalculationSheetOpen(true);
     }
     if (isMasterProjectRoute) {
       setMasterProjectOpen(true);
@@ -764,6 +824,48 @@ export default function DashboardSidebar({
                         aria-label="Metode Kerja Standar"
                       >
                         {metodeKerjaMenu.map(renderItem)}
+                      </nav>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+              {showCalculationSheet ? (
+                <div className="mt-1">
+                  <div className="px-1">
+                    <button
+                      type="button"
+                      aria-expanded={calculationSheetOpen}
+                      aria-controls="calculation-sheet-template-menu"
+                      onClick={() => setCalculationSheetOpen((prev) => !prev)}
+                      className="flex w-full items-center justify-between rounded-lg border border-transparent px-2.5 py-2 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+                    >
+                      <span className="flex items-center gap-2.5">
+                        <span className="text-secondary">{calculationSheetIcon}</span>
+                        <span>Calculation Sheet Template</span>
+                      </span>
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                        className={`text-slate-400 transition-transform duration-200 ${calculationSheetOpen ? "rotate-180" : "rotate-0"}`}
+                      >
+                        <path d="m6 9 6 6 6-6" />
+                      </svg>
+                    </button>
+                  </div>
+                  {calculationSheetOpen ? (
+                    <div id="calculation-sheet-template-menu">
+                      <nav
+                        className="ml-4 space-y-1 border-l-2 border-slate-100 pl-3"
+                        aria-label="Calculation Sheet Template"
+                      >
+                        {calculationSheetMenu.map(renderItem)}
                       </nav>
                     </div>
                   ) : null}

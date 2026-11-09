@@ -668,3 +668,45 @@ Runtime test dilakukan oleh Owner di browser sendiri. Freebuff tidak dapat menja
 ### Batasan
 - Tidak ada commit/push/deploy
 - Tidak ada perubahan source code, API, DB, UI, atau dependency
+
+---
+
+## DL-2026-11-09-02 — Calculation Sheet Template V1 (P4 A–D)
+
+| Field | Nilai |
+|---|---|
+| Feature ID | `ENT-CST` |
+| Tanggal | 9 November 2026 |
+| Status | **IMPLEMENTED BUT NOT FULLY VERIFIED** — static checks PASS; migration `0017` belum di-apply; runtime API/DB + visual browser pending Owner |
+| Commit | belum di-commit (instruksi: no commit/push/deploy) |
+| Branch | `main` |
+| Baseline | `c053c48` |
+
+### Perubahan
+- **Master reference flat**: satu halaman `/dashboard/calculation-sheet-template`, satu tabel inline, tujuh kategori kanonik hardcoded tanpa angka prefix — Arsitektur, Struktur, Infrastruktur, Geoteknik, Green Building, MEEP, Lainnya.
+- **Model**: tabel `calculation_sheet_templates` dengan kategori, kode, nama, satu PIC Head Office, URL evidence opsional, dan catatan opsional. Unique kode per kategori; tanpa upload, reorder, PDF, atau optimistic concurrency.
+- **API**: 5 method — `GET` list flat, `POST` create (201), `PUT`/`DELETE` per id, `GET pic-options` (Manage-only). `kategori` hanya pada create dan ditolak strict pada update; semua respons `Cache-Control: no-store`.
+- **UI**: 7 `<tbody>` dengan header kategori `colSpan={6}` + anchor id, inline edit satu baris pada satu waktu, create draft per kategori, error validasi di bawah baris, PIC `<select>` dari `pic-options`, dan pesan sukses/gagal.
+- **Sidebar**: menu top-level accordion "Calculation Sheet Template" dengan tujuh submenu anchor (`#arsitektur` … `#lainnya`); submenu aktif mengikuti hash, bukan hanya pathname. Management/Project tetap melihat menu dan tabel dalam mode baca.
+- **RBAC**: `CALCULATION_SHEET_VIEW` untuk Admin, Head Office, Management, Project; `CALCULATION_SHEET_MANAGE` hanya Admin dan Head Office (termasuk delete).
+
+### File impacted
+- Add: `src/lib/calculation-sheet-template/{constants,schema,repository,service,cst-draft}.ts` + `{schema,service,cst-draft}.test.ts`; `src/app/api/calculation-sheet-template/{route,_helpers}.ts`, `{route,_helpers}.test.ts`, `[id]/route.ts`, `pic-options/route.ts`; `src/components/dashboard/calculation-sheet-template/{CalculationSheetTemplatePage,CstTable}.tsx`; `src/app/dashboard/calculation-sheet-template/{page,layout}.tsx`; `src/components/dashboard/calculationSheetSidebar.test.ts`; `drizzle/0017_calculation_sheet_templates.sql`; `drizzle/meta/0017_snapshot.json`; `docs/design/CST_P2_AUDIT.md`; `docs/design/CST_P3_TECHNICAL_DESIGN.md`
+- Modify: `src/lib/pg/schema.ts`, `src/lib/auth/permissions.ts`, `drizzle/meta/_journal.json`, `src/components/dashboard/DashboardSidebar.tsx`, dokumen `docs/development/{DEVELOPMENT_MASTER_LOG,FEATURE_REGISTER,CURRENT_PROJECT_STATE}.md`, `docs/audit/{05_API_DOCUMENTATION,06_AUTHENTICATION_AND_AUTHORIZATION,07_MODULE_AND_FEATURE_INVENTORY}.md`
+- Tidak berubah: frontend modul lain, API/service modul lain, serta migration yang sudah APPLIED (`0015`, `0016`)
+
+### Verifikasi
+| Pemeriksaan | Hasil | Sumber |
+|---|---|---|
+| `npx tsc --noEmit` | PASS | Freebuff |
+| `npx eslint` (CST lib/API/UI + Sidebar) | PASS, 0 warning | Freebuff |
+| `npm test` | **174/174 PASS** (45 suite; 155 sebelum CST + 19 test CST) | Freebuff |
+| `git diff --check` | PASS | Freebuff |
+| Migrasi `0017` | **BELUM dijalankan** — file dibuat, snapshot sinkron, journal file 18 entry; journal database masih 17 entry | Freebuff |
+| Uji runtime API/DB + browser | **NOT RUN** — menunggu migration dan runtime test Owner | — |
+
+### Batasan
+- Tidak ada commit/push/deploy
+- Tidak ada migration yang dijalankan; `psql` tidak tersedia di environment ini
+- Runtime 4 role, inline CRUD, dan anchor scroll belum diuji terhadap database/browser nyata; status keseluruhan tetap `IMPLEMENTED BUT NOT FULLY VERIFIED` sampai Owner menyelesaikan runtime test
+- Verifikasi UI bersifat statis + unit test (repo tanpa jsdom)

@@ -26,6 +26,7 @@ Klasifikasi memakai label yang diminta. "Bukti" = hal yang benar-benar diperiksa
 | 18 | Dashboard SASAA | **NOT STARTED** | hanya permission |
 | 19 | Test & CI | **PARTIALLY IMPLEMENTED** | 21 unit test Knowledge Management (`npm test`), belum ada CI |
 | 20 | Knowledge Management V2 (Lesson Learn, Best Practice / KI KM, VA/VE) | **IMPLEMENTED BUT NOT FULLY VERIFIED** | 3 halaman + 7 route V2 + `knowledge_entries`/`knowledge_pics`/`knowledge_evidence` (+ archive/selection); `0015_knowledge_management_v2_fresh` APPLIED 2026-11-05; Admin PASS, 3 role BLOCKED |
+| 21 | Calculation Sheet Template (master reference flat, 7 kategori, inline) | **IMPLEMENTED BUT NOT FULLY VERIFIED** | 1 halaman + 7 anchor, 5 endpoint, `0017_calculation_sheet_templates` **BELUM di-apply**; static checks 174/174 PASS; runtime pending Owner |
 
 ## 2. Public Landing Page
 
@@ -183,5 +184,19 @@ Tidak ada modul notifikasi, email, audit log umum, pencarian global, export Exce
 **Status acceptance.** Admin **PASS** (API + browser). Uji HTTP paralel **NOT RUN** (tanpa DB uji terisolasi/fixture tambahan). Head Office, Management, Project **BLOCKED** (tanpa kredensial/handoff). Monotonicity **PASS** via unit test dan bukti SQL tabel sementara.
 
 **Status database.** `0013` dan `0014` sudah **APPLIED** pada `neondb` (PostgreSQL 18.6, 4 November 2026); 3 tabel, 11 constraint, dan 2 trigger deferred terverifikasi, dengan 23/23 uji constraint PASS di transaksi rollback (0 baris tertinggal).
+
+## 13. Calculation Sheet Template (9 November 2026)
+
+**Status:** `IMPLEMENTED BUT NOT FULLY VERIFIED` — implementasi P4 A–D selesai, static checks PASS; migration `0017` belum dijalankan dan runtime browser/DB belum diuji.
+
+- **Tujuan:** master reference calculation sheet yang dipakai lintas proyek, bukan data per proyek.
+- **Halaman:** `/dashboard/calculation-sheet-template` — satu tabel inline dengan tujuh `<tbody>`, header kategori `colSpan={6}` dan anchor (`#arsitektur`, `#struktur`, `#infrastruktur`, `#geoteknik`, `#green_building`, `#meep`, `#lainnya`).
+- **Kolom:** Kode · Nama · PIC · Evidence · Catatan · Aksi. PIC single-select Head Office; evidence berupa URL `http`/`https` (≤2.048); catatan ≤2.000. Tanpa upload, reorder, PDF, atau modal.
+- **Inline editing:** satu baris diedit dan satu draft create pada satu waktu; Simpan memanggil `PUT`/`POST`, Batal `✕`, error validasi/API tampil di baris `colSpan={6}`. Management/Project tidak menerima tombol Edit/Hapus/Tambah.
+- **API:** `GET` list flat, `POST` create (201), `PUT`/`DELETE` per id, `GET pic-options` (Manage-only). Kategori immutable setelah create.
+- **RBAC:** `CALCULATION_SHEET_VIEW` (4 role), `CALCULATION_SHEET_MANAGE` (Admin, Head Office; HO termasuk Delete).
+- **Database:** tabel `calculation_sheet_templates`, unique kode per kategori, FK ke users; migration `0017_calculation_sheet_templates` + snapshot dibuat, **BELUM di-apply**.
+- **Sidebar:** accordion top-level dengan tujuh submenu anchor; submenu aktif mengikuti hash dan membuka accordion otomatis pada route CST.
+- **Verifikasi:** `tsc`/`eslint`/`npm test` (174/174)/`git diff --check` PASS. Runtime **NOT RUN**. Detail: `DL-2026-11-09-02`.
 
 **Batasan.** Uji API terautentikasi (200/201/400/403/404/409) dan uji browser empat role **NOT RUN** karena tidak ada kredensial akun uji. Yang terverifikasi runtime tanpa sesi: 401 pada semua endpoint, 405 pada hapus record, 307 pada halaman dashboard. Status karena itu `IMPLEMENTED BUT NOT FULLY VERIFIED`.

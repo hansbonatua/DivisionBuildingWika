@@ -897,3 +897,76 @@ export const metodeKerjaPic = pgTable(
 
 export type PgMetodeKerjaPic = typeof metodeKerjaPic.$inferSelect;
 export type NewPgMetodeKerjaPic = typeof metodeKerjaPic.$inferInsert;
+
+// ---------------------------------------------------------------------------
+// Calculation Sheet Template (CST): FLAT master reference.
+//
+// Deliberately a single table with no child tables and no `sort_order`:
+// categories are application constants (see
+// @/lib/calculation-sheet-template/constants), every row belongs to exactly
+// one category, and there is no reorder feature. `kategori` stores the stable
+// lowercase id (not the display label) and is immutable after creation; the
+// API rejects it in update bodies.
+//
+// Kode is unique PER CATEGORY (case/whitespace insensitive), matching the
+// product rule that kode carries no category prefix. Evidence is a URL only
+// (no upload/blob): http(s), max 2048 characters, or NULL.
+//
+// Actor convention matches the other enterprise tables: `created_by` is
+// authorship (NOT NULL, NO ACTION) while `updated_by` is a last-touch pointer
+// (nullable, SET NULL). PIC is a single Head Office user and may not be
+// deleted while a template still references it.
+export const calculationSheetTemplates = pgTable(
+  "calculation_sheet_templates",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    kategori: text("kategori").notNull(),
+    kode: text("kode").notNull(),
+    nama: text("nama").notNull(),
+    picUserId: uuid("pic_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "no action" }),
+    evidenceUrl: text("evidence_url"),
+    catatan: text("catatan"),
+    createdBy: uuid("created_by")
+      .notNull()
+      .references(() => users.id, { onDelete: "no action" }),
+    updatedBy: uuid("updated_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("calculation_sheet_templates_kategori_kode_unique").on(
+      table.kategori,
+      sql`lower(btrim(${table.kode}))`,
+    ),
+    index("calculation_sheet_templates_kategori_idx").on(table.kategori),
+    index("calculation_sheet_templates_kode_idx").on(table.kode),
+    index("calculation_sheet_templates_pic_user_idx").on(table.picUserId),
+    index("calculation_sheet_templates_created_by_idx").on(table.createdBy),
+    index("calculation_sheet_templates_updated_by_idx").on(table.updatedBy),
+    check(
+      "calculation_sheet_templates_kategori_check",
+      sql`${table.kategori} in ('arsitektur', 'struktur', 'infrastruktur', 'geoteknik', 'green_building', 'meep', 'lainnya')`,
+    ),
+    check(
+      "calculation_sheet_templates_kode_check",
+      sql`length(btrim(${table.kode})) between 1 and 30`,
+    ),
+    check(
+      "calculation_sheet_templates_nama_check",
+      sql`length(btrim(${table.nama})) between 1 and 200`,
+    ),
+    check(
+      "calculation_sheet_templates_evidence_check",
+      sql`${table.evidenceUrl} is null or (${table.evidenceUrl} ~ '^https?://' and length(${table.evidenceUrl}) <= 2048)`,
+    ),
+    check(
+      "calculation_sheet_templates_catatan_check",
+      sql`${table.catatan} is null or length(${table.catatan}) <= 2000`,
+    ),
+  ],
+);
+
+export type PgCalculationSheetTemplate = typeof calculationSheetTemplates.$inferSelect;
+export type NewPgCalculationSheetTemplate = typeof calculationSheetTemplates.$inferInsert;

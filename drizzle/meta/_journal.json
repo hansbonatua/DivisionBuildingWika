@@ -120,6 +120,13 @@
       "when": 1793923200000,
       "tag": "0016_metode_kerja_standar",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1794190483104,
+      "tag": "0017_calculation_sheet_templates",
+      "breakpoints": true
     }
   ]
 }

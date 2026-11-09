@@ -1,8 +1,8 @@
 # CURRENT PROJECT STATE — BDWIKA / WIBEX
 
-Terakhir diperbarui: 9 November 2026 (RBAC 4 role terverifikasi — MKS dan KM V2 berstatus `IMPLEMENTED & VERIFIED`).
+Terakhir diperbarui: 9 November 2026 (Calculation Sheet Template V1 diimplementasikan; menunggu migration dan runtime test Owner).
 
-**Status proyek:** `FULLY VERIFIED` — MKS dan KM V2 terverifikasi fungsional maupun RBAC 4 role (Admin, Head Office, Management, Project). Bukti: `DL-2026-11-09-01`.
+**Status proyek:** `PARTIALLY VERIFIED` — MKS dan KM V2 `IMPLEMENTED & VERIFIED` (RBAC 4 role, Owner confirmed); CST `IMPLEMENTED BUT NOT FULLY VERIFIED` (migration `0017` belum di-apply, runtime API/DB dan visual browser pending). Bukti: `DL-2026-11-09-01`, `DL-2026-11-09-02`.
 
 ## 1. Repository
 
@@ -10,11 +10,11 @@ Terakhir diperbarui: 9 November 2026 (RBAC 4 role terverifikasi — MKS dan KM V
 |---|---|
 | Root | `D:\MagangHub-Wika-StaffEngDigitalisasiBuilding\progress\bdwika` |
 | Branch | `main` (tracking `origin/main`) |
-| HEAD | `ea70ba2` (belum ada commit enhancement) |
+| HEAD | `c053c48` (baseline CST; seluruh pekerjaan CST belum di-commit) |
 | Stack | Next.js 16.3.8 · React 19.2.8 · TypeScript 5.9.3 · Tailwind 4 · Drizzle ORM · PostgreSQL (Neon) · MongoDB · Vercel Blob |
 | Node / npm | v24 · npm 10 |
 | Dev server | tidak dikelola Freebuff pada E; runtime dilakukan Owner (Owner confirmed) |
-| Database | `neondb` (PostgreSQL 18.6), migration journal **17 entry** (`0016` MKS APPLIED) |
+| Database | `neondb` (PostgreSQL 18.6), journal file **18 entry**; migration **APPLIED sampai `0016`** (`0017` CST **BELUM di-apply**) |
 
 ## 2. Working Tree (belum di-commit)
 
@@ -31,6 +31,7 @@ Tidak ada staged change. Tidak ada commit/push/deploy.
 | Migration | `drizzle/0015_knowledge_management_v2_fresh.sql` (baru), `drizzle/meta/0015_snapshot.json` (baru), `drizzle/meta/_journal.json` | journal 16 entry; file 0015/0016/0017 lama dihapus |
 | Dokumentasi | `docs/development/*`, `docs/audit/05,06,07,08,13`, `docs/design/` | DL-2026-11-05-03 + sinkronisasi status enhancement |
 | Landing | `src/components/landing/{Navbar,About,Clients,Footer,SocialMedia}.tsx` | perubahan lama, tidak disentuh F |
+| CST (P4 A–D) | `src/lib/calculation-sheet-template/*`, `src/app/api/calculation-sheet-template/*`, `src/components/dashboard/calculation-sheet-template/*`, `src/app/dashboard/calculation-sheet-template/*`, `DashboardSidebar.tsx`, `drizzle/0017_*`, `meta/0017_snapshot.json`, `permissions.ts`, `pg/schema.ts` | 1 halaman + 7 anchor, 5 endpoint, 19 test; migration `0017` belum dijalankan |
 
 Jangan `reset`, `checkout --`, `stash`, atau `clean` — seluruh pekerjaan KM V2 belum di-commit.
 
@@ -40,7 +41,8 @@ Jangan `reset`, `checkout --`, `stash`, atau `clean` — seluruh pekerjaan KM V2
 |---|---|---|---|
 | TypeScript | `npx tsc --noEmit` | 0 | PASS |
 | ESLint (file KM) | `npx eslint src/lib/knowledge-management src/app/api/knowledge-management src/components/dashboard/knowledge-management` | 0 | PASS |
-| Test otomatis | `npm test` | 0 | **122/122 PASS** (30 suite; termasuk test grouping Summary, merge Sub-Kategori tabel Disiplin, dan sidebar MKS) |
+| Test otomatis | `npm test` | 0 | **174/174 PASS** (45 suite; termasuk 19 test CST: draft/validasi, grouping 7 kategori, error mapping, dan sidebar anchor) |
+| ESLint (CST + sidebar) | `npx eslint src/lib/calculation-sheet-template src/components/dashboard/calculation-sheet-template src/app/dashboard/calculation-sheet-template src/app/api/calculation-sheet-template src/components/dashboard/DashboardSidebar.tsx` | 0 | PASS |
 | Diff hygiene | `git diff --check` | 0 | PASS |
 | Drift Drizzle | `npx drizzle-kit generate` | 0 | **No schema changes** (snapshot 0015 sinkron) |
 | Migration | `npx drizzle-kit migrate` | — | **tidak dijalankan di F** (0015 sudah APPLIED) |
@@ -65,6 +67,7 @@ Jangan `reset`, `checkout --`, `stash`, atau `clean` — seluruh pekerjaan KM V2
 - Modul MSL dan Struktur Organisasi protected — tidak disentuh.
 - Feed publik Green Building masih 0 item (empty state).
 - `schema.ts` kini identik dengan database (4 drift M selesai) dan snapshot `0015_snapshot.json` tersedia.
+- Migration `0017_calculation_sheet_templates` **belum dijalankan**; tabel CST belum ada di `neondb`. Owner akan menjalankannya manual sebelum runtime test. `0016_snapshot.json` tidak ada, sehingga snapshot `0017` dibuat agar `drizzle-kit generate` tetap melaporkan **No schema changes**.
 
 ## 6. Metode Kerja Standar (P4)
 
@@ -77,8 +80,22 @@ Jangan `reset`, `checkout --`, `stash`, atau `clean` — seluruh pekerjaan KM V2
 - **Detail:** `docs/design/MKS_P4_FINALIZATION.md`; keputusan `DL-2026-11-08-01`.
 - **Known limitation:** tidak ada auto-collapse antar-route dalam satu sesi. RBAC 4 role sudah PASS (9 November 2026).
 
-## 7. Langkah Berikutnya
+## 7. Calculation Sheet Template (P4, 9 November 2026)
 
-1. Commit enhancement + dokumentasi MKS P4 (menunggu otorisasi Owner; tanpa push/deploy pada instruksi ini).
-2. Verifikasi visual tabel MKS di satu halaman disiplin (desktop + mobile) lalu final acceptance Owner/ChatGPT atas `DL-2026-11-08-01`.
-3. Acceptance RBAC 4 role sudah **PASS** (9 November 2026); tersisa commit dan final acceptance Owner/ChatGPT.
+**Status:** `IMPLEMENTED BUT NOT FULLY VERIFIED` — static checks PASS; migration `0017` belum di-apply; runtime API/DB dan visual browser **belum diuji**.
+
+- **Cakupan:** master reference flat satu halaman, tujuh kategori kanonik tanpa prefix (Arsitektur, Struktur, Infrastruktur, Geoteknik, Green Building, MEEP, Lainnya), tabel inline 6 kolom, tanpa modal/upload/reorder/PDF.
+- **Model:** `calculation_sheet_templates`; kode unik per kategori, satu PIC Head Office, evidence URL opsional (`http`/`https`, ≤2.048), catatan ≤2.000. Tanpa optimistic concurrency.
+- **API:** `GET` list flat, `POST` create (201), `PUT`/`DELETE` per id, `GET pic-options` (Manage-only) — seluruhnya `Cache-Control: no-store`.
+- **RBAC:** `CALCULATION_SHEET_VIEW` (Admin, Head Office, Management, Project); `CALCULATION_SHEET_MANAGE` (Admin, Head Office, termasuk delete). Layout guard + API service sama-sama menegakkan.
+- **UI:** 7 `<tbody>` dengan header kategori `colSpan={6}` dan anchor id; satu baris edit dan satu create draft pada satu waktu; error validasi/API tampil di bawah baris; submenu sidebar mengikuti hash.
+- **Migration:** `drizzle/0017_calculation_sheet_templates.sql` + snapshot dibuat; journal file 18 entry; **BELUM dijalankan**.
+- **Verifikasi:** `tsc` PASS, `eslint` PASS, `npm test` **174/174 PASS**, `git diff --check` PASS. Tidak ada perubahan source pada Sub-fase D.
+- **Detail:** `docs/design/CST_P2_AUDIT.md`, `docs/design/CST_P3_TECHNICAL_DESIGN.md`, `DL-2026-11-09-02`.
+
+## 8. Langkah Berikutnya
+
+1. Owner menjalankan `npx drizzle-kit migrate` untuk `0017_calculation_sheet_templates` (journal database 17 → 18), lalu memverifikasi tabel, index, FK, dan CHECK.
+2. Runtime test CST: 5 endpoint, RBAC 4 role, inline edit/create/delete, dan anchor sidebar di browser desktop + mobile.
+3. Commit seluruh pekerjaan CST + dokumentasi (menunggu otorisasi Owner; tanpa push/deploy pada instruksi ini).
+4. Final acceptance Owner/ChatGPT atas `DL-2026-11-09-02`; status CST dinaikkan setelah runtime PASS.

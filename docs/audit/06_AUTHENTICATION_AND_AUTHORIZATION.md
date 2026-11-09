@@ -73,6 +73,8 @@ Tidak ada `middleware.ts`. Ini aman selama setiap route memeriksa sesi sendiri �
 | `MSL_MANAGE` | ✔ | ✗ | hanya `msl_access` | ✗ | idem |
 | `ORGANIZATION_STRUCTURE_VIEW` | ✔ | ✔ | ✔ | ✔ | `lib/organization-structure/access.ts` |
 | `ORGANIZATION_STRUCTURE_MANAGE` | ✔ | ✗ | ✗ | ✗ | idem |
+| `CALCULATION_SHEET_VIEW` | ✔ | ✔ | ✔ | ✔ | `lib/calculation-sheet-template/service.ts` (`assertViewAccess`) |
+| `CALCULATION_SHEET_MANAGE` | ✔ | ✔ | ✗ | ✗ | idem (`assertManageAccess`) |
 | `DASHBOARD_SASAA_VIEW` | ✔ | ✔ | ✔ | ✗ | **belum dipakai route mana pun** |
 
 `hasPermission(role, permission)` mengembalikan `true` untuk Admin pada semua permission fitur (`isAdmin`), lalu mencocokkan role pada daftar non-Admin. Role tak dikenal → `false`.
@@ -99,6 +101,7 @@ Tidak ada `middleware.ts`. Ini aman selama setiap route memeriksa sesi sendiri �
 | Kontrol Admin di Struktur Organisasi | ya — `canManage` dihitung di page server | ya (`ORGANIZATION_STRUCTURE_MANAGE`) |
 | Tombol MSL | ya — `canViewMsl({role, mslAccess})` | ya (`canViewMsl`/`canManageMsl`) |
 | Menu CMS & User Directory | ya | ya |
+| Menu + tombol CST (Edit/Hapus/Tambah) | ya — `hasPermission(role, CALCULATION_SHEET_MANAGE)` dihitung di page server; sidebar memakai `CALCULATION_SHEET_VIEW` | ya (layout guard + `assertManageAccess` di service) |
 
 **Tidak ditemukan** elemen UI yang menjadi satu-satunya kontrol akses.
 
@@ -184,3 +187,17 @@ Enhancement P4 tidak mengubah permission, guard, atau matriks §8. Yang berubah 
 - Tombol PDF tabel mengikuti akses View halaman; PDF per-record hanya dapat dipicu dari modal View. Keduanya client-side dan tidak menambah endpoint.
 
 **Status role.** Admin PASS (**Owner confirmed**); Head Office/Management/Project tetap **BLOCKED** karena kredensial tidak tersedia. Detail: `DL-2026-11-05-03`.
+
+## 10. Calculation Sheet Template (9 November 2026)
+
+| Role | Layout/halaman | GET list | POST/PUT/DELETE | `pic-options` | Verdict |
+|---|---|---|---|---|---|
+| Admin | ✔ | ✔ | ✔ | ✔ | Static PASS; runtime **NOT RUN** |
+| Head Office | ✔ | ✔ | ✔ (termasuk Delete) | ✔ | Static PASS; runtime **NOT RUN** |
+| Management | ✔ | ✔ | ✗ (403) | ✗ (403) | Static PASS; runtime **NOT RUN** |
+| Project | ✔ | ✔ | ✗ (403) | ✗ (403) | Static PASS; runtime **NOT RUN** |
+
+- **Guard berlapis:** `src/app/dashboard/calculation-sheet-template/layout.tsx` memanggil `getCurrentUser()` lalu `CALCULATION_SHEET_VIEW`; API memanggil `getActor()` lalu `assertViewAccess`/`assertManageAccess` di service. UI menyembunyikan tombol mutasi untuk Management/Project, tetapi server tetap menolak bila dipanggil langsung.
+- **Berbeda dari MKS:** Head Office memiliki full CRUD termasuk Delete (satu permission `CALCULATION_SHEET_MANAGE`), bukan pola "HO tanpa Delete".
+- **PIC:** hanya user role Head Office (termasuk suspended); status dikembalikan agar UI menandai "(non-aktif)". Management/Project tidak dapat memanggil `pic-options`.
+- **Status verifikasi:** static checks PASS (174/174). Migration `0017` belum di-apply sehingga RBAC runtime belum diuji; seluruh baris tabel di atas berstatus **NOT RUN**, bukan PASS. Detail: `DL-2026-11-09-02`.
