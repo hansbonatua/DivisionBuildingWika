@@ -1,8 +1,8 @@
 # CURRENT PROJECT STATE — BDWIKA / WIBEX
 
-Terakhir diperbarui: 10 November 2026 (PDOC V1 + Monthly Delta sudah di-commit dan di-push sebagai `a7527e1`; migration `0018` APPLIED; **0019 APPLIED** (Owner-confirmed 10 November 2026); runtime visual pending Owner).
+Terakhir diperbarui: 10 November 2026 (PDOC V1 + Monthly Delta `IMPLEMENTED & VERIFIED`; runtime browser 4 role PASS, Owner-confirmed 10 November 2026; migration `0018` dan **0019 APPLIED**).
 
-**Status proyek:** `PARTIALLY VERIFIED` — MKS dan KM V2 `IMPLEMENTED & VERIFIED` (RBAC 4 role, Owner confirmed); CST `IMPLEMENTED BUT NOT FULLY VERIFIED`; PDOC `IMPLEMENTED BUT NOT FULLY VERIFIED` (commit/push selesai, runtime visual pending). Bukti: `DL-2026-11-09-01`, `DL-2026-11-09-02`, `DL-2026-11-10-02`.
+**Status proyek:** `PARTIALLY VERIFIED` — MKS, KM V2, dan PDOC `IMPLEMENTED & VERIFIED` (RBAC 4 role, Owner confirmed); CST `IMPLEMENTED BUT NOT FULLY VERIFIED`. Bukti: `DL-2026-11-09-01`, `DL-2026-11-09-02`, `DL-2026-11-10-03`.
 
 ## 1. Repository
 
@@ -10,7 +10,8 @@ Terakhir diperbarui: 10 November 2026 (PDOC V1 + Monthly Delta sudah di-commit d
 |---|---|
 | Root | `D:\MagangHub-Wika-StaffEngDigitalisasiBuilding\progress\bdwika` |
 | Branch | `main` (tracking `origin/main`) |
-| Baseline fitur | `a7527e1` — `feat: project documentation monthly recap and summary report` (`origin/main`; dokumentasi P8 di-commit setelahnya) |
+| Baseline fitur | `a7527e1` — `feat: project documentation monthly recap and summary report` |
+| HEAD dokumentasi | `062f8d4` — `docs: mark PDOC 0019 migration applied` (`origin/main`) |
 | Stack | Next.js 16.3.8 · React 19.2.8 · TypeScript 5.9.3 · Tailwind 4 · Drizzle ORM · PostgreSQL (Neon) · MongoDB · Vercel Blob |
 | Node / npm | v24 · npm 10 |
 | Dev server | tidak dikelola Freebuff pada E; runtime dilakukan Owner (Owner confirmed) |
@@ -18,14 +19,15 @@ Terakhir diperbarui: 10 November 2026 (PDOC V1 + Monthly Delta sudah di-commit d
 
 ## 2. Working Tree (clean at baseline)
 
-Tidak ada staged, unstaged, atau untracked change pada baseline verifikasi. `HEAD` = `origin/main` = `a7527e1`; dokumentasi P8 di-commit sebagai commit dokumentasi terpisah setelah gate hijau.
+Baseline verifikasi: `HEAD` = `origin/main` = `062f8d4`; working tree clean sebelum pass dokumentasi final. Pass ini hanya mengubah dokumentasi dan **tidak** di-commit.
 
 | Item | Nilai |
 |---|---|
-| Commit | `a7527e1` — `feat: project documentation monthly recap and summary report` |
-| Range | `5636113..a7527e1`; 41 file, +15.396 / −29 |
+| Commit fitur | `a7527e1` — `feat: project documentation monthly recap and summary report` |
+| Commit dokumentasi | `062f8d4` — `docs: mark PDOC 0019 migration applied` |
+| Range fitur | `5636113..a7527e1`; 41 file, +15.396 / −29 |
 | Isi commit | PDOC V1 + Monthly Delta, migration `0018`/`0019`, halaman Rekap Bulanan + Summary, sidebar accordion, dan sinkronisasi dokumen |
-| Status remote | sudah di-push ke `origin/main` |
+| Status remote | `062f8d4` sudah di-push ke `origin/main` |
 | Migration | `0018` **APPLIED** (Owner-confirmed); `0019` **APPLIED** (Owner-confirmed 10 November 2026) |
 
 Detail file historis sebelum commit tersedia di Git history; jangan menyalin tabel working tree lama sebagai kondisi saat ini.
@@ -42,6 +44,7 @@ Detail file historis sebelum commit tersedia di Git history; jangan menyalin tab
 | Diff hygiene | `git diff --check` | 0 | PASS |
 | Drift Drizzle | `npx drizzle-kit generate` | — | tidak dijalankan pada task dokumentasi; snapshot `0019` tersedia |
 | Migration | `npx drizzle-kit migrate` | — | **0018 APPLIED** dan **0019 APPLIED** (Owner-confirmed 10 November 2026); tidak dijalankan pada task ini |
+| Runtime PDOC | Browser desktop + mobile, 4 role | — | **PASS** (Owner-confirmed 10 November 2026) |
 
 ## 4. Knowledge Management V2
 
@@ -90,19 +93,19 @@ Detail file historis sebelum commit tersedia di Git history; jangan menyalin tab
 
 ## 8. Project Documentation (P4 + Monthly Delta, 10 November 2026)
 
-**Status:** `IMPLEMENTED BUT NOT FULLY VERIFIED` — static checks PASS; commit/push `a7527e1`; migration `0018` APPLIED; migration `0019` APPLIED (Owner-confirmed 10 November 2026); runtime API/browser **NOT RUN**.
+**Status:** `IMPLEMENTED & VERIFIED` — static checks PASS; commit fitur `a7527e1`; dokumentasi `062f8d4`; migration `0018` + `0019` APPLIED; runtime browser 4 role PASS (Owner-confirmed 10 November 2026).
 
 - **Cakupan:** PDOC V1 + Monthly Delta. Root `/dashboard/project-documentation` redirect ke `/rekap-bulanan`; halaman rekap memiliki filter Tahun/Bulan; halaman `/summary` menampilkan matriks 12 bulan; sidebar berupa accordion dengan submenu **Rekap Bulanan** dan **Summary Report**.
 - **Model:** `project_documentations` beridentitas `(project_id, year, month)` dengan unique composite; lima URL minggu, audit per minggu, `catatan`, dan audit level baris. Master Project tetap menjadi sumber baris; summary menampilkan semua project, termasuk `0/5`.
 - **API:** tiga endpoint: `GET /api/project-documentation?year&month`, `PUT /api/project-documentation/[projectId]/[year]/[month]`, dan `GET /api/project-documentation/summary?year`. PUT bersifat upsert per periode; field opsional; URL kosong menjadi `NULL`; periode berasal dari path/query, bukan body.
-- **RBAC:** `DOCUMENTATION_VIEW` (Admin, Head Office, Management, Project); `DOCUMENTATION_MANAGE` (Admin, Head Office, Project). Management read-only; Project dapat mengelola seluruh project tanpa ownership.
+- **RBAC:** `DOCUMENTATION_VIEW` (Admin, Head Office, Management, Project); `DOCUMENTATION_MANAGE` (Admin, Head Office, Project). Management read-only; Admin, Head Office, dan Project dapat mengelola.
 - **UI:** tabel 8 kolom, inline edit, audit per minggu, search, dan PDF A4 landscape pada Rekap Bulanan; filter tahun/bulan memicu fetch ulang. Summary read-only memakai warna 5/5 hijau, 1–4/5 amber, 0/5 abu-abu.
+- **Runtime PASS (Owner, 4 role):** filter tahun/bulan dan tabel semua project; simpan 5 URL + catatan dengan audit per minggu; URL kosong tampil `—` dan URL invalid menampilkan error per baris; simpan tanpa perubahan tidak mengubah timestamp; Summary 12 bulan dengan `0/5`; PDF A4 landscape dengan filter line periode; Management read-only sedangkan Admin/Head Office/Project manage; sidebar accordion terbuka pada kedua route; desktop + mobile.
 - **Migration:** `0018_project_documentations` **APPLIED** (Owner-confirmed); `0019_project_documentation_period` **APPLIED** (Owner-confirmed 10 November 2026); journal 20 entry.
-- **Verifikasi:** `tsc` PASS, `eslint` PASS, `npm test` **233/233 PASS** (59 suite; 58 test PDOC di 6 file), `git diff --check` PASS. Commit `a7527e1` sudah di-push. Runtime API/browser empat role **NOT RUN**.
-- **Detail:** `DL-2026-11-10-02` (kondisi pasca-commit), `DL-2026-11-10-01` (historis), `docs/design/PDOC_MONTHLY_IMPACT_ANALYSIS.md`, `docs/design/PDOC_P3_DELTA_MONTHLY.md`.
+- **Verifikasi:** `tsc` PASS, `eslint` PASS, `npm test` **233/233 PASS** (59 suite; 58 test PDOC di 6 file), `git diff --check` PASS. Runtime visual + RBAC 4 role **PASS** (Owner-confirmed 10 November 2026).
+- **Detail:** `DL-2026-11-10-03` (runtime PASS), `DL-2026-11-10-02` (historis), `DL-2026-11-10-01` (historis), `docs/design/PDOC_MONTHLY_IMPACT_ANALYSIS.md`, `docs/design/PDOC_P3_DELTA_MONTHLY.md`.
 
 ## 9. Langkah Berikutnya
 
-1. Owner menguji Rekap Bulanan (filter tahun/bulan, simpan per periode, PDF) dan Summary Report (matriks 12 bulan, `0/5`) di browser desktop + mobile.
-2. Owner menguji RBAC empat role dan final acceptance atas `DL-2026-11-10-02`; status PDOC dinaikkan setelah runtime PASS.
-3. Runtime CST tetap menjadi pekerjaan terpisah dan tidak dinaikkan statusnya oleh task dokumentasi ini.
+1. Final acceptance Owner/ChatGPT atas `DL-2026-11-10-03`.
+2. Runtime CST tetap menjadi pekerjaan terpisah dan tidak dinaikkan statusnya oleh task PDOC ini.

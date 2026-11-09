@@ -27,7 +27,7 @@ Klasifikasi memakai label yang diminta. "Bukti" = hal yang benar-benar diperiksa
 | 19 | Test & CI | **PARTIALLY IMPLEMENTED** | **233 unit test / 59 suite** (`npm test`), termasuk KM/CST/PDOC; belum ada CI |
 | 20 | Knowledge Management V2 (Lesson Learn, Best Practice / KI KM, VA/VE) | **IMPLEMENTED BUT NOT FULLY VERIFIED** | 3 halaman + 7 route V2 + `knowledge_entries`/`knowledge_pics`/`knowledge_evidence` (+ archive/selection); `0015_knowledge_management_v2_fresh` APPLIED 2026-11-05; Admin PASS, 3 role BLOCKED |
 | 21 | Calculation Sheet Template (master reference flat, 7 kategori, inline) | **IMPLEMENTED BUT NOT FULLY VERIFIED** | 1 halaman + 7 anchor, 5 endpoint, `0017_calculation_sheet_templates` **BELUM di-apply**; static checks 174/174 PASS; runtime pending Owner |
-| 22 | Project Documentation V1 + Monthly Delta (rekap bulanan, filter tahun/bulan, summary 12 bulan, audit per minggu, inline, search, PDF) | **IMPLEMENTED BUT NOT FULLY VERIFIED** | 3 route (root redirect + rekap + summary), 8 kolom + matriks 12 bulan, 3 endpoint, 58 test (6 file), `0018_project_documentations` + `0019_project_documentation_period` **APPLIED** (Owner-confirmed 10 November 2026); static checks 233/233 PASS; commit `a7527e1`; runtime pending Owner |
+| 22 | Project Documentation V1 + Monthly Delta (rekap bulanan, filter tahun/bulan, summary 12 bulan, audit per minggu, inline, search, PDF) | **IMPLEMENTED & VERIFIED** | 3 route (root redirect + rekap + summary), 8 kolom + matriks 12 bulan, 3 endpoint, 58 test (6 file), `0018_project_documentations` + `0019_project_documentation_period` **APPLIED** (Owner-confirmed 10 November 2026); static checks 233/233 PASS; runtime browser 4 role PASS (Owner-confirmed); commit `a7527e1` |
 
 ## 2. Public Landing Page
 
@@ -204,7 +204,7 @@ Tidak ada modul notifikasi, email, audit log umum, pencarian global, export Exce
 
 ## 14. Project Documentation V1 + Monthly Delta (10 November 2026)
 
-**Status:** `IMPLEMENTED BUT NOT FULLY VERIFIED` — commit/push `a7527e1`; static checks PASS; migration `0018` APPLIED; migration `0019` APPLIED (Owner-confirmed 10 November 2026); runtime browser/API empat role belum diuji.
+**Status:** `IMPLEMENTED & VERIFIED` — commit fitur `a7527e1`; dokumentasi `062f8d4`; static checks PASS; migration `0018` + `0019` APPLIED (Owner-confirmed 10 November 2026); runtime browser 4 role PASS (Owner-confirmed 10 November 2026).
 
 - **Tujuan:** dokumentasi lima minggu per Master Project **per periode tahun/bulan**, dengan jejak uploader/timestamp per minggu, catatan project, rekap bulanan, dan summary 12 bulan.
 - **Halaman/routing:** root `/dashboard/project-documentation` redirect ke `/rekap-bulanan`; rekap di `/dashboard/project-documentation/rekap-bulanan` menampilkan tabel 8 kolom (Nama Proyek · Minggu 1–5 · Catatan · Aksi); Summary Report di `/dashboard/project-documentation/summary` menampilkan semua project × 12 bulan.
@@ -217,6 +217,6 @@ Tidak ada modul notifikasi, email, audit log umum, pencarian global, export Exce
 - **RBAC:** `DOCUMENTATION_VIEW` (Admin, Head Office, Management, Project); `DOCUMENTATION_MANAGE` (Admin, Head Office, Project). Management read-only; Project mengelola semua project. Summary dapat dibaca semua role View.
 - **Database:** tabel `project_documentations` beridentitas `(project_id, year, month)` dengan unique composite, lima URL + pasangan audit minggu, `catatan`, audit baris, FK ke Master Project/users; migration `0018_project_documentations` **APPLIED** (Owner-confirmed). Migration `0019_project_documentation_period` menambah `year`/`month`, mengganti unique, dan menambah index/CHECK; **APPLIED** (Owner-confirmed 10 November 2026). Delete Master Project yang masih direferensikan ditolak FK RESTRICT (409).
 - **Sidebar:** accordion **Project Documentation** dengan submenu **Rekap Bulanan** dan **Summary Report**, terlihat dengan `DOCUMENTATION_VIEW`.
-- **Verifikasi:** `tsc`/`eslint`/`npm test` (233/233, 59 suite; 58 test PDOC di 6 file)/`git diff --check` PASS. Commit `a7527e1` sudah di-push. Runtime **NOT RUN**. Detail: `DL-2026-11-10-02`; `DL-2026-11-10-01` historis.
+- **Verifikasi:** `tsc`/`eslint`/`npm test` (233/233, 59 suite; 58 test PDOC di 6 file)/`git diff --check` PASS. Runtime visual + RBAC 4 role **PASS** (Owner-confirmed 10 November 2026) untuk filter periode, lifecycle inline, Summary, PDF, sidebar, dan responsif. Detail: `DL-2026-11-10-03`; `DL-2026-11-10-02` historis.
 
-**Batasan.** Uji API terautentikasi dan browser empat role, termasuk filter periode, lifecycle inline, Summary, dan PDF, **NOT RUN** karena belum ada sesi uji; status tetap `IMPLEMENTED BUT NOT FULLY VERIFIED`. Status `0018` dan `0019` APPLIED berasal dari konfirmasi Owner; tidak ada verifikasi DB independen pada pass ini.
+**Batasan.** Runtime dijalankan Owner di browser; Freebuff tidak mereproduksi sesi 4 role pada pass dokumentasi ini. Status `0018` dan `0019` APPLIED berasal dari konfirmasi Owner; tidak ada verifikasi DB independen pada pass ini.

@@ -5,7 +5,43 @@ Dokumentasi audit repository ada di `docs/audit/`; dokumen ini mencatat **peruba
 
 ---
 
-## DL-2026-11-10-02 — PDOC Monthly Delta committed & documentation sync
+## DL-2026-11-10-03 — PDOC runtime 4 role PASS
+
+| Field | Nilai |
+|---|---|
+| Feature ID | `ENT-PDOC` |
+| Tanggal | 10 November 2026 |
+| Status | **IMPLEMENTED & VERIFIED** — runtime browser 4 role PASS (Owner-confirmed 10 November 2026); static checks PASS; migration `0018` + `0019` APPLIED |
+| Commit | fitur `a7527e1`; dokumentasi `062f8d4`; tidak ada commit/push pada pass ini |
+| Branch | `main` |
+| Baseline | `062f8d4` |
+| Migration | `0018_project_documentations` + `0019_project_documentation_period` **APPLIED** (Owner-confirmed) |
+
+### Perubahan dokumentasi
+- **Status PDOC dinaikkan** dari `IMPLEMENTED BUT NOT FULLY VERIFIED` menjadi **`IMPLEMENTED & VERIFIED`** setelah Owner menjalankan runtime browser 4 role.
+- **Cakupan runtime PASS:** rekap bulanan (filter tahun/bulan, tabel semua project), edit inline 5 URL + catatan dengan audit per minggu, URL kosong `—`/metadata kosong, URL invalid error per baris, simpan tanpa perubahan tidak mengubah timestamp, Summary Report 12 bulan dengan `0/5`, PDF rekap A4 landscape dengan filter line periode, sidebar accordion pada kedua route, serta desktop + mobile.
+- **RBAC runtime PASS:** Admin, Head Office, Management, Project. Management read-only; Admin/Head Office/Project dapat mengelola.
+- **Dokumentasi yang disinkronkan:** current state, feature register, API, authentication/authorization, dan module inventory. Tidak ada perubahan kontrak API, source, schema, dependency, atau database.
+
+### Verifikasi
+| Pemeriksaan | Hasil | Sumber |
+|---|---|---|
+| Git baseline | `HEAD` = `origin/main` = `062f8d4`; working tree clean sebelum edit | Freebuff |
+| `npx tsc --noEmit` | **PASS** | Freebuff |
+| `npm test` | **233/233 PASS** (59 suite; 58 test PDOC di 6 file) | Freebuff |
+| `git diff --check` | **PASS** | Freebuff |
+| Runtime browser 4 role | **PASS** — seluruh cakupan di atas | **Owner-confirmed** (10 November 2026) |
+| Migration `0018` + `0019` | **APPLIED** | Owner-confirmed |
+
+### Batasan
+- Runtime dijalankan Owner di browser; Freebuff tidak mereproduksi sesi 4 role pada pass dokumentasi ini.
+- Tidak ada commit, push, deploy, migration, seed, atau DB write pada pass ini.
+
+---
+
+## DL-2026-11-10-02 — PDOC Monthly Delta committed & documentation sync — HISTORICAL
+
+> **HISTORICAL:** status runtime pending di bawah adalah kondisi sebelum verifikasi 4 role; lihat `DL-2026-11-10-03`.
 
 | Field | Nilai |
 |---|---|
