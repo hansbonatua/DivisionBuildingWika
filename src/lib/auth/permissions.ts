@@ -50,6 +50,9 @@ export const PERMISSIONS = {
   CALCULATION_SHEET_VIEW: "CALCULATION_SHEET_VIEW",
   CALCULATION_SHEET_MANAGE: "CALCULATION_SHEET_MANAGE",
 
+  DOCUMENTATION_VIEW: "DOCUMENTATION_VIEW",
+  DOCUMENTATION_MANAGE: "DOCUMENTATION_MANAGE",
+
   MSL_VIEW: "MSL_VIEW",
   MSL_MANAGE: "MSL_MANAGE",
 
@@ -109,6 +112,12 @@ const NON_ADMIN_PERMISSION_ROLES: Record<Permission, readonly UserRole[]> = {
   // read-only, and Admin receives both through the super-application rule.
   CALCULATION_SHEET_VIEW: [HEAD_OFFICE_ROLE, PROJECT_ROLE, MANAGEMENT_ROLE],
   CALCULATION_SHEET_MANAGE: [HEAD_OFFICE_ROLE],
+
+  // Project Documentation is driven by Master Project rows. Admin receives
+  // both permissions through the super-application rule. Head Office and
+  // Project may manage every project; Management is read-only.
+  DOCUMENTATION_VIEW: [HEAD_OFFICE_ROLE, PROJECT_ROLE, MANAGEMENT_ROLE],
+  DOCUMENTATION_MANAGE: [HEAD_OFFICE_ROLE, PROJECT_ROLE],
 
   // MSL Engineering: Head Office is a ROLE-level read-only viewer. Management
   // is deliberately absent from both lists — a Management user is eligible only

@@ -1,8 +1,8 @@
 # 05 — API DOCUMENTATION
 
-**55 file** `route.ts` di `src/app/api`, mengekspor **90 method handler** (`GET`/`POST`/`PATCH`/`PUT`/`DELETE`). Semua respons memakai amplop `{ data }` (sukses) atau `{ error: { message, details? } }` (gagal). Aktor **selalu** dari sesi cookie `wibex_session`.
+**67 file** `route.ts` di `src/app/api`, mengekspor **108 method handler** (`GET`/`POST`/`PATCH`/`PUT`/`DELETE`). Semua respons memakai amplop `{ data }` (sukses) atau `{ error: { message, details? } }` (gagal). Aktor **selalu** dari sesi cookie `wibex_session`.
 
-Setiap domain enterprise memakai `src/app/api/<domain>/_helpers.ts` (6 file, termasuk `knowledge-management`) untuk `getActor`, `mapDomainError`, `parseJsonBody`, `isUuid`.
+Setiap domain enterprise memakai `src/app/api/<domain>/_helpers.ts` (9 file, termasuk `knowledge-management`, `calculation-sheet-template`, dan `project-documentation`) untuk `getActor`, `mapDomainError`, `parseJsonBody`, `isUuid`.
 
 Kode singkat guard: **P** = publik tanpa sesi · **A** = sesi aktif saja · **ADM** = `CMS_MANAGE`/`USER_MANAGE` (efektif Admin) · **PERM(…)** = permission tertentu.
 
@@ -106,7 +106,7 @@ Modul yang diizinkan: `hero`, `projects`, `green-building`, `clients`, `social`,
 | POST | `/api/master-project` | PERM(MASTER_PROJECT_CREATE) | buat; duplikat (name+location, case/spasi) → 409 |
 | GET | `/api/master-project/[id]` | VIEW | detail |
 | PATCH | `/api/master-project/[id]` | PERM(MASTER_PROJECT_EDIT) | ubah (termasuk `year` kecuali bentrok) |
-| DELETE | `/api/master-project/[id]` | PERM(MASTER_PROJECT_DELETE) | ditolak 409 bila direferensikan Engineering DB / MSL |
+| DELETE | `/api/master-project/[id]` | PERM(MASTER_PROJECT_DELETE) | ditolak 409 bila direferensikan Engineering DB / MSL / Project Documentation |
 | GET | `/api/master-project/pic-options` | **A + EDIT (service)** | opsi PIC |
 
 ## 8. Engineering Database
@@ -157,7 +157,7 @@ Parsing query eksplisit (`/^\d+$/`) — `2026.5`, `abc`, string kosong ditolak 4
 
 ## 12. Catatan Validitas
 
-- Semua endpoint di atas **ada** di repository (diverifikasi dari daftar `git ls-files 'src/app/api/*route.ts'` + `export function`): 55 file, 90 method — seluruhnya tercantum di dokumen ini.
+- Semua endpoint di atas **ada** di repository (diverifikasi dari daftar `git ls-files 'src/app/api/*route.ts'` + `export function`): 67 file, 108 method — seluruhnya tercantum di dokumen ini.
 
 ## 13. Knowledge Management V1 (4 November 2026 — SUPERSEDED by V2, lihat §14)
 
@@ -245,3 +245,20 @@ Lima endpoint, semuanya mengembalikan `Cache-Control: no-store`. Otorisasi diteg
 - Tidak ada upload, reorder, PDF, atau optimistic concurrency pada modul ini.
 
 **Status verifikasi.** Static checks PASS (174/174 test, termasuk test schema/service/error mapping CST). Migration `0017` **BELUM di-apply**; runtime API terhadap database dan browser **NOT RUN** (Owner pending). Detail: `DL-2026-11-09-02`.
+
+## 17. Project Documentation (10 November 2026)
+
+Dua endpoint, keduanya mengembalikan `Cache-Control: no-store`. Master Project adalah sumber baris, sehingga project tanpa dokumentasi tetap muncul. Otorisasi ditegakkan di service (`assertViewAccess`/`assertManageAccess`), bukan hanya di route; identitas aktor selalu dari sesi.
+
+| Method | Path | Guard | Service | Efek |
+|---|---|---|---|---|
+| GET | `/api/project-documentation` | `getActor` + `DOCUMENTATION_VIEW` | `listDocumentations` | **200** — `{ data: { rows } }`; satu baris per Master Project + lima minggu + `catatan`; urut `name`, `location`, `id`; metadata uploader per minggu ikut dikembalikan |
+| PUT | `/api/project-documentation/[projectId]` | `getActor` + `DOCUMENTATION_MANAGE` | `updateDocumentation` | **200** — `{ data }`; upsert baris dokumentasi; UUID tidak valid → **400**, project tidak ada → **404** |
+
+- Body `PUT` divalidasi `updateProjectDocumentationSchema` (strict): `week_1_url`–`week_5_url` dan `catatan` semuanya opsional. Field yang tidak dikirim tidak berubah; `null` atau string kosong menghapus nilai; body kosong → **400**; field asing seperti `project_id` → **400**.
+- URL harus `http://`/`https://` absolut dan ≤2.048 karakter; `catatan` ≤2.000 karakter. Service menormalisasi trim sebelum menyimpan.
+- Audit per minggu: URL berubah → `week_n_updated_by` + `week_n_updated_at` baru; URL sama → metadata lama dipertahankan; URL dikosongkan → URL dan pasangan audit minggu tersebut menjadi `NULL` (D-PDOC-02). Baris `updated_by`/`updated_at` ikut diperbarui saat ada perubahan.
+- Tidak ada `POST` atau `DELETE`: project dibuat/dihapus lewat Master Project, dan dokumentasi dibuat otomatis oleh `PUT` pertama.
+- FK `23503`/`23001` dan unique `23505` → **409**; CHECK `23514` → **400**; error tak dikenal → **500** tanpa membocorkan detail.
+
+**Status verifikasi.** Static checks PASS (224/224 test, 56 suite; termasuk 49 test PDOC di 6 file). Migration `0018_project_documentations` **APPLIED** (Owner-confirmed); runtime API terautentikasi empat role dan browser **NOT RUN**. Detail: `DL-2026-11-10-01`.

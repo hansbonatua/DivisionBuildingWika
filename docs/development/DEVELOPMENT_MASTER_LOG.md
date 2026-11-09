@@ -5,6 +5,48 @@ Dokumentasi audit repository ada di `docs/audit/`; dokumen ini mencatat **peruba
 
 ---
 
+## DL-2026-11-10-01 — Project Documentation V1 (P4 A–D)
+
+| Field | Nilai |
+|---|---|
+| Feature ID | `ENT-PDOC` |
+| Tanggal | 10 November 2026 |
+| Status | **IMPLEMENTED BUT NOT FULLY VERIFIED** — static checks PASS; migration `0018` APPLIED (Owner-confirmed); commit/push/deploy dan visual browser pending Owner |
+| Commit | **belum di-commit** (instruksi: no commit/push/deploy) |
+| Branch | `main` |
+| Baseline | `5636113` |
+| Migration | `0018_project_documentations` **APPLIED** (Owner-confirmed) |
+
+### Perubahan
+- **Model dokumentasi flat per Master Project**: tabel `project_documentations` dengan `project_id` UNIQUE, lima slot URL minggu, pasangan audit `week_n_updated_by`/`week_n_updated_at` per minggu, `catatan`, dan audit level baris. Project tanpa dokumentasi tetap tampil karena Master Project menjadi driving table.
+- **API**: `GET /api/project-documentation` mengembalikan seluruh Master Project beserta lima minggu; `PUT /api/project-documentation/[projectId]` melakukan upsert satu baris. Tidak ada `POST` atau `DELETE`. Service memvalidasi URL `http(s)` ≤2.048 dan catatan ≤2.000, memeriksa keberadaan project, serta memetakan FK/unique ke 409 dan CHECK ke 400.
+- **Audit per minggu**: URL yang berubah memperoleh aktor dan timestamp baru; URL yang sama mempertahankan metadata lama; URL yang dikosongkan menghapus URL sekaligus pasangan audit minggu tersebut. Row audit diperbarui saat ada perubahan.
+- **UI**: satu halaman `/dashboard/project-documentation` dengan tabel 8 kolom (Nama Proyek, Minggu 1–5, Catatan, Aksi), inline edit satu baris, validasi error `colSpan` penuh, search client-side berdasarkan nama project, dan PDF A4 landscape dari baris yang terlihat. PDF memotong URL dan tidak mencetak metadata uploader.
+- **Sidebar/RBAC**: menu tunggal **Project Documentation** di Core Enterprise; `DOCUMENTATION_VIEW` untuk Admin, Head Office, Management, Project; `DOCUMENTATION_MANAGE` untuk Admin, Head Office, Project. Management read-only; Project dapat mengelola seluruh project tanpa ownership.
+- **Dokumentasi**: sinkronisasi master log, feature register, current state, API, authentication/authorization, dan module inventory.
+
+### File impacted
+- Add: `src/lib/project-documentation/{constants,schema,repository,service,pdoc-draft}.ts` + test schema/repository/service/pdoc-draft; `src/app/api/project-documentation/{route,_helpers}.ts` + `_helpers.test.ts`, `[projectId]/route.ts`; `src/components/dashboard/project-documentation/{ProjectDocumentationPage,PdocTable}.tsx`, `pdocExportPdf.ts`; `src/app/dashboard/project-documentation/{page,layout}.tsx`; `src/components/dashboard/projectDocumentationSidebar.test.ts`; `drizzle/0018_project_documentations.sql`, `drizzle/meta/0018_snapshot.json`; `docs/design/PDOC_P2_AUDIT.md`, `docs/design/PDOC_P3_TECHNICAL_DESIGN.md`.
+- Modify: `src/lib/pg/schema.ts`, `src/lib/auth/permissions.ts`, `drizzle/meta/_journal.json`, `src/components/dashboard/DashboardSidebar.tsx`, `docs/development/{DEVELOPMENT_MASTER_LOG,FEATURE_REGISTER,CURRENT_PROJECT_STATE}.md`, `docs/audit/{05_API_DOCUMENTATION,06_AUTHENTICATION_AND_AUTHORIZATION,07_MODULE_AND_FEATURE_INVENTORY}.md`.
+- Tidak berubah pada Sub-fase D: source code, API, service, repository, database, migration, dependency, dan modul lain (MSL/MKS/CST/KM).
+
+### Verifikasi
+| Pemeriksaan | Hasil | Sumber |
+|---|---|---|
+| `npx tsc --noEmit` | **PASS** | Freebuff |
+| `npx eslint` (PDOC + sidebar) | **PASS**, 0 warning | Freebuff |
+| `npm test` | **224/224 PASS** (56 suite; 49 test PDOC di 6 file) | Freebuff |
+| `git diff --check` | **PASS** | Freebuff |
+| Migration `0018` | **APPLIED** (Owner-confirmed); tidak dijalankan ulang pada Sub-fase D | Owner |
+| Runtime API/DB + browser empat role | **NOT RUN** — menunggu visual test dan commit/push Owner | — |
+
+### Batasan
+- Tidak ada commit, push, deploy, atau migration pada Sub-fase D.
+- Runtime API terautentikasi dan visual browser empat role belum dijalankan oleh Freebuff; status keseluruhan tetap `IMPLEMENTED BUT NOT FULLY VERIFIED`.
+- Verifikasi PDOC bersifat static/unit test (repo tanpa jsdom); PDF dan lifecycle browser perlu dikonfirmasi Owner.
+
+---
+
 ## DL-2026-11-04-16 — WIBEX Development Governance organization-wide
 
 | Field | Nilai |

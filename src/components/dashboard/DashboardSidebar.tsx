@@ -288,6 +288,53 @@ export const calculationSheetMenu: SidebarItem[] = [
   })),
 ];
 
+const PROJECT_DOCUMENTATION_ROOT = "/dashboard/project-documentation";
+
+export function isProjectDocumentationPath(pathname: string): boolean {
+  return (
+    pathname === PROJECT_DOCUMENTATION_ROOT ||
+    pathname.startsWith(`${PROJECT_DOCUMENTATION_ROOT}/`)
+  );
+}
+
+// Project Documentation is a parent accordion with two read/write surfaces:
+// the monthly recap and the read-only annual matrix.
+export const projectDocumentationMenu: SidebarItem = {
+  label: "Project Documentation",
+  href: PROJECT_DOCUMENTATION_ROOT,
+  icon: (
+    <MenuIcon>
+      <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+    </MenuIcon>
+  ),
+};
+
+export const projectDocumentationSubmenu: SidebarItem[] = [
+  {
+    label: "Rekap Bulanan",
+    href: `${PROJECT_DOCUMENTATION_ROOT}/rekap-bulanan`,
+    icon: (
+      <MenuIcon>
+        <rect width="18" height="18" x="3" y="3" rx="2" />
+        <path d="M3 9h18" />
+        <path d="M9 21V9" />
+      </MenuIcon>
+    ),
+  },
+  {
+    label: "Summary Report",
+    href: `${PROJECT_DOCUMENTATION_ROOT}/summary`,
+    icon: (
+      <MenuIcon>
+        <path d="M3 3v18h18" />
+        <path d="M7 15v3" />
+        <path d="M12 10v8" />
+        <path d="M17 6v12" />
+      </MenuIcon>
+    ),
+  },
+];
+
 const templateFormMenu: SidebarItem = {
   label: "Template & Form",
   href: "/dashboard/template-form",
@@ -374,6 +421,7 @@ export type SidebarVisibility = {
   showKnowledgeManagement: boolean;
   showMetodeKerja: boolean;
   showCalculationSheet: boolean;
+  showProjectDocumentation: boolean;
   showTemplateForm: boolean;
   showMasterProject: boolean;
   showEngineeringDatabase: boolean;
@@ -399,6 +447,10 @@ export function getSidebarVisibility(
     role,
     PERMISSIONS.CALCULATION_SHEET_VIEW,
   );
+  const showProjectDocumentation = hasPermission(
+    role,
+    PERMISSIONS.DOCUMENTATION_VIEW,
+  );
   const showTemplateForm = canViewTemplateForm(role);
   const showMasterProject = canViewMasterProject(role);
   const showEngineeringDatabase = canViewEngineeringDatabase(role);
@@ -415,6 +467,7 @@ export function getSidebarVisibility(
     showKnowledgeManagement,
     showMetodeKerja,
     showCalculationSheet,
+    showProjectDocumentation,
     showTemplateForm,
     showMasterProject,
     showEngineeringDatabase,
@@ -428,6 +481,7 @@ export function getSidebarVisibility(
       showKnowledgeManagement ||
       showMetodeKerja ||
       showCalculationSheet ||
+      showProjectDocumentation ||
       showTemplateForm ||
       showMasterProject ||
       showEngineeringDatabase ||
@@ -441,6 +495,7 @@ export type SidebarAccordionState = {
   knowledgeOpen: boolean;
   metodeKerjaOpen: boolean;
   calculationSheetOpen: boolean;
+  projectDocumentationOpen: boolean;
   masterProjectOpen: boolean;
   engineeringDatabaseOpen: boolean;
 };
@@ -469,6 +524,7 @@ export function getInitialSidebarAccordionState(
     knowledgeOpen: isKnowledgeManagementPath(pathname),
     metodeKerjaOpen: isMetodeKerjaPath(pathname),
     calculationSheetOpen: isCalculationSheetPath(pathname),
+    projectDocumentationOpen: isProjectDocumentationPath(pathname),
     masterProjectOpen: pathname.startsWith("/dashboard/master-project"),
     engineeringDatabaseOpen: pathname.startsWith("/dashboard/engineering-database"),
   };
@@ -488,6 +544,7 @@ export default function DashboardSidebar({
     showKnowledgeManagement,
     showMetodeKerja,
     showCalculationSheet,
+    showProjectDocumentation,
     showTemplateForm,
     showMasterProject,
     showEngineeringDatabase,
@@ -508,6 +565,7 @@ export default function DashboardSidebar({
   const isKnowledgeManagementRoute = isKnowledgeManagementPath(pathname);
   const isMetodeKerjaRoute = isMetodeKerjaPath(pathname);
   const isCalculationSheetRoute = isCalculationSheetPath(pathname);
+  const isProjectDocumentationRoute = isProjectDocumentationPath(pathname);
   const isMasterProjectRoute = pathname.startsWith("/dashboard/master-project");
   const isEngineeringDatabaseRoute = pathname.startsWith(
     "/dashboard/engineering-database",
@@ -523,6 +581,9 @@ export default function DashboardSidebar({
   );
   const [calculationSheetOpen, setCalculationSheetOpen] = useState(
     initialAccordions.calculationSheetOpen,
+  );
+  const [projectDocumentationOpen, setProjectDocumentationOpen] = useState(
+    initialAccordions.projectDocumentationOpen,
   );
   const [masterProjectOpen, setMasterProjectOpen] = useState(
     initialAccordions.masterProjectOpen,
@@ -548,6 +609,9 @@ export default function DashboardSidebar({
     }
     if (isCalculationSheetRoute) {
       setCalculationSheetOpen(true);
+    }
+    if (isProjectDocumentationRoute) {
+      setProjectDocumentationOpen(true);
     }
     if (isMasterProjectRoute) {
       setMasterProjectOpen(true);
@@ -866,6 +930,52 @@ export default function DashboardSidebar({
                         aria-label="Calculation Sheet Template"
                       >
                         {calculationSheetMenu.map(renderItem)}
+                      </nav>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+              {showProjectDocumentation ? (
+                <div className="mt-1">
+                  <div className="px-1">
+                    <button
+                      type="button"
+                      aria-expanded={projectDocumentationOpen}
+                      aria-controls="project-documentation-menu"
+                      onClick={() =>
+                        setProjectDocumentationOpen((prev) => !prev)
+                      }
+                      className="flex w-full items-center justify-between rounded-lg border border-transparent px-2.5 py-2 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+                    >
+                      <span className="flex items-center gap-2.5">
+                        <span className="text-secondary">
+                          {projectDocumentationMenu.icon}
+                        </span>
+                        <span>Project Documentation</span>
+                      </span>
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                        className={`text-slate-400 transition-transform duration-200 ${projectDocumentationOpen ? "rotate-180" : "rotate-0"}`}
+                      >
+                        <path d="m6 9 6 6 6-6" />
+                      </svg>
+                    </button>
+                  </div>
+                  {projectDocumentationOpen ? (
+                    <div id="project-documentation-menu">
+                      <nav
+                        className="ml-4 space-y-1 border-l-2 border-slate-100 pl-3"
+                        aria-label="Project Documentation"
+                      >
+                        {projectDocumentationSubmenu.map(renderItem)}
                       </nav>
                     </div>
                   ) : null}

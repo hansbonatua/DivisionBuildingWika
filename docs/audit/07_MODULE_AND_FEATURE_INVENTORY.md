@@ -24,9 +24,10 @@ Klasifikasi memakai label yang diminta. "Bukti" = hal yang benar-benar diperiksa
 | 16 | MSL Engineering | **COMPLETE AND VERIFIED** (frozen: PERLU VERIFIKASI) | backend + UI + PDF |
 | 17 | Organization Structure | **COMPLETE AND VERIFIED** (frozen: PERLU VERIFIKASI) | singleton + upload |
 | 18 | Dashboard SASAA | **NOT STARTED** | hanya permission |
-| 19 | Test & CI | **PARTIALLY IMPLEMENTED** | 21 unit test Knowledge Management (`npm test`), belum ada CI |
+| 19 | Test & CI | **PARTIALLY IMPLEMENTED** | **224 unit test / 56 suite** (`npm test`), termasuk KM/CST/PDOC; belum ada CI |
 | 20 | Knowledge Management V2 (Lesson Learn, Best Practice / KI KM, VA/VE) | **IMPLEMENTED BUT NOT FULLY VERIFIED** | 3 halaman + 7 route V2 + `knowledge_entries`/`knowledge_pics`/`knowledge_evidence` (+ archive/selection); `0015_knowledge_management_v2_fresh` APPLIED 2026-11-05; Admin PASS, 3 role BLOCKED |
 | 21 | Calculation Sheet Template (master reference flat, 7 kategori, inline) | **IMPLEMENTED BUT NOT FULLY VERIFIED** | 1 halaman + 7 anchor, 5 endpoint, `0017_calculation_sheet_templates` **BELUM di-apply**; static checks 174/174 PASS; runtime pending Owner |
+| 22 | Project Documentation (lima minggu, audit per minggu, inline, search, PDF) | **IMPLEMENTED BUT NOT FULLY VERIFIED** | 1 halaman + 8 kolom, 2 endpoint, 49 test (6 file), `0018_project_documentations` **APPLIED**; static checks 224/224 PASS; runtime pending Owner |
 
 ## 2. Public Landing Page
 
@@ -93,7 +94,7 @@ Pola seragam untuk 5 modul: list → form → preview → status publikasi → `
 
 - Direktori proyek kanonik; `(name, location)` unik case-insensitive → duplikat 409.
 - `year` adalah satu-satunya sumber tahun untuk MSL; dapat diubah lewat edit.
-- Hapus ditolak bila dipakai Engineering DB atau MSL (RESTRICT → 409).
+- Hapus ditolak bila dipakai Engineering DB, MSL, atau Project Documentation (RESTRICT → 409).
 - PIC: Admin/Head Office.
 
 ## 7. Engineering Databases
@@ -200,3 +201,20 @@ Tidak ada modul notifikasi, email, audit log umum, pencarian global, export Exce
 - **Verifikasi:** `tsc`/`eslint`/`npm test` (174/174)/`git diff --check` PASS. Runtime **NOT RUN**. Detail: `DL-2026-11-09-02`.
 
 **Batasan.** Uji API terautentikasi (200/201/400/403/404/409) dan uji browser empat role **NOT RUN** karena tidak ada kredensial akun uji. Yang terverifikasi runtime tanpa sesi: 401 pada semua endpoint, 405 pada hapus record, 307 pada halaman dashboard. Status karena itu `IMPLEMENTED BUT NOT FULLY VERIFIED`.
+
+## 14. Project Documentation (10 November 2026)
+
+**Status:** `IMPLEMENTED BUT NOT FULLY VERIFIED` — implementasi P4 A–D selesai, static checks PASS; migration `0018` APPLIED (Owner-confirmed), runtime browser/API empat role belum diuji.
+
+- **Tujuan:** dokumentasi lima minggu per Master Project berupa URL, dengan jejak uploader/timestamp per minggu dan catatan project.
+- **Halaman:** `/dashboard/project-documentation` — satu tabel dengan 8 kolom: Nama Proyek · Minggu 1–5 · Catatan · Aksi. Tidak ada create/delete project dari modul ini.
+- **Inline editing:** satu baris diedit pada satu waktu; field yang tidak diubah tidak dikirim; Simpan memanggil `PUT` upsert, Batal mengembalikan draft. Error validasi/API tampil di baris `colSpan` penuh.
+- **URL + audit:** URL `http`/`https` (≤2.048); link memakai ikon 🔗 dan metadata `Oleh: [Nama], [Tanggal id-ID]`; URL kosong tampil `—`. Mengosongkan URL menghapus pasangan audit minggu tersebut; URL yang sama tidak mengubah timestamp.
+- **Search + PDF:** search client-side berdasarkan nama project; PDF A4 landscape dari baris yang terlihat, URL dipotong, metadata uploader tidak dicetak.
+- **API:** `GET /api/project-documentation` (list semua Master Project) dan `PUT /api/project-documentation/[projectId]` (upsert). Tidak ada `POST`/`DELETE`; `Cache-Control: no-store`.
+- **RBAC:** `DOCUMENTATION_VIEW` (Admin, Head Office, Management, Project); `DOCUMENTATION_MANAGE` (Admin, Head Office, Project). Management read-only; Project mengelola semua project.
+- **Database:** tabel `project_documentations` dengan `project_id` UNIQUE, lima URL + pasangan audit minggu, `catatan`, audit baris, FK ke Master Project/users; migration `0018_project_documentations` **APPLIED** (Owner-confirmed). Delete Master Project yang masih direferensikan ditolak FK RESTRICT (409).
+- **Sidebar:** satu item top-level **Project Documentation** di grup Core Enterprise, terlihat dengan `DOCUMENTATION_VIEW`.
+- **Verifikasi:** `tsc`/`eslint`/`npm test` (224/224, 56 suite; 49 test PDOC di 6 file)/`git diff --check` PASS. Runtime **NOT RUN**. Detail: `DL-2026-11-10-01`.
+
+**Batasan.** Uji API terautentikasi dan browser empat role, termasuk lifecycle inline/PDF, **NOT RUN** karena belum ada sesi uji; status tetap `IMPLEMENTED BUT NOT FULLY VERIFIED`. Migration APPLIED berasal dari konfirmasi Owner, bukan verifikasi DB oleh agent pada Sub-fase D.

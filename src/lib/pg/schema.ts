@@ -970,3 +970,119 @@ export const calculationSheetTemplates = pgTable(
 
 export type PgCalculationSheetTemplate = typeof calculationSheetTemplates.$inferSelect;
 export type NewPgCalculationSheetTemplate = typeof calculationSheetTemplates.$inferInsert;
+
+// Project Documentation (PDOC): FLAT one-row-per-project-period table.
+//
+// Rows are driven by Master Project; this table never creates projects. The
+// five weeks are fixed application slots, so they are explicit columns rather
+// than a child table. Each week owns its URL plus last-touch audit pair, while
+// `catatan` is per project-period. Clearing a link follows the Owner decision:
+// the URL and its audit pair are all set to NULL.
+//
+// (project_id, year, month) is UNIQUE and project_id is ON DELETE RESTRICT:
+// one documentation row per project-period, and a Master Project with
+// documentation cannot be hard-deleted. `year` is the documentation year, not
+// master_projects.year; it is deliberately not tied to the project year.
+// Actor convention matches the other enterprise tables: `created_by` is
+// authorship (NOT NULL, NO ACTION) while `updated_by` is a last-touch pointer
+// (nullable, SET NULL).
+export const projectDocumentations = pgTable(
+  "project_documentations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => masterProjects.id, { onDelete: "restrict" }),
+
+    year: integer("year").notNull(),
+    month: integer("month").notNull(),
+
+    week1Url: text("week_1_url"),
+    week1UpdatedBy: uuid("week_1_updated_by").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    week1UpdatedAt: timestamp("week_1_updated_at", { withTimezone: true }),
+
+    week2Url: text("week_2_url"),
+    week2UpdatedBy: uuid("week_2_updated_by").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    week2UpdatedAt: timestamp("week_2_updated_at", { withTimezone: true }),
+
+    week3Url: text("week_3_url"),
+    week3UpdatedBy: uuid("week_3_updated_by").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    week3UpdatedAt: timestamp("week_3_updated_at", { withTimezone: true }),
+
+    week4Url: text("week_4_url"),
+    week4UpdatedBy: uuid("week_4_updated_by").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    week4UpdatedAt: timestamp("week_4_updated_at", { withTimezone: true }),
+
+    week5Url: text("week_5_url"),
+    week5UpdatedBy: uuid("week_5_updated_by").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    week5UpdatedAt: timestamp("week_5_updated_at", { withTimezone: true }),
+
+    catatan: text("catatan"),
+
+    createdBy: uuid("created_by")
+      .notNull()
+      .references(() => users.id, { onDelete: "no action" }),
+    updatedBy: uuid("updated_by").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("project_documentations_project_period_unique").on(
+      table.projectId,
+      table.year,
+      table.month,
+    ),
+    index("project_documentations_year_month_idx").on(table.year, table.month),
+    check(
+      "project_documentations_month_check",
+      sql`${table.month} BETWEEN 1 AND 12`,
+    ),
+    check(
+      "project_documentations_year_check",
+      sql`${table.year} >= 2000`,
+    ),
+    check(
+      "project_documentations_week_1_url_check",
+      sql`${table.week1Url} is null or (${table.week1Url} ~ '^https?://' and length(${table.week1Url}) <= 2048)`,
+    ),
+    check(
+      "project_documentations_week_2_url_check",
+      sql`${table.week2Url} is null or (${table.week2Url} ~ '^https?://' and length(${table.week2Url}) <= 2048)`,
+    ),
+    check(
+      "project_documentations_week_3_url_check",
+      sql`${table.week3Url} is null or (${table.week3Url} ~ '^https?://' and length(${table.week3Url}) <= 2048)`,
+    ),
+    check(
+      "project_documentations_week_4_url_check",
+      sql`${table.week4Url} is null or (${table.week4Url} ~ '^https?://' and length(${table.week4Url}) <= 2048)`,
+    ),
+    check(
+      "project_documentations_week_5_url_check",
+      sql`${table.week5Url} is null or (${table.week5Url} ~ '^https?://' and length(${table.week5Url}) <= 2048)`,
+    ),
+    check(
+      "project_documentations_catatan_check",
+      sql`${table.catatan} is null or length(${table.catatan}) <= 2000`,
+    ),
+  ],
+);
+
+export type PgProjectDocumentation = typeof projectDocumentations.$inferSelect;
+export type NewPgProjectDocumentation = typeof projectDocumentations.$inferInsert;

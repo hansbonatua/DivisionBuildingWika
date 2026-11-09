@@ -46,7 +46,7 @@ sequenceDiagram
 
 | Lapis | Lokasi | Perilaku |
 |---|---|---|
-| 1. Layout server | `src/app/dashboard/**/layout.tsx` (**20 layout modul + 1 shell**) | `getCurrentUser()` → redirect `/login`; `canView*` → redirect `/dashboard` |
+| 1. Layout server | `src/app/dashboard/**/layout.tsx` (**23 layout modul + 1 shell**) | `getCurrentUser()` → redirect `/login`; `canView*` → redirect `/dashboard` |
 | 2. Route handler | `src/app/api/**/route.ts` | `getPermittedActor` / `getActor` / `apiAuthGuard` → 401/403 |
 | 3. Service | `src/lib/*/service.ts` | `assertCanManageCms`, `assertManageAccess`, `assertCanManageUsers`, dst → error domain → 403 |
 
@@ -75,6 +75,8 @@ Tidak ada `middleware.ts`. Ini aman selama setiap route memeriksa sesi sendiri �
 | `ORGANIZATION_STRUCTURE_MANAGE` | ✔ | ✗ | ✗ | ✗ | idem |
 | `CALCULATION_SHEET_VIEW` | ✔ | ✔ | ✔ | ✔ | `lib/calculation-sheet-template/service.ts` (`assertViewAccess`) |
 | `CALCULATION_SHEET_MANAGE` | ✔ | ✔ | ✗ | ✗ | idem (`assertManageAccess`) |
+| `DOCUMENTATION_VIEW` | ✔ | ✔ | ✔ | ✔ | `lib/project-documentation/service.ts` (`assertViewAccess`) |
+| `DOCUMENTATION_MANAGE` | ✔ | ✔ | ✗ | ✔ | idem (`assertManageAccess`) |
 | `DASHBOARD_SASAA_VIEW` | ✔ | ✔ | ✔ | ✗ | **belum dipakai route mana pun** |
 
 `hasPermission(role, permission)` mengembalikan `true` untuk Admin pada semua permission fitur (`isAdmin`), lalu mencocokkan role pada daftar non-Admin. Role tak dikenal → `false`.
@@ -102,6 +104,7 @@ Tidak ada `middleware.ts`. Ini aman selama setiap route memeriksa sesi sendiri �
 | Tombol MSL | ya — `canViewMsl({role, mslAccess})` | ya (`canViewMsl`/`canManageMsl`) |
 | Menu CMS & User Directory | ya | ya |
 | Menu + tombol CST (Edit/Hapus/Tambah) | ya — `hasPermission(role, CALCULATION_SHEET_MANAGE)` dihitung di page server; sidebar memakai `CALCULATION_SHEET_VIEW` | ya (layout guard + `assertManageAccess` di service) |
+| Menu + tombol PDOC (Edit/Simpan/Batal) | ya — `canManageDocumentation(role)` dihitung di page server; sidebar memakai `DOCUMENTATION_VIEW`; PDF tetap terlihat untuk semua role View | ya (layout guard + `assertViewAccess`/`assertManageAccess` + `DOCUMENTATION_MANAGE` di route) |
 
 **Tidak ditemukan** elemen UI yang menjadi satu-satunya kontrol akses.
 
@@ -201,3 +204,18 @@ Enhancement P4 tidak mengubah permission, guard, atau matriks §8. Yang berubah 
 - **Berbeda dari MKS:** Head Office memiliki full CRUD termasuk Delete (satu permission `CALCULATION_SHEET_MANAGE`), bukan pola "HO tanpa Delete".
 - **PIC:** hanya user role Head Office (termasuk suspended); status dikembalikan agar UI menandai "(non-aktif)". Management/Project tidak dapat memanggil `pic-options`.
 - **Status verifikasi:** static checks PASS (174/174). Migration `0017` belum di-apply sehingga RBAC runtime belum diuji; seluruh baris tabel di atas berstatus **NOT RUN**, bukan PASS. Detail: `DL-2026-11-09-02`.
+
+## 11. Project Documentation (10 November 2026)
+
+| Role | Layout/halaman | GET list | PUT | PDF | Verdict |
+|---|---|---|---|---|---|
+| Admin | ✔ | ✔ | ✔ | ✔ | Static PASS; runtime **NOT RUN** |
+| Head Office | ✔ | ✔ | ✔ | ✔ | Static PASS; runtime **NOT RUN** |
+| Management | ✔ | ✔ | ✗ (403) | ✔ | Static PASS; runtime **NOT RUN** |
+| Project | ✔ | ✔ | ✔ (semua project) | ✔ | Static PASS; runtime **NOT RUN** |
+
+- **Permission:** `DOCUMENTATION_VIEW` untuk Admin, Head Office, Management, Project; `DOCUMENTATION_MANAGE` untuk Admin, Head Office, Project. Management hanya membaca; tidak ada `DOCUMENTATION_MANAGE`.
+- **Guard berlapis:** layout `/dashboard/project-documentation` memanggil `getCurrentUser()` lalu cek `DOCUMENTATION_VIEW`; page menghitung `canManageDocumentation` untuk tombol Edit; route memakai `getActor()`; service memanggil `assertViewAccess`/`assertManageAccess`. UI bukan satu-satunya kontrol.
+- **Record-level:** tidak ada ownership per project. Project dapat mengubah dokumentasi seluruh Master Project; Management tidak dapat menulis. Identitas aktor audit selalu dari sesi, bukan body.
+- **PDF:** semua role View dapat mengekspor tabel; PDF dibentuk client-side dan tidak menambah endpoint. Tombol Edit/Simpan/Batal hanya muncul untuk `DOCUMENTATION_MANAGE`.
+- **Status verifikasi:** static checks PASS (224/224, 56 suite; 49 test PDOC di 6 file). Migration `0018_project_documentations` **APPLIED** (Owner-confirmed); RBAC runtime empat role dan visual browser **NOT RUN**, sehingga seluruh baris tabel di atas bukan PASS. Detail: `DL-2026-11-10-01`.
