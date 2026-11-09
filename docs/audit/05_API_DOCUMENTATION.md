@@ -1,6 +1,6 @@
 # 05 — API DOCUMENTATION
 
-**67 file** `route.ts` di `src/app/api`, mengekspor **108 method handler** (`GET`/`POST`/`PATCH`/`PUT`/`DELETE`). Semua respons memakai amplop `{ data }` (sukses) atau `{ error: { message, details? } }` (gagal). Aktor **selalu** dari sesi cookie `wibex_session`.
+**68 file** `route.ts` di `src/app/api`, mengekspor **109 method handler** (`GET`/`POST`/`PATCH`/`PUT`/`DELETE`). Semua respons memakai amplop `{ data }` (sukses) atau `{ error: { message, details? } }` (gagal). Aktor **selalu** dari sesi cookie `wibex_session`.
 
 Setiap domain enterprise memakai `src/app/api/<domain>/_helpers.ts` (9 file, termasuk `knowledge-management`, `calculation-sheet-template`, dan `project-documentation`) untuk `getActor`, `mapDomainError`, `parseJsonBody`, `isUuid`.
 
@@ -157,7 +157,7 @@ Parsing query eksplisit (`/^\d+$/`) — `2026.5`, `abc`, string kosong ditolak 4
 
 ## 12. Catatan Validitas
 
-- Semua endpoint di atas **ada** di repository (diverifikasi dari daftar `git ls-files 'src/app/api/*route.ts'` + `export function`): 67 file, 108 method — seluruhnya tercantum di dokumen ini.
+- Semua endpoint di atas **ada** di repository (diverifikasi dari daftar `git ls-files 'src/app/api/*route.ts'` + `export function`): 68 file, 109 method — seluruhnya tercantum di dokumen ini.
 
 ## 13. Knowledge Management V1 (4 November 2026 — SUPERSEDED by V2, lihat §14)
 
@@ -246,19 +246,24 @@ Lima endpoint, semuanya mengembalikan `Cache-Control: no-store`. Otorisasi diteg
 
 **Status verifikasi.** Static checks PASS (174/174 test, termasuk test schema/service/error mapping CST). Migration `0017` **BELUM di-apply**; runtime API terhadap database dan browser **NOT RUN** (Owner pending). Detail: `DL-2026-11-09-02`.
 
-## 17. Project Documentation (10 November 2026)
+## 17. Project Documentation V1 + Monthly Delta (10 November 2026)
 
-Dua endpoint, keduanya mengembalikan `Cache-Control: no-store`. Master Project adalah sumber baris, sehingga project tanpa dokumentasi tetap muncul. Otorisasi ditegakkan di service (`assertViewAccess`/`assertManageAccess`), bukan hanya di route; identitas aktor selalu dari sesi.
+Tiga endpoint, semuanya mengembalikan `Cache-Control: no-store`. Master Project adalah sumber baris, sehingga project tanpa dokumentasi tetap muncul. Otorisasi ditegakkan di service (`assertViewAccess`/`assertManageAccess`), bukan hanya di route; identitas aktor selalu dari sesi.
 
 | Method | Path | Guard | Service | Efek |
 |---|---|---|---|---|
-| GET | `/api/project-documentation` | `getActor` + `DOCUMENTATION_VIEW` | `listDocumentations` | **200** — `{ data: { rows } }`; satu baris per Master Project + lima minggu + `catatan`; urut `name`, `location`, `id`; metadata uploader per minggu ikut dikembalikan |
-| PUT | `/api/project-documentation/[projectId]` | `getActor` + `DOCUMENTATION_MANAGE` | `updateDocumentation` | **200** — `{ data }`; upsert baris dokumentasi; UUID tidak valid → **400**, project tidak ada → **404** |
+| GET | `/api/project-documentation?year=YYYY&month=M` | `getActor` + `DOCUMENTATION_VIEW` | `listDocumentations(actor, year, month)` | **200** — `{ data: { period, available_years, rows } }`; satu baris per Master Project untuk periode tersebut + lima minggu + `catatan`; metadata uploader per minggu ikut dikembalikan |
+| PUT | `/api/project-documentation/[projectId]/[year]/[month]` | `getActor` + `DOCUMENTATION_MANAGE` | `updateDocumentation(actor, projectId, year, month, input)` | **200** — `{ data }`; upsert dokumentasi untuk satu project-periode; UUID tidak valid → **400**, project tidak ada → **404**, periode tidak valid → **400** |
+| GET | `/api/project-documentation/summary?year=YYYY` | `getActor` + `DOCUMENTATION_VIEW` | `getSummary(actor, year)` | **200** — `{ data: { year, available_years, months, rows } }`; semua Master Project × 12 bulan; tiap bulan `{ month, completed_weeks, total_weeks, documented }`; project tanpa data tetap tampil `0/5` |
 
-- Body `PUT` divalidasi `updateProjectDocumentationSchema` (strict): `week_1_url`–`week_5_url` dan `catatan` semuanya opsional. Field yang tidak dikirim tidak berubah; `null` atau string kosong menghapus nilai; body kosong → **400**; field asing seperti `project_id` → **400**.
+- Query periode wajib: `year` 4 digit dan ≥2000, `month` 1–12. `summary` hanya menerima `year`. Nilai hilang, malformed, atau di luar rentang → **400**.
+- Identitas database adalah `(project_id, year, month)` dengan unique composite; tahun dokumentasi bebas dan tidak dipaksa sama dengan `master_projects.year`. `available_years` berasal dari data dokumentasi dan dipakai UI untuk opsi filter.
+- Body `PUT` divalidasi `updateProjectDocumentationSchema` (strict): `week_1_url`–`week_5_url` dan `catatan` semuanya opsional. Field yang tidak dikirim tidak berubah; `null` atau string kosong menghapus nilai; body kosong → **400**; field periode atau field asing seperti `project_id` → **400**.
 - URL harus `http://`/`https://` absolut dan ≤2.048 karakter; `catatan` ≤2.000 karakter. Service menormalisasi trim sebelum menyimpan.
 - Audit per minggu: URL berubah → `week_n_updated_by` + `week_n_updated_at` baru; URL sama → metadata lama dipertahankan; URL dikosongkan → URL dan pasangan audit minggu tersebut menjadi `NULL` (D-PDOC-02). Baris `updated_by`/`updated_at` ikut diperbarui saat ada perubahan.
-- Tidak ada `POST` atau `DELETE`: project dibuat/dihapus lewat Master Project, dan dokumentasi dibuat otomatis oleh `PUT` pertama.
+- Summary menghitung minggu yang terisi (0–5) per bulan; `documented` menandai adanya baris dokumentasi, termasuk bulan dengan 0 URL. Summary bersifat read-only.
+- Tidak ada `POST` atau `DELETE`: project dibuat/dihapus lewat Master Project, dan dokumentasi dibuat otomatis oleh `PUT` pertama. Master Project yang masih direferensikan ditolak FK RESTRICT (409).
 - FK `23503`/`23001` dan unique `23505` → **409**; CHECK `23514` → **400**; error tak dikenal → **500** tanpa membocorkan detail.
+- UI: rekap di `/dashboard/project-documentation/rekap-bulanan` (root redirect ke sini), Summary Report di `/dashboard/project-documentation/summary`, dan sidebar accordion dengan dua submenu.
 
-**Status verifikasi.** Static checks PASS (224/224 test, 56 suite; termasuk 49 test PDOC di 6 file). Migration `0018_project_documentations` **APPLIED** (Owner-confirmed); runtime API terautentikasi empat role dan browser **NOT RUN**. Detail: `DL-2026-11-10-01`.
+**Status verifikasi.** Static checks PASS (233/233 test, 59 suite; 58 test PDOC di 6 file). Commit `a7527e1` sudah di-push. Migration `0018_project_documentations` **APPLIED**; migration `0019_project_documentation_period` **APPLIED** (Owner-confirmed 10 November 2026). Runtime API terautentikasi empat role dan browser **NOT RUN**. Detail: `DL-2026-11-10-02`.

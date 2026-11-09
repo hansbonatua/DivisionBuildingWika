@@ -205,17 +205,18 @@ Enhancement P4 tidak mengubah permission, guard, atau matriks §8. Yang berubah 
 - **PIC:** hanya user role Head Office (termasuk suspended); status dikembalikan agar UI menandai "(non-aktif)". Management/Project tidak dapat memanggil `pic-options`.
 - **Status verifikasi:** static checks PASS (174/174). Migration `0017` belum di-apply sehingga RBAC runtime belum diuji; seluruh baris tabel di atas berstatus **NOT RUN**, bukan PASS. Detail: `DL-2026-11-09-02`.
 
-## 11. Project Documentation (10 November 2026)
+## 11. Project Documentation V1 + Monthly Delta (10 November 2026)
 
-| Role | Layout/halaman | GET list | PUT | PDF | Verdict |
-|---|---|---|---|---|---|
-| Admin | ✔ | ✔ | ✔ | ✔ | Static PASS; runtime **NOT RUN** |
-| Head Office | ✔ | ✔ | ✔ | ✔ | Static PASS; runtime **NOT RUN** |
-| Management | ✔ | ✔ | ✗ (403) | ✔ | Static PASS; runtime **NOT RUN** |
-| Project | ✔ | ✔ | ✔ (semua project) | ✔ | Static PASS; runtime **NOT RUN** |
+| Role | Layout/halaman | GET Rekap | GET Summary | PUT periodik | PDF | Verdict |
+|---|---|---|---|---|---|---|
+| Admin | ✔ | ✔ | ✔ | ✔ | ✔ | Static PASS; runtime **NOT RUN** |
+| Head Office | ✔ | ✔ | ✔ | ✔ | ✔ | Static PASS; runtime **NOT RUN** |
+| Management | ✔ | ✔ | ✔ | ✗ (403) | ✔ | Static PASS; runtime **NOT RUN** |
+| Project | ✔ | ✔ | ✔ | ✔ (semua project) | ✔ | Static PASS; runtime **NOT RUN** |
 
-- **Permission:** `DOCUMENTATION_VIEW` untuk Admin, Head Office, Management, Project; `DOCUMENTATION_MANAGE` untuk Admin, Head Office, Project. Management hanya membaca; tidak ada `DOCUMENTATION_MANAGE`.
-- **Guard berlapis:** layout `/dashboard/project-documentation` memanggil `getCurrentUser()` lalu cek `DOCUMENTATION_VIEW`; page menghitung `canManageDocumentation` untuk tombol Edit; route memakai `getActor()`; service memanggil `assertViewAccess`/`assertManageAccess`. UI bukan satu-satunya kontrol.
+- **Permission:** `DOCUMENTATION_VIEW` untuk Admin, Head Office, Management, Project; `DOCUMENTATION_MANAGE` untuk Admin, Head Office, Project. Management hanya membaca rekap dan Summary; tidak ada `DOCUMENTATION_MANAGE`.
+- **Routing:** root `/dashboard/project-documentation` redirect ke `/rekap-bulanan`; Summary Report berada di `/summary` dan read-only untuk semua role View. Sidebar memakai accordion dengan submenu **Rekap Bulanan** dan **Summary Report**.
+- **Guard berlapis:** layout `/dashboard/project-documentation` memanggil `getCurrentUser()` lalu cek `DOCUMENTATION_VIEW`; page rekap menghitung `canManageDocumentation` untuk tombol Edit; route memakai `getActor()`; service memanggil `assertViewAccess`/`assertManageAccess`. UI bukan satu-satunya kontrol.
 - **Record-level:** tidak ada ownership per project. Project dapat mengubah dokumentasi seluruh Master Project; Management tidak dapat menulis. Identitas aktor audit selalu dari sesi, bukan body.
-- **PDF:** semua role View dapat mengekspor tabel; PDF dibentuk client-side dan tidak menambah endpoint. Tombol Edit/Simpan/Batal hanya muncul untuk `DOCUMENTATION_MANAGE`.
-- **Status verifikasi:** static checks PASS (224/224, 56 suite; 49 test PDOC di 6 file). Migration `0018_project_documentations` **APPLIED** (Owner-confirmed); RBAC runtime empat role dan visual browser **NOT RUN**, sehingga seluruh baris tabel di atas bukan PASS. Detail: `DL-2026-11-10-01`.
+- **PDF:** semua role View dapat mengekspor tabel rekap; PDF dibentuk client-side dan tidak menambah endpoint. Tombol Edit/Simpan/Batal hanya muncul untuk `DOCUMENTATION_MANAGE`. Summary tidak memiliki aksi tulis.
+- **Status verifikasi:** static checks PASS (233/233, 59 suite; 58 test PDOC di 6 file). Commit `a7527e1` sudah di-push. Migration `0018_project_documentations` **APPLIED**; `0019_project_documentation_period` **APPLIED** (Owner-confirmed 10 November 2026); RBAC runtime empat role dan visual browser **NOT RUN**, sehingga seluruh baris tabel di atas bukan PASS. Detail: `DL-2026-11-10-02`.

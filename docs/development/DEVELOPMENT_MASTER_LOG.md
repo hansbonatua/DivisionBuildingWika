@@ -5,7 +5,51 @@ Dokumentasi audit repository ada di `docs/audit/`; dokumen ini mencatat **peruba
 
 ---
 
-## DL-2026-11-10-01 — Project Documentation V1 (P4 A–D)
+## DL-2026-11-10-02 — PDOC Monthly Delta committed & documentation sync
+
+| Field | Nilai |
+|---|---|
+| Feature ID | `ENT-PDOC` |
+| Tanggal | 10 November 2026 |
+| Status | **IMPLEMENTED BUT NOT FULLY VERIFIED** — commit/push selesai; static checks PASS; migration `0018` APPLIED; **0019 APPLIED** (Owner-confirmed 10 November 2026); runtime 4-role PDOC pending Owner |
+| Commit | **`a7527e1`** — `feat: project documentation monthly recap and summary report`; sudah di-push ke `origin/main` |
+| Branch | `main` (`HEAD` = `origin/main` = `a7527e1`; working tree clean sebelum sinkronisasi dokumen P8) |
+| Baseline | `5636113..a7527e1`; 41 file, +15.396 / −29 |
+| Migration | `0018_project_documentations` **APPLIED**; **0019 APPLIED** — `0019_project_documentation_period` (Owner-confirmed 10 November 2026) |
+
+### Perubahan yang masuk commit
+- **Identitas periodik:** `project_documentations` memakai `(project_id, year, month)` dengan unique composite; unique tunggal `project_id` dihapus; CHECK bulan 1–12 dan tahun ≥2000 ditambahkan melalui migration `0019`.
+- **API:** `GET /api/project-documentation?year&month` untuk rekap periode, `PUT /api/project-documentation/[projectId]/[year]/[month]` untuk upsert per periode, dan `GET /api/project-documentation/summary?year` untuk matriks 12 bulan. Periode berasal dari path/query, bukan body.
+- **Frontend:** halaman rekap memiliki dropdown Tahun/Bulan dan fetch ulang saat filter berubah; halaman Summary menampilkan semua Master Project × 12 bulan dengan `0/5` untuk bulan kosong; PDF rekap mencantumkan periode.
+- **Routing/sidebar:** root PDOC redirect ke `/rekap-bulanan`; route `/summary` read-only; Project Documentation menjadi accordion dengan submenu **Rekap Bulanan** dan **Summary Report**.
+- **Dokumentasi:** desain P2/P3 delta, audit 05–07, master log, feature register, dan current state disinkronkan. Test bertambah dari 224 menjadi **233/233** (59 suite; 58 test PDOC di 6 file).
+
+### File impacted
+- Commit `a7527e1`: `src/lib/project-documentation/*`, `src/app/api/project-documentation/*`, `src/components/dashboard/project-documentation/*`, `src/app/dashboard/project-documentation/*`, `DashboardSidebar.tsx`, `permissions.ts`, `pg/schema.ts`, `drizzle/0018_*`, `drizzle/0019_*`, `drizzle/meta/_journal.json`, dokumen desain/audit/development.
+- Pass dokumentasi P8 ini hanya mengubah `docs/development/{CURRENT_PROJECT_STATE,DEVELOPMENT_MASTER_LOG,FEATURE_REGISTER}.md` dan `docs/audit/{05,06,07}`; tidak ada perubahan source, API, service, UI, schema, dependency, atau database.
+
+### Verifikasi
+| Pemeriksaan | Hasil | Sumber |
+|---|---|---|
+| Git baseline | `HEAD` = `origin/main` = `a7527e1`; working tree clean sebelum edit dokumen | Freebuff |
+| `npx tsc --noEmit` | **PASS** | Freebuff |
+| `npx eslint` (file PDOC + sidebar) | **PASS** | Freebuff |
+| `npm test` | **233/233 PASS** (59 suite; 58 test PDOC di 6 file) | Freebuff |
+| `git diff --check` | **PASS** | Freebuff |
+| Migration `0018` | **APPLIED** (Owner-confirmed) | Owner |
+| Migration `0019` | **APPLIED** | Owner-confirmed |
+| Runtime API/browser empat role | **NOT RUN** — menunggu visual test Owner | — |
+
+### Batasan
+- Migration `0019` APPLIED berdasarkan konfirmasi Owner; status ini tidak diverifikasi ulang lewat query DB pada pass ini.
+- Runtime API terautentikasi, visual browser empat role, dan PDF belum dijalankan.
+- Dokumentasi P8 di-commit setelah gate hijau; tidak ada push, deploy, seed, atau DB write pada pass ini.
+
+---
+
+## DL-2026-11-10-01 — Project Documentation V1 (P4 A–D) — HISTORICAL
+
+> **HISTORICAL:** status di bawah adalah kondisi sebelum commit `a7527e1`. Untuk kondisi aktual lihat `DL-2026-11-10-02`.
 
 | Field | Nilai |
 |---|---|

@@ -1,8 +1,8 @@
 # CURRENT PROJECT STATE — BDWIKA / WIBEX
 
-Terakhir diperbarui: 10 November 2026 (Project Documentation V1 diimplementasikan; migration `0018` APPLIED; commit/deploy dan visual browser pending Owner).
+Terakhir diperbarui: 10 November 2026 (PDOC V1 + Monthly Delta sudah di-commit dan di-push sebagai `a7527e1`; migration `0018` APPLIED; **0019 APPLIED** (Owner-confirmed 10 November 2026); runtime visual pending Owner).
 
-**Status proyek:** `PARTIALLY VERIFIED` — MKS dan KM V2 `IMPLEMENTED & VERIFIED` (RBAC 4 role, Owner confirmed); CST `IMPLEMENTED BUT NOT FULLY VERIFIED`; PDOC `IMPLEMENTED BUT NOT FULLY VERIFIED` (migration `0018` APPLIED, runtime visual dan commit/push pending). Bukti: `DL-2026-11-09-01`, `DL-2026-11-09-02`, `DL-2026-11-10-01`.
+**Status proyek:** `PARTIALLY VERIFIED` — MKS dan KM V2 `IMPLEMENTED & VERIFIED` (RBAC 4 role, Owner confirmed); CST `IMPLEMENTED BUT NOT FULLY VERIFIED`; PDOC `IMPLEMENTED BUT NOT FULLY VERIFIED` (commit/push selesai, runtime visual pending). Bukti: `DL-2026-11-09-01`, `DL-2026-11-09-02`, `DL-2026-11-10-02`.
 
 ## 1. Repository
 
@@ -10,31 +10,25 @@ Terakhir diperbarui: 10 November 2026 (Project Documentation V1 diimplementasika
 |---|---|
 | Root | `D:\MagangHub-Wika-StaffEngDigitalisasiBuilding\progress\bdwika` |
 | Branch | `main` (tracking `origin/main`) |
-| HEAD | `5636113` (baseline PDOC; seluruh pekerjaan PDOC belum di-commit) |
+| Baseline fitur | `a7527e1` — `feat: project documentation monthly recap and summary report` (`origin/main`; dokumentasi P8 di-commit setelahnya) |
 | Stack | Next.js 16.3.8 · React 19.2.8 · TypeScript 5.9.3 · Tailwind 4 · Drizzle ORM · PostgreSQL (Neon) · MongoDB · Vercel Blob |
 | Node / npm | v24 · npm 10 |
 | Dev server | tidak dikelola Freebuff pada E; runtime dilakukan Owner (Owner confirmed) |
-| Database | `neondb` (PostgreSQL 18.6), journal file **19 entry**; migration **`0018_project_documentations` APPLIED** (Owner-confirmed) |
+| Database | `neondb` (PostgreSQL 18.6), journal file **20 entry**; `0018_project_documentations` **APPLIED** (Owner-confirmed); **0019 APPLIED** — `0019_project_documentation_period` (Owner-confirmed 10 November 2026) |
 
-## 2. Working Tree (belum di-commit)
+## 2. Working Tree (clean at baseline)
 
-Tidak ada staged change. Tidak ada commit/push/deploy.
+Tidak ada staged, unstaged, atau untracked change pada baseline verifikasi. `HEAD` = `origin/main` = `a7527e1`; dokumentasi P8 di-commit sebagai commit dokumentasi terpisah setelah gate hijau.
 
-| Kelompok | Path | Keterangan |
-|---|---|---|
-| Lib KM V2 | `src/lib/knowledge-management/{access,conflict,repository,schema,service}.ts`, `knowledge.test.ts`, `repository.test.ts` (baru) | validation/service/repository V2 + 2 file test |
-| API KM V2 | `src/app/api/knowledge-management/{route.ts,_helpers.ts,pic-options/route.ts,[id]/route.ts (baru),project-options/route.ts (baru)}` | 7 endpoint V2; 4 route V1 dihapus |
-| Frontend KM V2 | `src/components/dashboard/knowledge-management/{KnowledgeTable,KnowledgeFormDialog (baru),KnowledgeDeleteDialog (baru),KnowledgeManagementPage (baru),types.ts (baru),types.test.ts (baru)}` | rowspan grouping, modal Add/Edit, dialog delete |
-| Enhancement KM V2 (P4, A→D) | `src/components/dashboard/knowledge-management/{KnowledgeProjectCombobox (baru),KnowledgeFilterToolbar (baru),KnowledgeViewDialog (baru),knowledgeExportPdf (baru),knowledgeExportPdf.test (baru)}`; modify `KnowledgeTable`, `types.ts`, `types.test.ts`, `KnowledgeFormDialog` | View modal, PDF tabel + per-record, filter tahun/proyek, search proyek; API/schema/migration tidak berubah |
-| Page KM | `src/app/dashboard/knowledge-management/{lesson-learn,best-practice,va-ve}/page.tsx` | memakai `KnowledgeManagementPage` |
-| Schema DB | `src/lib/pg/schema.ts` | V2 + 4 drift fix (Sub-Fase F) |
-| Migration | `drizzle/0018_project_documentations.sql` (baru), `drizzle/meta/0018_snapshot.json` (baru), `drizzle/meta/_journal.json` | journal 19 entry; `0018` **APPLIED** (Owner-confirmed) |
-| Dokumentasi | `docs/development/*`, `docs/audit/05,06,07,08,13`, `docs/design/` | DL-2026-11-10-01 + sinkronisasi PDOC |
-| Landing | `src/components/landing/{Navbar,About,Clients,Footer,SocialMedia}.tsx` | perubahan lama, tidak disentuh D |
-| CST (P4 A–D) | `src/lib/calculation-sheet-template/*`, `src/app/api/calculation-sheet-template/*`, `src/components/dashboard/calculation-sheet-template/*`, `src/app/dashboard/calculation-sheet-template/*`, `DashboardSidebar.tsx`, `drizzle/0017_*`, `meta/0017_snapshot.json`, `permissions.ts`, `pg/schema.ts` | 1 halaman + 7 anchor, 5 endpoint, 19 test; apply `0017` tidak diverifikasi ulang pada task PDOC |
-| PDOC (P4 A–D) | `src/lib/project-documentation/*`, `src/app/api/project-documentation/*`, `src/components/dashboard/project-documentation/*`, `src/app/dashboard/project-documentation/*`, `DashboardSidebar.tsx`, `drizzle/0018_*`, `meta/0018_snapshot.json`, `permissions.ts`, `pg/schema.ts` | 1 halaman + 8 kolom, 2 endpoint, 49 test (6 file); migration `0018` APPLIED |
+| Item | Nilai |
+|---|---|
+| Commit | `a7527e1` — `feat: project documentation monthly recap and summary report` |
+| Range | `5636113..a7527e1`; 41 file, +15.396 / −29 |
+| Isi commit | PDOC V1 + Monthly Delta, migration `0018`/`0019`, halaman Rekap Bulanan + Summary, sidebar accordion, dan sinkronisasi dokumen |
+| Status remote | sudah di-push ke `origin/main` |
+| Migration | `0018` **APPLIED** (Owner-confirmed); `0019` **APPLIED** (Owner-confirmed 10 November 2026) |
 
-Jangan `reset`, `checkout --`, `stash`, atau `clean` — seluruh pekerjaan KM V2/CST/PDOC belum di-commit.
+Detail file historis sebelum commit tersedia di Git history; jangan menyalin tabel working tree lama sebagai kondisi saat ini.
 
 ## 3. Status Pemeriksaan Terakhir
 
@@ -42,12 +36,12 @@ Jangan `reset`, `checkout --`, `stash`, atau `clean` — seluruh pekerjaan KM V2
 |---|---|---|---|
 | TypeScript | `npx tsc --noEmit` | 0 | PASS |
 | ESLint (file KM) | `npx eslint src/lib/knowledge-management src/app/api/knowledge-management src/components/dashboard/knowledge-management` | 0 | PASS |
-| Test otomatis | `npm test` | 0 | **224/224 PASS** (56 suite; termasuk 49 test PDOC di 6 file: schema/repository/service/helper/draft/sidebar) |
+| Test otomatis | `npm test` | 0 | **233/233 PASS** (59 suite; termasuk 58 test PDOC di 6 file: schema/repository/service/helper/draft/sidebar) |
 | ESLint (CST + sidebar) | `npx eslint src/lib/calculation-sheet-template src/components/dashboard/calculation-sheet-template src/app/dashboard/calculation-sheet-template src/app/api/calculation-sheet-template src/components/dashboard/DashboardSidebar.tsx` | 0 | PASS |
 | ESLint (PDOC + sidebar) | `npx eslint src/lib/project-documentation src/app/api/project-documentation src/components/dashboard/project-documentation src/components/dashboard/DashboardSidebar.tsx src/components/dashboard/projectDocumentationSidebar.test.ts src/app/dashboard/project-documentation` | 0 | PASS |
 | Diff hygiene | `git diff --check` | 0 | PASS |
-| Drift Drizzle | `npx drizzle-kit generate` | — | tidak dijalankan pada Sub-fase D; snapshot `0018` tersedia |
-| Migration | `npx drizzle-kit migrate` | — | **0018 APPLIED** (Owner-confirmed); tidak dijalankan pada Sub-fase D |
+| Drift Drizzle | `npx drizzle-kit generate` | — | tidak dijalankan pada task dokumentasi; snapshot `0019` tersedia |
+| Migration | `npx drizzle-kit migrate` | — | **0018 APPLIED** dan **0019 APPLIED** (Owner-confirmed 10 November 2026); tidak dijalankan pada task ini |
 
 ## 4. Knowledge Management V2
 
@@ -63,13 +57,12 @@ Jangan `reset`, `checkout --`, `stash`, atau `clean` — seluruh pekerjaan KM V2
 
 ## 5. Kondisi yang Perlu Diketahui
 
-- Seluruh pekerjaan PDOC (A–D) dan dokumentasi E belum di-commit; HEAD `5636113`.
+- PDOC V1 + Monthly Delta sudah di-commit dan di-push (`a7527e1`); working tree bersih sebelum sinkronisasi dokumentasi P8.
 - Database KM dalam keadaan bersih: `knowledge_entries/pics/evidence = 0`, tidak ada project `ZZ-KM-TEST-*` (cleanup runtime **Owner confirmed**).
 - Tidak ada user baru, suspend, atau reset password selama pengujian; baseline user 10 akun tidak berubah.
 - Modul MSL dan Struktur Organisasi protected — tidak disentuh.
 - Feed publik Green Building masih 0 item (empty state).
-- `schema.ts` mencakup PDOC; snapshot `0018_snapshot.json` tersedia. Status drift schema tidak diuji ulang pada Sub-fase D.
-- Migration `0018_project_documentations` **APPLIED** (Owner-confirmed); runtime PDOC dan commit/push final masih pending Owner.
+- `schema.ts` mencakup PDOC periodik; snapshot `0019_snapshot.json` tersedia. Status drift schema tidak diuji ulang pada task dokumentasi ini.
 
 ## 6. Metode Kerja Standar (P4)
 
@@ -95,22 +88,21 @@ Jangan `reset`, `checkout --`, `stash`, atau `clean` — seluruh pekerjaan KM V2
 - **Verifikasi:** `tsc` PASS, `eslint` PASS, `npm test` **174/174 PASS**, `git diff --check` PASS. Tidak ada perubahan source pada Sub-fase D CST.
 - **Detail:** `docs/design/CST_P2_AUDIT.md`, `docs/design/CST_P3_TECHNICAL_DESIGN.md`, `DL-2026-11-09-02`.
 
-## 8. Project Documentation (P4, 10 November 2026)
+## 8. Project Documentation (P4 + Monthly Delta, 10 November 2026)
 
-**Status:** `IMPLEMENTED BUT NOT FULLY VERIFIED` — static checks PASS; migration `0018` APPLIED (Owner-confirmed); visual browser dan commit/push pending Owner.
+**Status:** `IMPLEMENTED BUT NOT FULLY VERIFIED` — static checks PASS; commit/push `a7527e1`; migration `0018` APPLIED; migration `0019` APPLIED (Owner-confirmed 10 November 2026); runtime API/browser **NOT RUN**.
 
-- **Cakupan:** satu halaman `/dashboard/project-documentation`, tabel 8 kolom (Nama Proyek, Minggu 1–5, Catatan, Aksi), inline edit satu baris, search nama project, dan PDF A4 landscape.
-- **Model:** `project_documentations` dengan `project_id` UNIQUE, lima URL minggu, audit per minggu, `catatan`, dan audit level baris. Master Project tetap menjadi sumber baris; tidak ada create/delete project dari PDOC.
-- **API:** `GET /api/project-documentation` + `PUT /api/project-documentation/[projectId]`. PUT bersifat upsert; field opsional, URL kosong menjadi `NULL`, dan URL yang dikosongkan menghapus pasangan audit minggu tersebut.
-- **RBAC:** `DOCUMENTATION_VIEW` (4 role), `DOCUMENTATION_MANAGE` (Admin, Head Office, Project); Management read-only. Project dapat mengelola seluruh project tanpa ownership.
-- **UI:** link memakai ikon 🔗 dan metadata `Oleh: [Nama], [Tanggal id-ID]`; URL kosong tampil `—`; error validasi tampil di bawah baris; PDF tidak mencetak metadata uploader.
-- **Migration:** `0018_project_documentations` **APPLIED** (Owner-confirmed); journal 19 entry.
-- **Verifikasi:** `tsc` PASS, `eslint` PASS, `npm test` **224/224 PASS**, `git diff --check` PASS. Runtime API/browser empat role **NOT RUN**.
-- **Detail:** `DL-2026-11-10-01`, `docs/design/PDOC_P2_AUDIT.md`, `docs/design/PDOC_P3_TECHNICAL_DESIGN.md`.
+- **Cakupan:** PDOC V1 + Monthly Delta. Root `/dashboard/project-documentation` redirect ke `/rekap-bulanan`; halaman rekap memiliki filter Tahun/Bulan; halaman `/summary` menampilkan matriks 12 bulan; sidebar berupa accordion dengan submenu **Rekap Bulanan** dan **Summary Report**.
+- **Model:** `project_documentations` beridentitas `(project_id, year, month)` dengan unique composite; lima URL minggu, audit per minggu, `catatan`, dan audit level baris. Master Project tetap menjadi sumber baris; summary menampilkan semua project, termasuk `0/5`.
+- **API:** tiga endpoint: `GET /api/project-documentation?year&month`, `PUT /api/project-documentation/[projectId]/[year]/[month]`, dan `GET /api/project-documentation/summary?year`. PUT bersifat upsert per periode; field opsional; URL kosong menjadi `NULL`; periode berasal dari path/query, bukan body.
+- **RBAC:** `DOCUMENTATION_VIEW` (Admin, Head Office, Management, Project); `DOCUMENTATION_MANAGE` (Admin, Head Office, Project). Management read-only; Project dapat mengelola seluruh project tanpa ownership.
+- **UI:** tabel 8 kolom, inline edit, audit per minggu, search, dan PDF A4 landscape pada Rekap Bulanan; filter tahun/bulan memicu fetch ulang. Summary read-only memakai warna 5/5 hijau, 1–4/5 amber, 0/5 abu-abu.
+- **Migration:** `0018_project_documentations` **APPLIED** (Owner-confirmed); `0019_project_documentation_period` **APPLIED** (Owner-confirmed 10 November 2026); journal 20 entry.
+- **Verifikasi:** `tsc` PASS, `eslint` PASS, `npm test` **233/233 PASS** (59 suite; 58 test PDOC di 6 file), `git diff --check` PASS. Commit `a7527e1` sudah di-push. Runtime API/browser empat role **NOT RUN**.
+- **Detail:** `DL-2026-11-10-02` (kondisi pasca-commit), `DL-2026-11-10-01` (historis), `docs/design/PDOC_MONTHLY_IMPACT_ANALYSIS.md`, `docs/design/PDOC_P3_DELTA_MONTHLY.md`.
 
 ## 9. Langkah Berikutnya
 
-1. Owner melakukan uji visual PDOC: tabel inline, audit per minggu, search, PDF, dan RBAC empat role (desktop + mobile).
-2. Owner menjalankan commit/push final setelah visual test; tidak ada deploy pada instruksi ini.
-3. Final acceptance Owner/ChatGPT atas `DL-2026-11-10-01`; status PDOC dinaikkan setelah runtime PASS.
-4. Runtime CST tetap menjadi pekerjaan terpisah dan tidak dinaikkan statusnya oleh task PDOC ini.
+1. Owner menguji Rekap Bulanan (filter tahun/bulan, simpan per periode, PDF) dan Summary Report (matriks 12 bulan, `0/5`) di browser desktop + mobile.
+2. Owner menguji RBAC empat role dan final acceptance atas `DL-2026-11-10-02`; status PDOC dinaikkan setelah runtime PASS.
+3. Runtime CST tetap menjadi pekerjaan terpisah dan tidak dinaikkan statusnya oleh task dokumentasi ini.
