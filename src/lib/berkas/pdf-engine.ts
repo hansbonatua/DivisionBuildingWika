@@ -339,13 +339,13 @@ function drawKodeSeri(
   const value = pdfSafeText(kodeSeri ?? "");
   if (!value) return;
 
-  // Right-aligned in the table's top-right corner, just below the top rule and
-  // above the "Validasi 2" header text.
+  // Right-aligned above the table's top rule, outside the grid area, so it
+  // never sits inside the "Validasi 2" header cell.
   const size = 9;
-  const rightEdge = MARGIN_X + CONTENT_WIDTH - 10;
+  const rightEdge = MARGIN_X + CONTENT_WIDTH;
   page.drawText(value, {
     x: rightEdge - fonts.bold.widthOfTextAtSize(value, size),
-    y: tableTop - 10,
+    y: tableTop + 12,
     size,
     font: fonts.bold,
     color: BLACK,

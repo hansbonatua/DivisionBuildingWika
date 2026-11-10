@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { PDFDocument } from "pdf-lib";
+import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
 import {
   applyWatermark,
   generateCoverPdf,
@@ -45,6 +46,43 @@ test("generateCoverPdf creates one A4 portrait page with signatures", async () =
   assert.equal(page.getHeight(), 595);
   assert.ok(page.getWidth() > page.getHeight());
   assert.ok(bytes.byteLength > 1000);
+});
+
+test("generateCoverPdf places the kode seri above the table, right-aligned", async () => {
+  const bytes = await generateCoverPdf({
+    ...coverData(),
+    kodeSeri: "WIKA/BA/2026/001",
+  });
+  const doc = await pdfjs.getDocument({ data: bytes.slice() }).promise;
+  const content = await doc.getPage(1).then((page) => page.getTextContent());
+  const items = content.items.flatMap((item) =>
+    "str" in item
+      ? [
+          {
+            text: item.str,
+            x: item.transform[4],
+            y: item.transform[5],
+            width: item.width,
+            height: item.height,
+          },
+        ]
+      : [],
+  );
+
+  const kodeSeri = items.find((item) => item.text === "WIKA/BA/2026/001");
+  const header = items.find((item) => item.text === "Validasi 2");
+  assert.ok(kodeSeri, "kode seri should be drawn");
+  assert.ok(header, "Validasi 2 header should be drawn");
+
+  assert.equal(kodeSeri.height, 9);
+  assert.ok(
+    kodeSeri.y > header.y + 20,
+    "kode seri should sit above the table header row",
+  );
+  assert.ok(
+    Math.abs(kodeSeri.x + kodeSeri.width - (40 + 762)) <= 1,
+    "kode seri should end on the table's right border",
+  );
 });
 
 test("generateCoverPdf keeps two penyusun and a long title on one landscape page", async () => {
