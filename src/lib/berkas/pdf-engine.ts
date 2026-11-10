@@ -17,8 +17,9 @@ import {
 //
 // Layout constants mirror docs/design/BERKAS_P3_TECHNICAL_DESIGN.md section H.
 
-const PAGE_WIDTH = 595;
-const PAGE_HEIGHT = 842;
+// A4 landscape (842 × 595 pt).
+const PAGE_WIDTH = 842;
+const PAGE_HEIGHT = 595;
 const MARGIN_X = 40;
 const CONTENT_WIDTH = PAGE_WIDTH - MARGIN_X * 2;
 
@@ -36,9 +37,9 @@ const TITLE_TABLE_GAP = 34;
 // Fixed grid geometry: every row keeps a constant height, so long text can
 // only wrap inside its own cell and never pushes the signature or date.
 const HEADER_ROW_HEIGHT = 28;
-const NAME_ROW_HEIGHT = 28;
+const NAME_ROW_HEIGHT = 30;
 const JABATAN_ROW_HEIGHT = 34;
-const TTD_ROW_HEIGHT = 56;
+const TTD_ROW_HEIGHT = 80;
 const DATE_ROW_HEIGHT = 16;
 
 const HEADER_SIZE = 10;
@@ -48,7 +49,7 @@ const DATE_SIZE = 8;
 const NAME_LINE_HEIGHT = 12;
 const JABATAN_LINE_HEIGHT = 10.5;
 const CELL_PADDING_X = 10;
-const MAX_TTD_WIDTH = 110;
+const MAX_TTD_WIDTH = 140;
 const MAX_TTD_HEIGHT = TTD_ROW_HEIGHT - 8;
 
 const COLUMN_COUNT = 3;
@@ -73,6 +74,7 @@ export type BerkasCoverSignature = {
 
 export type GenerateCoverPdfData = {
   judul: string;
+  kodeSeri?: string | null;
   penyusun: BerkasCoverSignature[];
   validasi: [BerkasCoverSignature, BerkasCoverSignature];
   /** Optional for tests; production reads the public WIKA asset. */
@@ -328,6 +330,28 @@ async function drawColumn(
   }
 }
 
+function drawKodeSeri(
+  page: PDFPage,
+  fonts: CoverFonts,
+  kodeSeri: string | null | undefined,
+  tableTop: number,
+): void {
+  const value = pdfSafeText(kodeSeri ?? "");
+  if (!value) return;
+
+  // Right-aligned in the table's top-right corner, just below the top rule and
+  // above the "Validasi 2" header text.
+  const size = 9;
+  const rightEdge = MARGIN_X + CONTENT_WIDTH - 10;
+  page.drawText(value, {
+    x: rightEdge - fonts.bold.widthOfTextAtSize(value, size),
+    y: tableTop - 10,
+    size,
+    font: fonts.bold,
+    color: BLACK,
+  });
+}
+
 function drawGrid(
   page: PDFPage,
   tableTop: number,
@@ -444,6 +468,7 @@ export async function generateCoverPdf(
   const tableBottom = cursor;
 
   drawGrid(page, tableTop, tableBottom, rowTops);
+  drawKodeSeri(page, fonts, data.kodeSeri, tableTop);
 
   const columns: CoverColumn[] = [
     { header: "Tim Penyusun", signatures: data.penyusun },

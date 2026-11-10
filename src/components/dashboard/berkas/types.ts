@@ -3,6 +3,7 @@ export type BerkasStatus = "MENUNGGU_TTD_1" | "MENUNGGU_TTD_2" | "SELESAI";
 export type BerkasDto = {
   id: string;
   judul: string;
+  kodeSeri: string | null;
   catatan: string | null;
   pemohon: { id: string; name: string };
   originalPdf: { name: string; sizeBytes: number };

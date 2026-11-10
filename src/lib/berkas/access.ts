@@ -19,3 +19,7 @@ export function canValidateBerkas(role: string): boolean {
 export function canDownloadBerkas(role: string): boolean {
   return hasPermission(role, PERMISSIONS.BERKAS_DOWNLOAD);
 }
+
+export function canDeleteBerkas(role: string): boolean {
+  return hasPermission(role, PERMISSIONS.BERKAS_DELETE);
+}

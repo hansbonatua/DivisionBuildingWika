@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import BerkasDeleteDialog from "@/components/dashboard/berkas/BerkasDeleteDialog";
 import BerkasFormDialog from "@/components/dashboard/berkas/BerkasFormDialog";
 import PdfViewerModal from "@/components/dashboard/berkas/PdfViewerModal";
 import {
@@ -23,9 +24,11 @@ type Feedback = { kind: "success" | "error"; message: string };
 export default function BerkasAjukanPage({
   currentUser,
   canCreate,
+  canDelete,
 }: {
   currentUser: { id: string; name: string; position: string };
   canCreate: boolean;
+  canDelete: boolean;
 }) {
   const [records, setRecords] = useState<BerkasDto[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,6 +36,7 @@ export default function BerkasAjukanPage({
   const [reloadToken, setReloadToken] = useState(0);
   const [formOpen, setFormOpen] = useState(false);
   const [viewBerkas, setViewBerkas] = useState<BerkasDto | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<BerkasDto | null>(null);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const hasLoadedRef = useRef(false);
@@ -179,18 +183,21 @@ export default function BerkasAjukanPage({
                 <th className={headerCell}>Status</th>
                 <th className={headerCell}>File Generate</th>
                 <th className={headerCell}>Catatan</th>
+                {canDelete ? (
+                  <th className={`${headerCell} w-16 text-center`}>Aksi</th>
+                ) : null}
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-14 text-center text-xs font-semibold text-primary/50">
+                  <td colSpan={canDelete ? 6 : 5} className="px-4 py-14 text-center text-xs font-semibold text-primary/50">
                     Memuat data Berkas...
                   </td>
                 </tr>
               ) : records.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-14 text-center text-xs font-semibold text-primary/50">
+                  <td colSpan={canDelete ? 6 : 5} className="px-4 py-14 text-center text-xs font-semibold text-primary/50">
                     Belum ada Berkas yang diajukan.
                   </td>
                 </tr>
@@ -242,6 +249,35 @@ export default function BerkasAjukanPage({
                         {record.catatan?.trim() || "—"}
                       </span>
                     </td>
+                    {canDelete ? (
+                      <td className={`${bodyCell} text-center`}>
+                        <button
+                          type="button"
+                          onClick={() => setDeleteTarget(record)}
+                          aria-label={`Hapus ${record.judul}`}
+                          title={`Hapus ${record.judul}`}
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-red-700 transition-colors hover:bg-red-100"
+                        >
+                          <svg
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            aria-hidden="true"
+                          >
+                            <path d="M3 6h18" />
+                            <path d="M8 6V4h8v2" />
+                            <path d="m19 6-1 14H6L5 6" />
+                            <path d="M10 11v5" />
+                            <path d="M14 11v5" />
+                          </svg>
+                        </button>
+                      </td>
+                    ) : null}
                   </tr>
                 ))
               )}
@@ -259,6 +295,24 @@ export default function BerkasAjukanPage({
       ) : null}
       {viewBerkas ? (
         <PdfViewerModal berkas={viewBerkas} onClose={() => setViewBerkas(null)} />
+      ) : null}
+      {deleteTarget ? (
+        <BerkasDeleteDialog
+          berkas={deleteTarget}
+          onCancel={() => setDeleteTarget(null)}
+          onDeleted={() => {
+            const target = deleteTarget;
+            if (!target) return;
+            setRecords((current) =>
+              current.filter((item) => item.id !== target.id),
+            );
+            setFeedback({
+              kind: "success",
+              message: `Berkas "${target.judul}" berhasil dihapus.`,
+            });
+            setDeleteTarget(null);
+          }}
+        />
       ) : null}
     </div>
   );

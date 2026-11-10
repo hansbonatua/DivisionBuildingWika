@@ -1,0 +1,2 @@
+ALTER TABLE "berkas_pengajuan" ADD COLUMN "kode_seri" text;--> statement-breakpoint
+ALTER TABLE "berkas_pengajuan" ADD CONSTRAINT "berkas_pengajuan_kode_seri_check" CHECK ("berkas_pengajuan"."kode_seri" is null or length(btrim("berkas_pengajuan"."kode_seri")) between 1 and 100);

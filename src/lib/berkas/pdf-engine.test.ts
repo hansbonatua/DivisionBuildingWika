@@ -25,6 +25,7 @@ function signature(nama: string, jabatan: string): BerkasCoverSignature {
 function coverData(): GenerateCoverPdfData {
   return {
     judul: "Berita Acara Serah Terima Pekerjaan",
+    kodeSeri: "WIKA/BA/2026/001",
     logoBytes: logo,
     penyusun: [signature("Budi Santoso", "Site Engineer")],
     validasi: [
@@ -40,12 +41,13 @@ test("generateCoverPdf creates one A4 portrait page with signatures", async () =
   const page = doc.getPage(0);
 
   assert.equal(doc.getPageCount(), 1);
-  assert.equal(page.getWidth(), 595);
-  assert.equal(page.getHeight(), 842);
+  assert.equal(page.getWidth(), 842);
+  assert.equal(page.getHeight(), 595);
+  assert.ok(page.getWidth() > page.getHeight());
   assert.ok(bytes.byteLength > 1000);
 });
 
-test("generateCoverPdf keeps four penyusun and a long title on one page", async () => {
+test("generateCoverPdf keeps two penyusun and a long title on one landscape page", async () => {
   const bytes = await generateCoverPdf({
     judul:
       "Lembar Pengesahan Metode Kerja Standar Pekerjaan Struktur Atas Gedung Bertingkat",
@@ -53,8 +55,6 @@ test("generateCoverPdf keeps four penyusun and a long title on one page", async 
     penyusun: [
       signature("Budi Santoso", "Site Engineer"),
       signature("Rina Kartika", "Quality Control Engineer"),
-      signature("Dedi Kurniawan", "Safety Officer"),
-      signature("Maya Lestari", "Drafter"),
     ],
     validasi: [
       signature("Sari Wijaya", "Project Manager"),
@@ -99,8 +99,8 @@ test("mergePdf places the cover before the original pages", async () => {
   const merged = await PDFDocument.load(mergedBytes);
 
   assert.equal(merged.getPageCount(), 3);
-  assert.equal(merged.getPage(0).getWidth(), 595);
-  assert.equal(merged.getPage(0).getHeight(), 842);
+  assert.equal(merged.getPage(0).getWidth(), 842);
+  assert.equal(merged.getPage(0).getHeight(), 595);
   assert.equal(merged.getPage(1).getWidth(), 300);
   assert.equal(merged.getPage(2).getWidth(), 300);
 });

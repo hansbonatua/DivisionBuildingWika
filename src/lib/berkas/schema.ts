@@ -70,6 +70,11 @@ export const createBerkasSchema = z
       .trim()
       .min(1, "Judul berkas wajib diisi")
       .max(200, "Judul berkas maksimal 200 karakter"),
+    kodeSeri: z
+      .string()
+      .trim()
+      .max(100, "Kode seri maksimal 100 karakter")
+      .optional(),
     uploadId: uuidField,
     originalPdf: z
       .object({

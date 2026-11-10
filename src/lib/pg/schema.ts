@@ -1111,6 +1111,7 @@ export const berkasPengajuan = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     judul: text("judul").notNull(),
+    kodeSeri: text("kode_seri"),
     catatan: text("catatan"),
     pemohonId: uuid("pemohon_id")
       .notNull()
@@ -1147,6 +1148,10 @@ export const berkasPengajuan = pgTable(
     check(
       "berkas_pengajuan_catatan_check",
       sql`${table.catatan} is null or length(${table.catatan}) <= 2000`,
+    ),
+    check(
+      "berkas_pengajuan_kode_seri_check",
+      sql`${table.kodeSeri} is null or length(btrim(${table.kodeSeri})) between 1 and 100`,
     ),
     check(
       "berkas_pengajuan_original_pdf_name_check",

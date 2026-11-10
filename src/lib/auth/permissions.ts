@@ -57,6 +57,7 @@ export const PERMISSIONS = {
   BERKAS_CREATE: "BERKAS_CREATE",
   BERKAS_VALIDATE: "BERKAS_VALIDATE",
   BERKAS_DOWNLOAD: "BERKAS_DOWNLOAD",
+  BERKAS_DELETE: "BERKAS_DELETE",
 
   MSL_VIEW: "MSL_VIEW",
   MSL_MANAGE: "MSL_MANAGE",
@@ -124,14 +125,16 @@ const NON_ADMIN_PERMISSION_ROLES: Record<Permission, readonly UserRole[]> = {
   DOCUMENTATION_VIEW: [HEAD_OFFICE_ROLE, PROJECT_ROLE, MANAGEMENT_ROLE],
   DOCUMENTATION_MANAGE: [HEAD_OFFICE_ROLE, PROJECT_ROLE],
 
-  // Berkas: Admin receives all four through the super-application rule.
+  // Berkas: Admin receives all five through the super-application rule.
   // Head Office and Management may create and validate; Project is read-only
   // and may download. Validation itself is still record-scoped: a user must be
-  // the validator assigned to that Berkas record.
+  // the validator assigned to that Berkas record. BERKAS_DELETE is Admin-only
+  // by construction (empty role list).
   BERKAS_VIEW: [HEAD_OFFICE_ROLE, PROJECT_ROLE, MANAGEMENT_ROLE],
   BERKAS_CREATE: [HEAD_OFFICE_ROLE, MANAGEMENT_ROLE],
   BERKAS_VALIDATE: [HEAD_OFFICE_ROLE, MANAGEMENT_ROLE],
   BERKAS_DOWNLOAD: [HEAD_OFFICE_ROLE, PROJECT_ROLE, MANAGEMENT_ROLE],
+  BERKAS_DELETE: [],
 
   // MSL Engineering: Head Office is a ROLE-level read-only viewer. Management
   // is deliberately absent from both lists — a Management user is eligible only

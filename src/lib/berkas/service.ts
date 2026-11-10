@@ -1,11 +1,14 @@
 import { randomUUID } from "node:crypto";
 import {
   canCreateBerkas,
+  canDeleteBerkas,
   canDownloadBerkas,
   canValidateBerkas,
   canViewBerkas,
 } from "@/lib/berkas/access";
 import {
+  deleteBerkasRow,
+  findBerkasDeletionRowById,
   findBerkasDetailRowById,
   findBerkasDownloadRowById,
   findBerkasFileRowById,
@@ -66,6 +69,7 @@ export type BerkasActor = {
 export type BerkasListItem = {
   id: string;
   judul: string;
+  kodeSeri: string | null;
   catatan: string | null;
   pemohon: { id: string; name: string };
   originalPdf: { name: string; sizeBytes: number };
@@ -213,6 +217,13 @@ function assertDownloadAccess(actor: BerkasActor): void {
   }
 }
 
+function assertDeleteAccess(actor: BerkasActor): void {
+  assertActive(actor);
+  if (!canDeleteBerkas(actor.role)) {
+    throw new BerkasForbiddenError("Hanya Admin yang dapat menghapus Berkas");
+  }
+}
+
 function assertRowVisible(actor: BerkasActor, pemohonId: string): void {
   if (isProject(actor.role) && pemohonId !== actor.id) {
     throw new BerkasNotFoundError();
@@ -233,6 +244,7 @@ function toListItem(row: BerkasListRow): BerkasListItem {
   return {
     id: row.id,
     judul: row.judul,
+    kodeSeri: row.kodeSeri,
     catatan: row.catatan,
     pemohon: { id: row.pemohonId, name: row.pemohonName },
     originalPdf: {
@@ -475,6 +487,7 @@ async function buildCoverData(
   return {
     data: {
       judul: detail.judul,
+      kodeSeri: detail.kodeSeri,
       penyusun,
       validasi,
     },
@@ -733,6 +746,7 @@ export async function createBerkas(
   try {
     const id = await insertBerkasWithChildren({
       judul: input.judul,
+      kodeSeri: input.kodeSeri?.trim() || null,
       pemohonId: actor.id,
       originalPdfPathname: input.originalPdf.pathname,
       originalPdfName,
@@ -1015,6 +1029,42 @@ export async function submitTtd(
   const updated = await findBerkasDetailRowById(id);
   if (!updated) throw new BerkasNotFoundError();
   return toDetail(updated);
+}
+
+/**
+ * Admin-only hard delete. The database row is removed first (children cascade
+ * with the parent); blob cleanup runs afterwards as best-effort so a storage
+ * hiccup can never keep or resurrect the metadata.
+ */
+export async function deleteBerkas(
+  actor: BerkasActor,
+  id: string,
+): Promise<{ id: string }> {
+  assertDeleteAccess(actor);
+
+  const row = await findBerkasDeletionRowById(id);
+  if (!row) {
+    throw new BerkasNotFoundError();
+  }
+
+  try {
+    const deleted = await deleteBerkasRow(id);
+    if (!deleted) {
+      throw new BerkasNotFoundError();
+    }
+  } catch (error) {
+    mapWriteError(error);
+  }
+
+  const pathnames = [
+    row.originalPdfPathname,
+    ...(row.generatedPdfPathname ? [row.generatedPdfPathname] : []),
+    ...row.penyusunTtdPathnames,
+    ...row.validasiTtdPathnames,
+  ];
+  await Promise.allSettled(pathnames.map((pathname) => deleteBlob(pathname)));
+
+  return { id };
 }
 
 export async function downloadBerkas(

@@ -18,6 +18,7 @@ export type BerkasDb = PgDatabase | PgTransaction;
 const parentColumns = {
   id: berkasPengajuan.id,
   judul: berkasPengajuan.judul,
+  kodeSeri: berkasPengajuan.kodeSeri,
   catatan: berkasPengajuan.catatan,
   pemohonId: berkasPengajuan.pemohonId,
   pemohonName: users.name,
@@ -35,6 +36,7 @@ const parentColumns = {
 export type BerkasListRow = {
   id: string;
   judul: string;
+  kodeSeri: string | null;
   catatan: string | null;
   pemohonId: string;
   pemohonName: string;
@@ -98,6 +100,7 @@ export type BerkasDownloadRow = {
 
 export type InsertBerkasInput = {
   judul: string;
+  kodeSeri: string | null;
   pemohonId: string;
   originalPdfPathname: string;
   originalPdfName: string;
@@ -313,6 +316,7 @@ export async function insertBerkasWithChildren(
       .insert(berkasPengajuan)
       .values({
         judul: input.judul,
+        kodeSeri: input.kodeSeri,
         pemohonId: input.pemohonId,
         originalPdfPathname: input.originalPdfPathname,
         originalPdfName: input.originalPdfName,
@@ -375,6 +379,60 @@ export async function findBerkasForUpdate(
     .for("update")
     .limit(1);
   return rows[0] ?? null;
+}
+
+export type BerkasDeletionRow = {
+  id: string;
+  originalPdfPathname: string;
+  generatedPdfPathname: string | null;
+  penyusunTtdPathnames: string[];
+  validasiTtdPathnames: string[];
+};
+
+/** Collects every blob pathname owned by one Berkas before it is deleted. */
+export async function findBerkasDeletionRowById(
+  id: string,
+): Promise<BerkasDeletionRow | null> {
+  const parentRows = await getPgDb()
+    .select({
+      id: berkasPengajuan.id,
+      originalPdfPathname: berkasPengajuan.originalPdfPathname,
+      generatedPdfPathname: berkasPengajuan.generatedPdfPathname,
+    })
+    .from(berkasPengajuan)
+    .where(eq(berkasPengajuan.id, id))
+    .limit(1);
+
+  const parent = parentRows[0];
+  if (!parent) return null;
+
+  const [penyusun, validasi] = await Promise.all([
+    getPgDb()
+      .select({ ttdPathname: berkasPenyusun.ttdPathname })
+      .from(berkasPenyusun)
+      .where(eq(berkasPenyusun.berkasId, id)),
+    getPgDb()
+      .select({ ttdPathname: berkasValidasi.ttdPathname })
+      .from(berkasValidasi)
+      .where(eq(berkasValidasi.berkasId, id)),
+  ]);
+
+  return {
+    ...parent,
+    penyusunTtdPathnames: penyusun.map((row) => row.ttdPathname),
+    validasiTtdPathnames: validasi
+      .map((row) => row.ttdPathname)
+      .filter((pathname): pathname is string => Boolean(pathname)),
+  };
+}
+
+/** Deletes the parent row; berkas_penyusun and berkas_validasi cascade. */
+export async function deleteBerkasRow(id: string): Promise<boolean> {
+  const rows = await getPgDb()
+    .delete(berkasPengajuan)
+    .where(eq(berkasPengajuan.id, id))
+    .returning({ id: berkasPengajuan.id });
+  return rows.length > 0;
 }
 
 export async function updateBerkasStatusRow(

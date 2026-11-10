@@ -50,6 +50,7 @@ export default function BerkasFormDialog({
 }) {
   const titleId = useId();
   const judulId = useId();
+  const kodeSeriId = useId();
   const pdfId = useId();
   const ttdId = useId();
   const jabatanPenyusunId = useId();
@@ -61,6 +62,7 @@ export default function BerkasFormDialog({
   const closeRef = useRef<HTMLButtonElement>(null);
 
   const [judul, setJudul] = useState("");
+  const [kodeSeri, setKodeSeri] = useState("");
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [ttdFile, setTtdFile] = useState<File | null>(null);
   const [ttdPreview, setTtdPreview] = useState<string | null>(null);
@@ -292,6 +294,7 @@ export default function BerkasFormDialog({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           judul: trimmedJudul,
+          kodeSeri: kodeSeri.trim() || undefined,
           uploadId,
           originalPdf: {
             pathname: originalPdf.pathname,
@@ -421,6 +424,25 @@ export default function BerkasFormDialog({
                 placeholder="Contoh: Berita Acara Pemeriksaan Pekerjaan"
                 className={inputClass}
               />
+            </div>
+
+            <div>
+              <label htmlFor={kodeSeriId} className={labelClass}>
+                Kode Seri
+              </label>
+              <input
+                id={kodeSeriId}
+                type="text"
+                value={kodeSeri}
+                maxLength={100}
+                disabled={busy}
+                onChange={(event) => setKodeSeri(event.target.value)}
+                placeholder="Contoh: WIKA/BA/2026/001"
+                className={inputClass}
+              />
+              <p className="mt-1 text-[11px] text-primary/50">
+                Opsional, maksimal 100 karakter. Tampil di pojok kanan atas tabel PDF.
+              </p>
             </div>
 
             <div>
