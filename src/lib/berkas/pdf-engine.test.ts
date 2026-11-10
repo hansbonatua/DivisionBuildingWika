@@ -10,7 +10,7 @@ import {
   type GenerateCoverPdfData,
 } from "@/lib/berkas/pdf-engine";
 
-const logo = new Uint8Array(readFileSync("public/asset/logo-top.png"));
+const logo = new Uint8Array(readFileSync("public/asset/WIKA-LOGO.png"));
 
 function signature(nama: string, jabatan: string): BerkasCoverSignature {
   return {
@@ -42,6 +42,28 @@ test("generateCoverPdf creates one A4 portrait page with signatures", async () =
   assert.equal(doc.getPageCount(), 1);
   assert.equal(page.getWidth(), 595);
   assert.equal(page.getHeight(), 842);
+  assert.ok(bytes.byteLength > 1000);
+});
+
+test("generateCoverPdf keeps four penyusun and a long title on one page", async () => {
+  const bytes = await generateCoverPdf({
+    judul:
+      "Lembar Pengesahan Metode Kerja Standar Pekerjaan Struktur Atas Gedung Bertingkat",
+    logoBytes: logo,
+    penyusun: [
+      signature("Budi Santoso", "Site Engineer"),
+      signature("Rina Kartika", "Quality Control Engineer"),
+      signature("Dedi Kurniawan", "Safety Officer"),
+      signature("Maya Lestari", "Drafter"),
+    ],
+    validasi: [
+      signature("Sari Wijaya", "Project Manager"),
+      signature("Andi Pratama", "Head of Division"),
+    ],
+  });
+  const doc = await PDFDocument.load(bytes);
+
+  assert.equal(doc.getPageCount(), 1);
   assert.ok(bytes.byteLength > 1000);
 });
 

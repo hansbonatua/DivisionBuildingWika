@@ -19,27 +19,40 @@ import {
 
 const PAGE_WIDTH = 595;
 const PAGE_HEIGHT = 842;
-const TABLE_X = 40;
-const TABLE_TOP = 620;
-const TABLE_BOTTOM = 200;
-const TABLE_WIDTH = 515;
-const TABLE_HEIGHT = TABLE_TOP - TABLE_BOTTOM;
-const COLUMN_WIDTH = TABLE_WIDTH / 3;
-const COLUMN_X = [
-  TABLE_X,
-  TABLE_X + COLUMN_WIDTH,
-  TABLE_X + COLUMN_WIDTH * 2,
-] as const;
-const LOGO_WIDTH = 160;
-const LOGO_HEIGHT = 50;
-const LOGO_X = (PAGE_WIDTH - LOGO_WIDTH) / 2;
-const LOGO_Y = 752;
-const TITLE_Y = 706;
+const MARGIN_X = 40;
+const CONTENT_WIDTH = PAGE_WIDTH - MARGIN_X * 2;
+
+// Logo sits centered in the top margin and keeps its natural aspect ratio.
+const LOGO_MAX_WIDTH = 120;
+const LOGO_MAX_HEIGHT = 44;
+const LOGO_TOP = PAGE_HEIGHT - 64;
+
+const TITLE_SIZE = 16;
 const TITLE_LINE_HEIGHT = 20;
 const TITLE_MAX_LINES = 3;
+const TITLE_GAP = 30;
+const TITLE_TABLE_GAP = 34;
+
+const HEADER_ROW_HEIGHT = 28;
+const HEADER_SIZE = 10;
+const NAME_SIZE = 10;
+const JABATAN_SIZE = 9;
+const DATE_SIZE = 8;
+const MAX_TTD_WIDTH = 80;
+const MAX_TTD_HEIGHT = 40;
+
+// The table has no outer box: only the two header rules and thin separators.
+const TABLE_BOTTOM = 96;
+const COLUMN_COUNT = 3;
+const COLUMN_WIDTH = CONTENT_WIDTH / COLUMN_COUNT;
+const COLUMN_X = [
+  MARGIN_X,
+  MARGIN_X + COLUMN_WIDTH,
+  MARGIN_X + COLUMN_WIDTH * 2,
+] as const;
 
 const BLACK = rgb(0, 0, 0);
-const TABLE_LINE = rgb(0.72, 0.72, 0.72);
+const GRID_LINE = rgb(0.8, 0.8, 0.8);
 const WATERMARK_GRAY = rgb(0.5, 0.5, 0.5);
 
 export type BerkasCoverSignature = {
@@ -68,7 +81,7 @@ let cachedLogoBytes: Uint8Array | null = null;
 async function loadLogoBytes(): Promise<Uint8Array> {
   if (cachedLogoBytes) return cachedLogoBytes;
   const file = await readFile(
-    path.join(process.cwd(), "public", "asset", "logo-top.png"),
+    path.join(process.cwd(), "public", "asset", "WIKA-LOGO.png"),
   );
   cachedLogoBytes = new Uint8Array(file);
   return cachedLogoBytes;
@@ -189,15 +202,11 @@ async function drawSignature(
     ? await doc.embedJpg(signature.ttdBytes)
     : await doc.embedPng(signature.ttdBytes);
 
-  const padding = 6;
-  const maxWidth = box.width - padding * 2;
-  const maxHeight = box.height - padding * 2;
+  const maxWidth = Math.min(box.width, MAX_TTD_WIDTH);
+  const maxHeight = Math.min(box.height, MAX_TTD_HEIGHT);
   if (maxWidth <= 0 || maxHeight <= 0) return;
 
-  const scale = Math.min(
-    maxWidth / image.width,
-    maxHeight / image.height,
-  );
+  const scale = Math.min(maxWidth / image.width, maxHeight / image.height);
   const width = image.width * scale;
   const height = image.height * scale;
 
@@ -232,38 +241,63 @@ async function drawValidatorCell(
   fonts: CoverFonts,
   signature: BerkasCoverSignature,
   columnIndex: 1 | 2,
+  headerBottom: number,
 ): Promise<void> {
   const columnX = COLUMN_X[columnIndex];
   const centerX = columnX + COLUMN_WIDTH / 2;
   const contentWidth = COLUMN_WIDTH - 24;
-  const nameLines = wrapText(signature.nama, fonts.bold, 10, contentWidth, 2);
+  const nameLines = wrapText(
+    signature.nama,
+    fonts.bold,
+    NAME_SIZE,
+    contentWidth,
+    2,
+  );
   const jabatanLines = wrapText(
     signature.jabatan,
     fonts.regular,
-    9,
+    JABATAN_SIZE,
     contentWidth,
     2,
   );
 
-  let baseline = 560;
+  // Name and jabatan start just below the header rule; the signature is placed
+  // in the remaining space so it can never overlap the name block.
+  let baseline = headerBottom - 20;
   for (const line of nameLines) {
-    drawCenteredText(page, line, centerX, baseline, fonts.bold, 10);
+    drawCenteredText(page, line, centerX, baseline, fonts.bold, NAME_SIZE);
     baseline -= 12;
   }
+  baseline -= 2;
   for (const line of jabatanLines) {
-    baseline -= 1;
-    drawCenteredText(page, line, centerX, baseline, fonts.regular, 9);
-    baseline -= 11;
+    drawCenteredText(
+      page,
+      line,
+      centerX,
+      baseline,
+      fonts.regular,
+      JABATAN_SIZE,
+    );
+    baseline -= 10;
   }
 
-  const ttdBox = {
-    x: columnX + 20,
-    y: 330,
-    width: COLUMN_WIDTH - 40,
-    height: 150,
-  };
-  await drawSignature(doc, page, signature, ttdBox);
-  drawSignatureDate(page, signature, centerX, 310, fonts.regular);
+  // Keep signature and date together as one block, centered in the space left
+  // below the name/jabatan text instead of anchoring the date to the page foot.
+  const availableTop = baseline - 10;
+  const availableBottom = TABLE_BOTTOM + 14;
+  const groupHeight = MAX_TTD_HEIGHT + 12 + DATE_SIZE;
+  const freeHeight = Math.max(0, availableTop - availableBottom);
+  const blockTop =
+    availableTop - Math.max(0, (freeHeight - groupHeight) / 2);
+  const dateY = blockTop - MAX_TTD_HEIGHT - 12;
+
+  await drawSignature(doc, page, signature, {
+    x: columnX + 12,
+    y: blockTop - MAX_TTD_HEIGHT,
+    width: COLUMN_WIDTH - 24,
+    height: MAX_TTD_HEIGHT,
+  });
+  drawSignatureDate(page, signature, centerX, dateY, fonts.regular);
 }
 
 async function drawPenyusunCell(
@@ -271,90 +305,103 @@ async function drawPenyusunCell(
   page: PDFPage,
   fonts: CoverFonts,
   signatures: BerkasCoverSignature[],
+  headerBottom: number,
 ): Promise<void> {
+  if (signatures.length === 0) return;
+
   const columnX = COLUMN_X[0];
   const centerX = columnX + COLUMN_WIDTH / 2;
   const contentWidth = COLUMN_WIDTH - 24;
-  const people = signatures.length > 0 ? signatures : [];
-  const count = people.length > 0 ? people.length : 1;
-  const areaTop = 560;
-  const areaBottom = 220;
-  const blockHeight = (areaTop - areaBottom) / count;
+  const areaTop = headerBottom - 18;
+  const areaBottom = TABLE_BOTTOM + 14;
+  const blockHeight = (areaTop - areaBottom) / signatures.length;
 
-  for (let index = 0; index < people.length; index += 1) {
-    const signature = people[index];
-    const blockTop = areaTop - index * blockHeight;
-    const nameLines = wrapText(signature.nama, fonts.bold, 10, contentWidth, 2);
+  for (let index = 0; index < signatures.length; index += 1) {
+    const signature = signatures[index];
+    const nameLines = wrapText(
+      signature.nama,
+      fonts.bold,
+      NAME_SIZE,
+      contentWidth,
+      2,
+    );
     const jabatanLines = wrapText(
       signature.jabatan,
       fonts.regular,
-      9,
+      JABATAN_SIZE,
       contentWidth,
-      1,
+      2,
     );
 
-    let baseline = blockTop;
+    const textHeight = nameLines.length * 12 + 2 + jabatanLines.length * 10;
+    const blockContentHeight =
+      textHeight + 6 + MAX_TTD_HEIGHT + 12 + DATE_SIZE + 4;
+    const blockTop = areaTop - index * blockHeight;
+    // Center each penyusun block inside its slot so repeated signers stay tidy.
+    let baseline =
+      blockTop - Math.max(0, (blockHeight - blockContentHeight) / 2);
+
     for (const line of nameLines) {
-      drawCenteredText(page, line, centerX, baseline, fonts.bold, 10);
+      drawCenteredText(page, line, centerX, baseline, fonts.bold, NAME_SIZE);
       baseline -= 12;
     }
+    baseline -= 2;
     for (const line of jabatanLines) {
-      baseline -= 1;
-      drawCenteredText(page, line, centerX, baseline, fonts.regular, 9);
-      baseline -= 11;
+      drawCenteredText(
+        page,
+        line,
+        centerX,
+        baseline,
+        fonts.regular,
+        JABATAN_SIZE,
+      );
+      baseline -= 10;
     }
 
-    const textHeight = blockTop - baseline;
-    const ttdHeight = Math.min(
-      120,
-      Math.max(30, blockHeight - textHeight - 24),
-    );
-    const ttdY = baseline - 3 - ttdHeight;
+    const ttdY = baseline - 6 - MAX_TTD_HEIGHT;
     await drawSignature(doc, page, signature, {
-      x: columnX + 20,
+      x: columnX + 12,
       y: ttdY,
-      width: COLUMN_WIDTH - 40,
-      height: ttdHeight,
+      width: COLUMN_WIDTH - 24,
+      height: MAX_TTD_HEIGHT,
     });
     drawSignatureDate(page, signature, centerX, ttdY - 12, fonts.regular);
   }
 }
 
-function drawTable(page: PDFPage, fonts: CoverFonts): void {
-  page.drawRectangle({
-    x: TABLE_X,
-    y: TABLE_BOTTOM,
-    width: TABLE_WIDTH,
-    height: TABLE_HEIGHT,
-    borderColor: TABLE_LINE,
-    borderWidth: 1,
-  });
+function drawTable(
+  page: PDFPage,
+  fonts: CoverFonts,
+  tableTop: number,
+  headerBottom: number,
+): void {
+  for (const y of [tableTop, headerBottom]) {
+    page.drawLine({
+      start: { x: MARGIN_X, y },
+      end: { x: MARGIN_X + CONTENT_WIDTH, y },
+      thickness: 0.9,
+      color: GRID_LINE,
+    });
+  }
 
   for (const x of [COLUMN_X[1], COLUMN_X[2]]) {
     page.drawLine({
-      start: { x, y: TABLE_BOTTOM },
-      end: { x, y: TABLE_TOP },
-      thickness: 0.75,
-      color: TABLE_LINE,
+      start: { x, y: tableTop },
+      end: { x, y: TABLE_BOTTOM },
+      thickness: 0.6,
+      color: GRID_LINE,
     });
   }
 
   const headers = ["Tim Penyusun", "Validasi 1", "Validasi 2"];
   headers.forEach((header, index) => {
-    const columnX = COLUMN_X[index];
-    page.drawLine({
-      start: { x: columnX + 12, y: 580 },
-      end: { x: columnX + COLUMN_WIDTH - 12, y: 580 },
-      thickness: 0.75,
-      color: TABLE_LINE,
-    });
     drawCenteredText(
       page,
       header,
-      columnX + COLUMN_WIDTH / 2,
-      592,
+      COLUMN_X[index] + COLUMN_WIDTH / 2,
+      headerBottom + 9,
       fonts.bold,
-      11,
+      HEADER_SIZE,
     );
   });
 }
@@ -382,36 +429,51 @@ export async function generateCoverPdf(
   });
 
   const logoBytes = data.logoBytes ?? (await loadLogoBytes());
-  const logo = await doc.embedPng(logoBytes);
+  const logo = isJpeg(null, logoBytes)
+    ? await doc.embedJpg(logoBytes)
+    : await doc.embedPng(logoBytes);
+  const logoScale = Math.min(
+    LOGO_MAX_WIDTH / logo.width,
+    LOGO_MAX_HEIGHT / logo.height,
+  );
+  const logoWidth = logo.width * logoScale;
+  const logoHeight = logo.height * logoScale;
+  const logoY = LOGO_TOP - logoHeight;
   page.drawImage(logo, {
-    x: LOGO_X,
-    y: LOGO_Y,
-    width: LOGO_WIDTH,
-    height: LOGO_HEIGHT,
+    x: (PAGE_WIDTH - logoWidth) / 2,
+    y: logoY,
+    width: logoWidth,
+    height: logoHeight,
   });
 
   const titleLines = wrapText(
     data.judul,
     fonts.bold,
-    16,
-    515,
+    TITLE_SIZE,
+    CONTENT_WIDTH,
     TITLE_MAX_LINES,
   );
+  const firstTitleBaseline = logoY - TITLE_GAP;
   titleLines.forEach((line, index) => {
     drawCenteredText(
       page,
       line,
       PAGE_WIDTH / 2,
-      TITLE_Y - index * TITLE_LINE_HEIGHT,
+      firstTitleBaseline - index * TITLE_LINE_HEIGHT,
       fonts.bold,
-      16,
+      TITLE_SIZE,
     );
   });
 
-  drawTable(page, fonts);
-  await drawPenyusunCell(doc, page, fonts, data.penyusun);
-  await drawValidatorCell(doc, page, fonts, data.validasi[0], 1);
-  await drawValidatorCell(doc, page, fonts, data.validasi[1], 2);
+  const lastTitleBaseline =
+    firstTitleBaseline - (titleLines.length - 1) * TITLE_LINE_HEIGHT;
+  const tableTop = lastTitleBaseline - TITLE_TABLE_GAP;
+  const headerBottom = tableTop - HEADER_ROW_HEIGHT;
+
+  drawTable(page, fonts, tableTop, headerBottom);
+  await drawPenyusunCell(doc, page, fonts, data.penyusun, headerBottom);
+  await drawValidatorCell(doc, page, fonts, data.validasi[0], 1, headerBottom);
+  await drawValidatorCell(doc, page, fonts, data.validasi[1], 2, headerBottom);
 
   doc.setTitle(pdfSafeText(data.judul));
   doc.setAuthor("WIBEX");

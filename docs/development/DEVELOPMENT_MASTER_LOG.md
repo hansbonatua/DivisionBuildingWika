@@ -5,6 +5,56 @@ Dokumentasi audit repository ada di `docs/audit/`; dokumen ini mencatat **peruba
 
 ---
 
+## DL-2026-11-10-06 — Modul Berkas P4 A–E implemented
+
+| Field | Nilai |
+|---|---|
+| Feature ID | `ENT-BERKAS` |
+| Tanggal | 10 November 2026 |
+| Status | **IMPLEMENTED BUT NOT FULLY VERIFIED** — implementasi P4 A–E selesai; static checks PASS; migration `0020`/`0021` **CREATED / NOT APPLIED**; runtime Vercel/browser **NOT RUN** |
+| Commit | `1668685` — `feat(berkas): implement ajukan and verifikasi modules with pdf watermark` (41 file, +15.037 / −1); pass dokumentasi ini belum di-commit |
+| Branch | `main` |
+| Baseline | `7e1b54d`; `HEAD` = `1668685` |
+| Migration | `0020_berkas_pengajuan` + `0021_berkas_catatan` — **CREATED / NOT APPLIED**; journal 22 entry |
+
+### Perubahan
+- **Dependency baru:** `pdf-lib` `^1.17.1` untuk cover, merge, dan watermark di server; `pdfjs-dist` `^6.5.438` untuk viewer, dengan worker statis di `public/pdfjs/pdf.worker.min.mjs`. `jspdf` tetap dipakai exporter client-side modul lain.
+- **Tabel `berkas_pengajuan`:** identitas judul ≤200, pemohon, metadata PDF asli (pathname unik, nama, MIME `application/pdf`, ukuran ≤20 MB, halaman 1–200), metadata generated PDF (pathname unik parsial, ukuran ≤32 MB), status `MENUNGGU_TTD_1`/`MENUNGGU_TTD_2`/`SELESAI`, `version` ≥1, `submitted_at`, `completed_at`, dan `catatan` ≤2.000. CHECK menegakkan konsistensi status ↔ `completed_at`, status ↔ generated PDF, serta pathname generated ≠ original.
+- **Tabel `berkas_penyusun`:** maksimal 4 penyusun per berkas, unique `(berkas_id, urutan)` dan `(berkas_id, user_id)`, snapshot nama/jabatan, TTD wajib PNG/JPEG ≤2 MB, pathname TTD unik.
+- **Tabel `berkas_validasi`:** tepat 2 slot (`urutan` 1–2), unique validator per berkas, snapshot nama/jabatan, TTD opsional namun konsisten (pathname + MIME + ukuran + waktu terisi bersama).
+- **Migration:** `0020_berkas_pengajuan.sql` membuat 3 tabel, 5 FK (pemohon/penyusun/validator ke `users`, anak ke `berkas_pengajuan` cascade), 7 index (termasuk unique parsial untuk generated PDF dan TTD validator), serta 22 CHECK. `0021_berkas_catatan.sql` menambahkan kolom `catatan` + CHECK panjang ≤2.000. Snapshot `0020`/`0021` tersedia; journal menjadi 22 entry.
+- **Permission:** `BERKAS_VIEW`, `BERKAS_CREATE`, `BERKAS_VALIDATE`, `BERKAS_DOWNLOAD`, dengan helper `access.ts`. Admin memperoleh keempatnya lewat super-application; `BERKAS_VIEW`/`BERKAS_DOWNLOAD` untuk Head Office, Management, Project; `BERKAS_CREATE`/`BERKAS_VALIDATE` untuk Head Office dan Management. Validasi tetap record-scoped: pemegang permission harus validator yang ditugaskan, dan download menolak user tanpa NIP.
+- **API:** `GET`/`POST /api/berkas` (daftar dan create dengan verifikasi objek Blob via `headBlob` + validasi `%PDF-`, enkripsi, dan jumlah halaman), `POST /api/berkas/upload-token` (token unggah per prefix `original`/`penyusun_ttd`), `GET /api/berkas/user-options`, `POST /api/berkas/[id]/ttd`, `GET /api/berkas/[id]/view`, dan `GET /api/berkas/[id]/download`. TTD dan download berjalan pada `runtime = "nodejs"`; response privat `no-store`.
+- **Storage privat:** helper `putBlob()` ditambahkan ke `src/lib/storage/blob.ts`; pathname `berkas/uploads/{actorId}/{uploadId}/...` dan `berkas/{berkasId}/...` divalidasi per segmen, tidak pernah dikirim sebagai URL publik.
+- **PDF Engine (`src/lib/berkas/pdf-engine.ts`):** cover A4 portrait 595 × 842 pt dengan logo, judul maksimal 3 baris, dan tabel tanda tangan 3 kolom (penyusun + Validasi 1 + Validasi 2); merge cover + PDF asli dilakukan sekali saat Validator 2 menandatangani, lalu disimpan sebagai generated PDF. Watermark `NIP: <nip>` diagonal 45°, abu-abu, opacity 0,15, ditempel per halaman pada setiap download sehingga cover tidak dibangun ulang.
+- **UI:** sidebar **Berkas** dengan submenu **Ajukan** dan **Verifikasi**; `/dashboard/berkas` redirect ke `/ajukan`; `layout.tsx` menjaga `BERKAS_VIEW`. Halaman Ajukan (form PDF asli, maks 4 penyusun dengan jabatan manual, dua validator), halaman Verifikasi (antrean, catatan verifikator, aksi TTD), modal TTD, dan viewer `pdfjs-dist` berbasis `<canvas>` tanpa toolbar PDF.
+- **Dokumentasi:** `docs/design/BERKAS_P3_TECHNICAL_DESIGN.md` masuk repository; current state, feature register, dan master log disinkronkan pada pass ini.
+
+### File impacted
+- Add: `src/lib/berkas/{access,storage-path,schema,repository,service,pdf-engine}.ts` + test `schema.test.ts`, `pdf-engine.test.ts`; `src/app/api/berkas/{route,upload-token,user-options,_helpers}.ts`, `src/app/api/berkas/[id]/{ttd,view,download}/route.ts`; `src/app/dashboard/berkas/{layout,page}.tsx`, `{ajukan,verifikasi}/page.tsx`; `src/components/dashboard/berkas/{BerkasAjukanPage,BerkasFormDialog,BerkasTtdDialog,BerkasVerifikasiPage,PdfViewerModal,client,types}.tsx|ts` + `types.test.ts`; `drizzle/0020_berkas_pengajuan.sql`, `drizzle/0021_berkas_catatan.sql`, snapshot `0020`/`0021`; `public/pdfjs/pdf.worker.min.mjs`; `docs/design/BERKAS_P3_TECHNICAL_DESIGN.md`.
+- Modify: `package.json`, `package-lock.json`, `src/lib/pg/schema.ts`, `src/lib/auth/permissions.ts`, `src/lib/storage/blob.ts`, `src/components/dashboard/DashboardSidebar.tsx`, `src/components/dashboard/DashboardSidebar.test.ts`, `drizzle/meta/_journal.json`.
+- Pass dokumentasi ini hanya mengubah `docs/development/{CURRENT_PROJECT_STATE,DEVELOPMENT_MASTER_LOG,FEATURE_REGISTER}.md`.
+
+### Verifikasi
+| Pemeriksaan | Hasil | Sumber |
+|---|---|---|
+| `npx tsc --noEmit` | **PASS** | Freebuff |
+| `npx eslint` (Berkas + sidebar + permissions/storage) | **PASS**, 0 warning | Freebuff |
+| `npm test` | **245/245 PASS** (60 suite; termasuk test schema, pdf-engine, types, dan navigasi sidebar Berkas) | Freebuff |
+| `git diff --check` | **PASS** | Freebuff |
+| Migration `0020` + `0021` | **CREATED / NOT APPLIED** — journal 22 entry; tidak dijalankan pada pass ini | Freebuff |
+| Deploy Vercel | **NOT RUN** | — |
+| Runtime browser 4 role | **NOT RUN** — menunggu uji Vercel | — |
+| PDF visual (cover, merge, watermark) | **NOT RUN** — baru diuji lewat unit test `pdf-engine` | — |
+
+### Batasan
+- Migration `0020`/`0021` belum diterapkan: tabel Berkas belum ada di database, sehingga seluruh endpoint akan gagal sampai migration dijalankan. Rollback: drop `berkas_validasi`, `berkas_penyusun`, `berkas_pengajuan` (urutan itu), lalu hapus kolom `catatan` bila `0021` dicabut.
+- Runtime Vercel belum diuji: ketersediaan `runtime = "nodejs"` untuk TTD/download, token Blob privat, batas ukuran request, bundling `pdf-lib`/`pdfjs-dist`, dan jalur worker viewer belum terbukti di lingkungan Vercel.
+- Cover, merge, dan watermark baru diverifikasi lewat unit test `pdf-engine`; hasil visual PDF dan alur TTD dua validator belum diamati di browser.
+- Tidak ada commit, push, deploy, migration, seed, atau DB write pada pass dokumentasi ini.
+
+---
+
 ## DL-2026-11-10-05 — WIBEX Governance & Engineering Workflow approved
 
 | Field | Nilai |
@@ -12,7 +62,7 @@ Dokumentasi audit repository ada di `docs/audit/`; dokumen ini mencatat **peruba
 | Feature ID | `GOV-WIBEX-001` |
 | Tanggal | 10 November 2026 |
 | Status | **IMPLEMENTED & VERIFIED** — Governance dan Engineering Workflow **APPROVED & EFFECTIVE** oleh Owner (Hans), 10 November 2026 |
-| Commit | Tidak ada commit/push pada pass ini; baseline `8cfef26` |
+| Commit | Tidak ada commit/push pada pass ini; baseline saat itu `8cfef26` |
 | Branch | `main` |
 | Dokumen | Governance, Workflow, Feature Register, Current State, Master Project Index, AI Handoff Guide |
 

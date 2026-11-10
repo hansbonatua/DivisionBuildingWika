@@ -28,6 +28,7 @@ Status memakai: `COMPLETE AND VERIFIED` · `IMPLEMENTED BUT NOT FULLY VERIFIED` 
 | `ENT-MKS` | **Metode Kerja Standar** (summary + 6 disiplin A–F, PIC multi, reorder, PDF) | Enterprise | **IMPLEMENTED & VERIFIED** — `0016_metode_kerja_standar` APPLIED; static checks PASS (122/122); runtime fitur, UI tabel (Summary grouping + merge Sub-Kategori) PASS; RBAC 4 role PASS (Owner confirmed 2026-11-09). Lihat `DL-2026-11-08-01`, `DL-2026-11-09-01` | belum di-commit |
 | `ENT-CST` | **Calculation Sheet Template V1** (master reference flat, 7 kategori, inline editing, PIC Head Office) | Enterprise | **IMPLEMENTED & VERIFIED** — `0017_calculation_sheet_templates` **APPLIED**; static checks PASS (233/233 total; suite CST PASS); runtime browser 4 role PASS (Owner-confirmed 10 November 2026): 7 kategori + header `colSpan` + sidebar, inline Create/Edit/Delete, URL invalid ditolak, duplikasi kode ditolak; Admin & Head Office manage, Management & Project read-only. Lihat `DL-2026-11-10-04`; `DL-2026-11-09-02` historis | `5636113` |
 | `ENT-PDOC` | **Project Documentation V1 + Monthly Delta** (rekap bulanan, filter tahun/bulan, summary 12 bulan, audit per minggu, inline editing, search, PDF) | Enterprise | **IMPLEMENTED & VERIFIED** — runtime browser 4 role PASS (Owner-confirmed 10 November 2026); **0018 + 0019 APPLIED**; static checks PASS (233/233, 59 suite; 58 test PDOC di 6 file); rekap/inline/audit/Summary/PDF/filter/accordion PASS; Management read-only, Admin/Head Office/Project manage. Lihat `DL-2026-11-10-03`; `DL-2026-11-10-02` historis | `a7527e1`; docs `062f8d4` |
+| `ENT-BERKAS` | **Berkas** — Ajukan & Verifikasi PDF: cover A4, TTD penyusun + 2 validator, generated PDF, viewer canvas, watermark NIP | Enterprise | **IMPLEMENTED BUT NOT FULLY VERIFIED** — implementasi P4 A–E pada commit `1668685`; static checks PASS (245/245, 60 suite); migration `0020` + `0021` **CREATED / NOT APPLIED**; runtime Vercel/browser **NOT RUN**. Lihat `DL-2026-11-10-06` | `1668685` |
 | `ENT-SASAA` | Dashboard SASAA | Enterprise | NOT STARTED | — |
 | `GOV-WIBEX-001` | **WIBEX Development Governance** — standar organization-wide | Governance | **COMPLETE AND VERIFIED** — **APPROVED & EFFECTIVE**; Approved by Owner 10 November 2026; workflow operasional turunan resmi; tidak ada perubahan source/DB | belum di-commit |
 
@@ -154,3 +155,21 @@ Status memakai: `COMPLETE AND VERIFIED` · `IMPLEMENTED BUT NOT FULLY VERIFIED` 
 **Status review.** Preliminary technical review ChatGPT selesai dan koreksi diterapkan. Owner (Hans) menyetujui Governance dan Engineering Workflow pada **10 November 2026**; status governance menjadi **APPROVED & EFFECTIVE** dan status register **COMPLETE AND VERIFIED**.
 
 **Batasan.** Perubahan ini murni dokumentasi. Tidak ada perubahan source code, database, migration, API, frontend, deployment, commit, atau push.
+
+## 5. Detail `ENT-BERKAS` — Modul Berkas (Ajukan & Verifikasi)
+
+**Status.** `IMPLEMENTED BUT NOT FULLY VERIFIED` — implementasi P4 A–E selesai pada commit `1668685`; static checks PASS; migration `0020`/`0021` baru dibuat dan belum diterapkan; runtime Vercel dan browser empat role **NOT RUN**. Detail: `DL-2026-11-10-06`.
+
+**Alur.** Pemohon mengunggah satu PDF asli (≤20 MB, 1–200 halaman) beserta TTD penyusun; record lahir berstatus `MENUNGGU_TTD_1`. Validator 1 menandatangani → `MENUNGGU_TTD_2`; Validator 2 menandatangani → cover A4 dibuat, digabung dengan PDF asli, disimpan sebagai generated PDF, lalu status `SELESAI`. Viewer menampilkan PDF asli secara read-only; unduhan memakai generated PDF berwatermark `NIP: <nip>` diagonal 45° (abu-abu, opacity 0,15) per halaman.
+
+**Model.** `berkas_pengajuan` + `berkas_penyusun` (maks 4) + `berkas_validasi` (tepat 2, validator berbeda). Migration `0020_berkas_pengajuan` menambah 3 tabel, 5 FK, 7 index + unique constraint, dan 22 CHECK; `0021_berkas_catatan` menambah `catatan` ≤2.000 dengan CHECK. Journal 22 entry.
+
+**API.** `GET`/`POST /api/berkas`, `POST /api/berkas/upload-token`, `GET /api/berkas/user-options`, `POST /api/berkas/[id]/ttd`, `GET /api/berkas/[id]/view`, `GET /api/berkas/[id]/download`. TTD dan download memakai `runtime = "nodejs"`; pathname Blob privat tidak pernah dikirim ke client.
+
+**RBAC.** `BERKAS_VIEW` dan `BERKAS_DOWNLOAD` (Admin, Head Office, Management, Project); `BERKAS_CREATE` dan `BERKAS_VALIDATE` (Admin, Head Office, Management). Admin lewat super-application. Validasi bersifat record-scoped: permission saja tidak cukup, actor harus validator yang ditugaskan; download menolak user tanpa NIP (403 `NIP_REQUIRED`).
+
+**Dependency.** `pdf-lib` `^1.17.1` (server: cover, merge, watermark) dan `pdfjs-dist` `^6.5.438` (viewer canvas, worker di `public/pdfjs/`).
+
+**Verifikasi.** `tsc` PASS, `eslint` PASS, `npm test` 245/245 PASS (60 suite), `git diff --check` PASS. Runtime Vercel, unggah Blob privat, TTD 1→2, generated PDF, viewer, watermark, PDF visual, dan RBAC empat role **NOT RUN**.
+
+**Batasan.** Tanpa migration `0020`/`0021`, endpoint Berkas gagal. Batas request, token Blob, dan bundling PDF di Vercel belum terbukti. Tidak ada commit/push pada pass dokumentasi ini.

@@ -1,8 +1,8 @@
 # CURRENT PROJECT STATE — BDWIKA / WIBEX
 
-Terakhir diperbarui: 10 November 2026 (PDOC V1 + Monthly Delta dan CST `IMPLEMENTED & VERIFIED`; runtime browser 4 role PASS, Owner-confirmed 10 November 2026; migration `0017`, `0018`, dan **0019 APPLIED**; WIBEX Governance & Workflow **APPROVED & EFFECTIVE**, Owner Hans, 10 November 2026).
+Terakhir diperbarui: 10 November 2026 (PDOC V1 + Monthly Delta dan CST `IMPLEMENTED & VERIFIED`; Modul Berkas `IMPLEMENTED BUT NOT FULLY VERIFIED` — migration `0020`/`0021` **CREATED / NOT APPLIED**, runtime Vercel **NOT RUN**; runtime browser 4 role PDOC/CST PASS, Owner-confirmed 10 November 2026; migration `0017`, `0018`, dan **0019 APPLIED**; WIBEX Governance & Workflow **APPROVED & EFFECTIVE**, Owner Hans, 10 November 2026).
 
-**Status proyek:** `PARTIALLY VERIFIED` — MKS, KM V2, PDOC, dan CST `IMPLEMENTED & VERIFIED` (RBAC 4 role, Owner confirmed); modul lain mengikuti status masing-masing. Bukti: `DL-2026-11-09-01`, `DL-2026-11-09-02`, `DL-2026-11-10-03`, `DL-2026-11-10-04`, `DL-2026-11-10-05`.
+**Status proyek:** `PARTIALLY VERIFIED` — MKS, KM V2, PDOC, dan CST `IMPLEMENTED & VERIFIED` (RBAC 4 role, Owner confirmed); **Berkas** `IMPLEMENTED BUT NOT FULLY VERIFIED` (static checks PASS; migration `0020`/`0021` belum diterapkan; runtime Vercel NOT RUN); modul lain mengikuti status masing-masing. Bukti: `DL-2026-11-09-01`, `DL-2026-11-09-02`, `DL-2026-11-10-03`, `DL-2026-11-10-04`, `DL-2026-11-10-05`, `DL-2026-11-10-06`.
 
 **Tata kelola:** WIBEX Development Governance dan WIBEX Engineering Workflow **APPROVED & EFFECTIVE** — disetujui Owner (Hans), 10 November 2026.
 
@@ -13,26 +13,27 @@ Terakhir diperbarui: 10 November 2026 (PDOC V1 + Monthly Delta dan CST `IMPLEMEN
 | Root | `D:\MagangHub-Wika-StaffEngDigitalisasiBuilding\progress\bdwika` |
 | Branch | `main` (tracking `origin/main`) |
 | Baseline fitur | `a7527e1` — `feat: project documentation monthly recap and summary report` |
-| HEAD / origin/main | `8cfef26` — `chore: align sidebar text and elevate PDOC status to verified` |
+| HEAD / origin/main | `1668685` — `feat(berkas): implement ajukan and verifikasi modules with pdf watermark` |
 | Stack | Next.js 16.3.8 · React 19.2.8 · TypeScript 5.9.3 · Tailwind 4 · Drizzle ORM · PostgreSQL (Neon) · MongoDB · Vercel Blob |
 | Node / npm | v24 · npm 10 |
 | Dev server | tidak dikelola Freebuff pada E; runtime dilakukan Owner (Owner confirmed) |
-| Database | `neondb` (PostgreSQL 18.6), journal file **20 entry**; `0017_calculation_sheet_templates` **APPLIED** (Owner-confirmed melalui runtime 10 November 2026); `0018_project_documentations` **APPLIED**; **0019 APPLIED** — `0019_project_documentation_period` (Owner-confirmed 10 November 2026) |
+| Database | `neondb` (PostgreSQL 18.6), journal file **22 entry**; `0017_calculation_sheet_templates` **APPLIED** (Owner-confirmed melalui runtime 10 November 2026); `0018_project_documentations` **APPLIED**; **0019 APPLIED** — `0019_project_documentation_period` (Owner-confirmed 10 November 2026); `0020_berkas_pengajuan` dan `0021_berkas_catatan` **CREATED / NOT APPLIED** |
 
-## 2. Working Tree (clean at baseline)
+## 2. Working Tree (clean; commit Berkas `1668685`)
 
-Baseline verifikasi: `HEAD` = `origin/main` = `8cfef26`; working tree clean sebelum pass dokumentasi CST. Pass ini hanya mengubah dokumentasi dan **tidak** di-commit.
+Baseline verifikasi: `HEAD` = `origin/main` = `1668685`; working tree clean sebelum pass dokumentasi Berkas ini. Pass ini hanya mengubah tiga dokumen development dan **tidak** di-commit.
 
 | Item | Nilai |
 |---|---|
 | Commit fitur PDOC | `a7527e1` — `feat: project documentation monthly recap and summary report` |
 | Commit fitur CST | `5636113` — `feat: core enterprise calculation sheet template v-1` |
 | Commit dokumentasi PDOC | `062f8d4` — `docs: mark PDOC 0019 migration applied` |
+| Commit fitur Berkas | `1668685` — `feat(berkas): implement ajukan and verifikasi modules with pdf watermark` (41 file, +15.037 / −1) |
 | Baseline dokumentasi/UI | `8cfef26` — `chore: align sidebar text and elevate PDOC status to verified` |
 | Range fitur PDOC | `5636113..a7527e1`; 41 file, +15.396 / −29 |
 | Isi commit PDOC | PDOC V1 + Monthly Delta, migration `0018`/`0019`, halaman Rekap Bulanan + Summary, sidebar accordion, dan sinkronisasi dokumen |
-| Status remote | `8cfef26` sudah di-push ke `origin/main` |
-| Migration | `0017` **APPLIED** (Owner-confirmed melalui runtime); `0018` **APPLIED** (Owner-confirmed); `0019` **APPLIED** (Owner-confirmed 10 November 2026) |
+| Status remote | `1668685` = `origin/main` pada remote-tracking lokal (tanpa fetch pada pass ini) |
+| Migration | `0017` **APPLIED** (Owner-confirmed melalui runtime); `0018` **APPLIED** (Owner-confirmed); `0019` **APPLIED** (Owner-confirmed 10 November 2026); `0020`/`0021` **CREATED / NOT APPLIED** |
 
 Detail file historis sebelum commit tersedia di Git history; jangan menyalin tabel working tree lama sebagai kondisi saat ini.
 
@@ -42,14 +43,18 @@ Detail file historis sebelum commit tersedia di Git history; jangan menyalin tab
 |---|---|---|---|
 | TypeScript | `npx tsc --noEmit` | 0 | PASS |
 | ESLint (file KM) | `npx eslint src/lib/knowledge-management src/app/api/knowledge-management src/components/dashboard/knowledge-management` | 0 | PASS |
-| Test otomatis | `npm test` | 0 | **233/233 PASS** (59 suite; termasuk 58 test PDOC di 6 file: schema/repository/service/helper/draft/sidebar) |
+| Test otomatis | `npm test` | 0 | **245/245 PASS** (60 suite; termasuk 58 test PDOC di 6 file dan test Berkas: schema, pdf-engine, types, navigasi sidebar) |
 | ESLint (CST + sidebar) | `npx eslint src/lib/calculation-sheet-template src/components/dashboard/calculation-sheet-template src/app/dashboard/calculation-sheet-template src/app/api/calculation-sheet-template src/components/dashboard/DashboardSidebar.tsx` | 0 | PASS |
 | ESLint (PDOC + sidebar) | `npx eslint src/lib/project-documentation src/app/api/project-documentation src/components/dashboard/project-documentation src/components/dashboard/DashboardSidebar.tsx src/components/dashboard/projectDocumentationSidebar.test.ts src/app/dashboard/project-documentation` | 0 | PASS |
+| ESLint (Berkas) | `npx eslint src/lib/berkas src/components/dashboard/berkas src/app/api/berkas src/app/dashboard/berkas src/components/dashboard/DashboardSidebar.tsx src/lib/auth/permissions.ts src/lib/storage/blob.ts` | 0 | PASS |
 | Diff hygiene | `git diff --check` | 0 | PASS |
-| Drift Drizzle | `npx drizzle-kit generate` | — | tidak dijalankan pada task dokumentasi; snapshot `0019` tersedia |
-| Migration | `npx drizzle-kit migrate` | — | **0017 APPLIED** (Owner-confirmed melalui runtime), **0018 APPLIED**, dan **0019 APPLIED** (Owner-confirmed 10 November 2026); tidak dijalankan pada task ini |
+| Drift Drizzle | `npx drizzle-kit generate` | — | tidak dijalankan pada task dokumentasi; snapshot `0019`, `0020`, dan `0021` tersedia |
+| Migration | `npx drizzle-kit migrate` | — | **0017 APPLIED** (Owner-confirmed melalui runtime), **0018 APPLIED**, dan **0019 APPLIED** (Owner-confirmed 10 November 2026); `0020`/`0021` **CREATED / NOT APPLIED**; tidak dijalankan pada task ini |
 | Runtime CST | Browser, 4 role | — | **PASS** (Owner-confirmed 10 November 2026) |
 | Runtime PDOC | Browser desktop + mobile, 4 role | — | **PASS** (Owner-confirmed 10 November 2026) |
+| Runtime Berkas | Vercel/browser, 4 role | — | **NOT RUN** — menunggu uji Vercel |
+| Deploy Vercel Berkas | — | — | **NOT RUN** |
+| PDF visual Berkas (cover/merge/watermark) | — | — | **NOT RUN** — baru diuji lewat unit test `pdf-engine` |
 
 ## 4. Knowledge Management V2
 
@@ -66,12 +71,13 @@ Detail file historis sebelum commit tersedia di Git history; jangan menyalin tab
 ## 5. Kondisi yang Perlu Diketahui
 
 - WIBEX Development Governance dan Engineering Workflow resmi berlaku sebagai **APPROVED & EFFECTIVE** (Owner Hans, 10 November 2026); tidak ada perubahan aturan pada pass ini.
-- PDOC V1 + Monthly Delta sudah di-commit dan di-push (`a7527e1`); working tree bersih sebelum sinkronisasi dokumentasi P8.
+- PDOC V1 + Monthly Delta (`a7527e1`) dan Modul Berkas (`1668685`) sudah di-commit; working tree bersih sebelum pass dokumentasi Berkas ini.
+- Migration `0020_berkas_pengajuan` dan `0021_berkas_catatan` baru **dibuat** dan belum diterapkan; seluruh endpoint Berkas akan gagal sampai migration dijalankan. Uji runtime direncanakan di Vercel.
 - Database KM dalam keadaan bersih: `knowledge_entries/pics/evidence = 0`, tidak ada project `ZZ-KM-TEST-*` (cleanup runtime **Owner confirmed**).
 - Tidak ada user baru, suspend, atau reset password selama pengujian; baseline user 10 akun tidak berubah.
 - Modul MSL dan Struktur Organisasi protected — tidak disentuh.
 - Feed publik Green Building masih 0 item (empty state).
-- `schema.ts` mencakup PDOC periodik; snapshot `0019_snapshot.json` tersedia. Status drift schema tidak diuji ulang pada task dokumentasi ini.
+- `schema.ts` kini mencakup PDOC periodik dan tiga tabel Berkas; snapshot `0020_snapshot.json` dan `0021_snapshot.json` tersedia. Status drift schema tidak diuji ulang pada task dokumentasi ini.
 
 ## 6. Metode Kerja Standar (P4)
 
@@ -93,8 +99,8 @@ Detail file historis sebelum commit tersedia di Git history; jangan menyalin tab
 - **API:** `GET` list flat, `POST` create (201), `PUT`/`DELETE` per id, `GET pic-options` (Manage-only) — seluruhnya `Cache-Control: no-store`.
 - **RBAC:** `CALCULATION_SHEET_VIEW` (Admin, Head Office, Management, Project); `CALCULATION_SHEET_MANAGE` (Admin, Head Office, termasuk delete). Layout guard + API service sama-sama menegakkan.
 - **UI:** satu tabel inline per kategori; satu baris edit dan satu create draft pada satu waktu; error validasi/API tampil di bawah baris; navigasi sidebar per kategori membuka accordion CST. Summary Report menyediakan rekap lintas kategori dan PDF client-side.
-- **Migration:** `drizzle/0017_calculation_sheet_templates.sql` + snapshot tersedia; `0017` **APPLIED** (Owner-confirmed melalui runtime 10 November 2026); journal 20 entry.
-- **Verifikasi:** `tsc` PASS, `eslint` PASS, `npm test` **233/233 PASS**, `git diff --check` PASS. Runtime browser 4 role **PASS** (Owner-confirmed 10 November 2026): tujuh kategori + header `colSpan` + sidebar; inline Create/Edit/Delete; URL invalid ditolak; duplikasi kode ditolak; Admin/Head Office manage, Management/Project read-only.
+- **Migration:** `drizzle/0017_calculation_sheet_templates.sql` + snapshot tersedia; `0017` **APPLIED** (Owner-confirmed melalui runtime 10 November 2026); journal saat itu 20 entry (kini 22 entry).
+- **Verifikasi:** `tsc` PASS, `eslint` PASS, `npm test` **233/233 PASS** (saat itu; total kini 245/245), `git diff --check` PASS. Runtime browser 4 role **PASS** (Owner-confirmed 10 November 2026): tujuh kategori + header `colSpan` + sidebar; inline Create/Edit/Delete; URL invalid ditolak; duplikasi kode ditolak; Admin/Head Office manage, Management/Project read-only.
 - **Detail:** `DL-2026-11-10-04` (runtime PASS); `DL-2026-11-09-02` (historis); `docs/design/CST_P2_AUDIT.md`, `docs/design/CST_P3_TECHNICAL_DESIGN.md`.
 
 ## 8. Project Documentation (P4 + Monthly Delta, 10 November 2026)
@@ -107,10 +113,26 @@ Detail file historis sebelum commit tersedia di Git history; jangan menyalin tab
 - **RBAC:** `DOCUMENTATION_VIEW` (Admin, Head Office, Management, Project); `DOCUMENTATION_MANAGE` (Admin, Head Office, Project). Management read-only; Admin, Head Office, dan Project dapat mengelola.
 - **UI:** tabel 8 kolom, inline edit, audit per minggu, search, dan PDF A4 landscape pada Rekap Bulanan; filter tahun/bulan memicu fetch ulang. Summary read-only memakai warna 5/5 hijau, 1–4/5 amber, 0/5 abu-abu.
 - **Runtime PASS (Owner, 4 role):** filter tahun/bulan dan tabel semua project; simpan 5 URL + catatan dengan audit per minggu; URL kosong tampil `—` dan URL invalid menampilkan error per baris; simpan tanpa perubahan tidak mengubah timestamp; Summary 12 bulan dengan `0/5`; PDF A4 landscape dengan filter line periode; Management read-only sedangkan Admin/Head Office/Project manage; sidebar accordion terbuka pada kedua route; desktop + mobile.
-- **Migration:** `0018_project_documentations` **APPLIED** (Owner-confirmed); `0019_project_documentation_period` **APPLIED** (Owner-confirmed 10 November 2026); journal 20 entry.
-- **Verifikasi:** `tsc` PASS, `eslint` PASS, `npm test` **233/233 PASS** (59 suite; 58 test PDOC di 6 file), `git diff --check` PASS. Runtime visual + RBAC 4 role **PASS** (Owner-confirmed 10 November 2026).
+- **Migration:** `0018_project_documentations` **APPLIED** (Owner-confirmed); `0019_project_documentation_period` **APPLIED** (Owner-confirmed 10 November 2026); journal saat itu 20 entry (kini 22 entry).
+- **Verifikasi:** `tsc` PASS, `eslint` PASS, `npm test` **233/233 PASS** (saat itu; 59 suite; 58 test PDOC di 6 file; total kini 245/245), `git diff --check` PASS. Runtime visual + RBAC 4 role **PASS** (Owner-confirmed 10 November 2026).
 - **Detail:** `DL-2026-11-10-03` (runtime PASS), `DL-2026-11-10-02` (historis), `DL-2026-11-10-01` (historis), `docs/design/PDOC_MONTHLY_IMPACT_ANALYSIS.md`, `docs/design/PDOC_P3_DELTA_MONTHLY.md`.
 
-## 9. Langkah Berikutnya
+## 9. Berkas — Ajukan & Verifikasi (P4 A–E, 10 November 2026)
 
-1. Final acceptance Owner/ChatGPT atas `DL-2026-11-10-03` dan `DL-2026-11-10-04`.
+**Status:** `IMPLEMENTED BUT NOT FULLY VERIFIED` — implementasi P4 A–E selesai pada commit `1668685`; static checks PASS; migration `0020` + `0021` **CREATED / NOT APPLIED**; runtime Vercel/browser **NOT RUN**.
+
+- **Cakupan:** satu dokumen PDF pengajuan per record. Pemohon mengunggah PDF asli (≤20 MB, 1–200 halaman) beserta TTD penyusun; dua validator menandatangani berurutan; sistem membuat cover A4, menggabungkannya dengan PDF asli, lalu menyediakan viewer read-only dan unduhan berwatermark NIP.
+- **Model:** `berkas_pengajuan` (status `MENUNGGU_TTD_1` → `MENUNGGU_TTD_2` → `SELESAI`, `version`, metadata PDF asli/generated, `catatan` ≤2.000), `berkas_penyusun` (maks 4, urutan dan user unik per berkas, TTD wajib PNG/JPEG ≤2 MB), `berkas_validasi` (tepat 2 slot, validator berbeda, TTD opsional sampai giliran). CHECK menjaga konsistensi status ↔ `completed_at` dan generated PDF.
+- **API:** `GET`/`POST /api/berkas`, `POST /api/berkas/upload-token` (token unggah Blob privat per prefix), `GET /api/berkas/user-options`, `POST /api/berkas/[id]/ttd`, `GET /api/berkas/[id]/view`, dan `GET /api/berkas/[id]/download`. Route TTD dan download memakai `runtime = "nodejs"`; response privat `no-store`.
+- **RBAC:** `BERKAS_VIEW` dan `BERKAS_DOWNLOAD` (Admin, Head Office, Management, Project); `BERKAS_CREATE` dan `BERKAS_VALIDATE` (Admin, Head Office, Management). Admin lewat super-application; validasi bersifat record-scoped — pemegang `BERKAS_VALIDATE` tetap harus validator yang ditugaskan pada record. Download menolak user tanpa NIP (403 `NIP_REQUIRED`).
+- **PDF Engine:** `pdf-lib` di server. Cover A4 portrait 595 × 842 pt dengan logo, judul (maks 3 baris), dan tabel tanda tangan 3 kolom (penyusun + Validasi 1 + Validasi 2); merge dilakukan sekali saat Validator 2 menandatangani. Watermark `NIP: <nip>` diagonal 45°, abu-abu, opacity 0,15, ditempel per halaman saat download sehingga cover tidak dibangun ulang.
+- **UI:** sidebar **Berkas** dengan submenu **Ajukan** dan **Verifikasi**; `/dashboard/berkas` redirect ke `/ajukan`; `layout.tsx` menjaga `BERKAS_VIEW`. Form ajukan (PDF asli, penyusun, jabatan manual, dua validator), modal TTD, halaman verifikasi dengan catatan verifikator, dan viewer `pdfjs-dist` berbasis `<canvas>` dengan worker dari `public/pdfjs/`.
+- **Migration:** `0020_berkas_pengajuan` (3 tabel, 5 FK, 7 index + unique constraint, 22 CHECK) dan `0021_berkas_catatan` (kolom `catatan` + CHECK ≤2.000) — **CREATED / NOT APPLIED**; journal 22 entry.
+- **Verifikasi:** `tsc` PASS, `eslint` PASS, `npm test` **245/245 PASS** (60 suite), `git diff --check` PASS. Runtime Vercel, unggah Blob privat, TTD 1/2, pembuatan PDF, viewer, dan watermark **NOT RUN**.
+- **Detail:** `DL-2026-11-10-06`; desain `docs/design/BERKAS_P3_TECHNICAL_DESIGN.md`.
+
+## 10. Langkah Berikutnya
+
+1. Terapkan migration `0020` dan `0021` pada database runtime, lalu verifikasi objek (3 tabel dan kolom `catatan`).
+2. Uji Modul Berkas di Vercel: 4 role, unggah PDF + TTD, Validasi 1→2, generated PDF, viewer, download watermark NIP, dan guard NIP.
+3. Final acceptance Owner/ChatGPT atas `DL-2026-11-10-03`, `DL-2026-11-10-04`, dan `DL-2026-11-10-06`.
