@@ -15,6 +15,14 @@ import {
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
+export const BERKAS_STATUSES = [
+  "MENUNGGU_TTD_1",
+  "MENUNGGU_TTD_2",
+  "SELESAI",
+] as const;
+
+export type BerkasStatus = (typeof BERKAS_STATUSES)[number];
+
 // Foundation-only enterprise users table. No roles/permissions/session
 // tables — those belong to later phases (auth, RBAC).
 export const users = pgTable(
@@ -1086,3 +1094,222 @@ export const projectDocumentations = pgTable(
 
 export type PgProjectDocumentation = typeof projectDocumentations.$inferSelect;
 export type NewPgProjectDocumentation = typeof projectDocumentations.$inferInsert;
+
+// ---------------------------------------------------------------------------
+// Berkas (P4 foundation): one signed PDF submission with a frozen cover.
+//
+// The parent owns the immutable original PDF and the generated PDF produced
+// once after Validator 2 signs. Children keep signer snapshots so the cover
+// never changes when a user later edits their name/position. User references
+// use NO ACTION: a user who signed a document must not be silently deleted.
+// Child rows cascade with their parent. Status is text + CHECK (the project
+// convention) and only moves forward; the service enforces transitions.
+// ---------------------------------------------------------------------------
+
+export const berkasPengajuan = pgTable(
+  "berkas_pengajuan",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    judul: text("judul").notNull(),
+    catatan: text("catatan"),
+    pemohonId: uuid("pemohon_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "no action" }),
+    originalPdfPathname: text("original_pdf_pathname").notNull(),
+    originalPdfName: text("original_pdf_name").notNull(),
+    originalPdfMimeType: text("original_pdf_mime_type")
+      .notNull()
+      .default("application/pdf"),
+    originalPdfSizeBytes: bigint("original_pdf_size_bytes", { mode: "number" }).notNull(),
+    originalPdfPageCount: integer("original_pdf_page_count").notNull(),
+    generatedPdfPathname: text("generated_pdf_pathname"),
+    generatedPdfSizeBytes: bigint("generated_pdf_size_bytes", { mode: "number" }),
+    status: text("status").$type<BerkasStatus>().notNull().default("MENUNGGU_TTD_1"),
+    version: integer("version").notNull().default(1),
+    submittedAt: timestamp("submitted_at", { withTimezone: true }).notNull().defaultNow(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("berkas_pengajuan_original_pdf_pathname_unique").on(
+      table.originalPdfPathname,
+    ),
+    uniqueIndex("berkas_pengajuan_generated_pdf_pathname_unique")
+      .on(table.generatedPdfPathname)
+      .where(sql`${table.generatedPdfPathname} is not null`),
+    index("berkas_pengajuan_pemohon_created_idx").on(table.pemohonId, table.createdAt),
+    index("berkas_pengajuan_status_created_idx").on(table.status, table.createdAt),
+    check(
+      "berkas_pengajuan_judul_check",
+      sql`length(btrim(${table.judul})) between 1 and 200`,
+    ),
+    check(
+      "berkas_pengajuan_catatan_check",
+      sql`${table.catatan} is null or length(${table.catatan}) <= 2000`,
+    ),
+    check(
+      "berkas_pengajuan_original_pdf_name_check",
+      sql`length(btrim(${table.originalPdfName})) between 1 and 255`,
+    ),
+    check(
+      "berkas_pengajuan_original_pdf_mime_type_check",
+      sql`${table.originalPdfMimeType} = 'application/pdf'`,
+    ),
+    check(
+      "berkas_pengajuan_original_pdf_size_check",
+      sql`${table.originalPdfSizeBytes} between 1 and 20971520`,
+    ),
+    check(
+      "berkas_pengajuan_original_pdf_page_count_check",
+      sql`${table.originalPdfPageCount} between 1 and 200`,
+    ),
+    check(
+      "berkas_pengajuan_generated_pdf_size_check",
+      sql`${table.generatedPdfSizeBytes} is null or ${table.generatedPdfSizeBytes} between 1 and 33554432`,
+    ),
+    check(
+      "berkas_pengajuan_status_check",
+      sql`${table.status} in ('MENUNGGU_TTD_1', 'MENUNGGU_TTD_2', 'SELESAI')`,
+    ),
+    check("berkas_pengajuan_version_check", sql`${table.version} >= 1`),
+    check(
+      "berkas_pengajuan_generated_path_check",
+      sql`${table.generatedPdfPathname} is null or ${table.generatedPdfPathname} <> ${table.originalPdfPathname}`,
+    ),
+    check(
+      "berkas_pengajuan_completion_check",
+      sql`(${table.status} = 'SELESAI') = (${table.completedAt} is not null)`,
+    ),
+    check(
+      "berkas_pengajuan_generated_state_check",
+      sql`(
+        (${table.status} = 'SELESAI'
+          and ${table.generatedPdfPathname} is not null
+          and ${table.generatedPdfSizeBytes} is not null)
+        or
+        (${table.status} <> 'SELESAI'
+          and ${table.generatedPdfPathname} is null
+          and ${table.generatedPdfSizeBytes} is null)
+      )`,
+    ),
+  ],
+);
+
+export type PgBerkasPengajuan = typeof berkasPengajuan.$inferSelect;
+export type NewPgBerkasPengajuan = typeof berkasPengajuan.$inferInsert;
+
+export const berkasPenyusun = pgTable(
+  "berkas_penyusun",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    berkasId: uuid("berkas_id")
+      .notNull()
+      .references(() => berkasPengajuan.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "no action" }),
+    namaSnapshot: text("nama_snapshot").notNull(),
+    jabatanSnapshot: text("jabatan_snapshot").notNull(),
+    urutan: integer("urutan").notNull(),
+    ttdPathname: text("ttd_pathname").notNull(),
+    ttdMimeType: text("ttd_mime_type").notNull(),
+    ttdSizeBytes: bigint("ttd_size_bytes", { mode: "number" }).notNull(),
+    ttdUploadedAt: timestamp("ttd_uploaded_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    unique("berkas_penyusun_berkas_urutan_unique").on(table.berkasId, table.urutan),
+    unique("berkas_penyusun_berkas_user_unique").on(table.berkasId, table.userId),
+    unique("berkas_penyusun_ttd_pathname_unique").on(table.ttdPathname),
+    index("berkas_penyusun_user_id_idx").on(table.userId),
+    check(
+      "berkas_penyusun_nama_snapshot_check",
+      sql`length(btrim(${table.namaSnapshot})) between 1 and 150`,
+    ),
+    check(
+      "berkas_penyusun_jabatan_snapshot_check",
+      sql`length(btrim(${table.jabatanSnapshot})) between 1 and 150`,
+    ),
+    check("berkas_penyusun_urutan_check", sql`${table.urutan} between 1 and 4`),
+    check(
+      "berkas_penyusun_ttd_mime_type_check",
+      sql`${table.ttdMimeType} in ('image/png', 'image/jpeg')`,
+    ),
+    check(
+      "berkas_penyusun_ttd_size_check",
+      sql`${table.ttdSizeBytes} between 1 and 2097152`,
+    ),
+  ],
+);
+
+export type PgBerkasPenyusun = typeof berkasPenyusun.$inferSelect;
+export type NewPgBerkasPenyusun = typeof berkasPenyusun.$inferInsert;
+
+export const berkasValidasi = pgTable(
+  "berkas_validasi",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    berkasId: uuid("berkas_id")
+      .notNull()
+      .references(() => berkasPengajuan.id, { onDelete: "cascade" }),
+    urutan: integer("urutan").notNull(),
+    validatorUserId: uuid("validator_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "no action" }),
+    namaSnapshot: text("nama_snapshot").notNull(),
+    jabatanSnapshot: text("jabatan_snapshot").notNull(),
+    ttdPathname: text("ttd_pathname"),
+    ttdMimeType: text("ttd_mime_type"),
+    ttdSizeBytes: bigint("ttd_size_bytes", { mode: "number" }),
+    ttdUploadedAt: timestamp("ttd_uploaded_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    unique("berkas_validasi_berkas_urutan_unique").on(table.berkasId, table.urutan),
+    unique("berkas_validasi_berkas_validator_unique").on(
+      table.berkasId,
+      table.validatorUserId,
+    ),
+    uniqueIndex("berkas_validasi_ttd_pathname_unique")
+      .on(table.ttdPathname)
+      .where(sql`${table.ttdPathname} is not null`),
+    index("berkas_validasi_validator_user_id_idx").on(table.validatorUserId),
+    check("berkas_validasi_urutan_check", sql`${table.urutan} in (1, 2)`),
+    check(
+      "berkas_validasi_nama_snapshot_check",
+      sql`length(btrim(${table.namaSnapshot})) between 1 and 150`,
+    ),
+    check(
+      "berkas_validasi_jabatan_snapshot_check",
+      sql`length(btrim(${table.jabatanSnapshot})) between 1 and 150`,
+    ),
+    check(
+      "berkas_validasi_ttd_mime_type_check",
+      sql`${table.ttdMimeType} is null or ${table.ttdMimeType} in ('image/png', 'image/jpeg')`,
+    ),
+    check(
+      "berkas_validasi_ttd_size_check",
+      sql`${table.ttdSizeBytes} is null or ${table.ttdSizeBytes} between 1 and 2097152`,
+    ),
+    check(
+      "berkas_validasi_ttd_state_check",
+      sql`(
+        (${table.ttdPathname} is null
+          and ${table.ttdMimeType} is null
+          and ${table.ttdSizeBytes} is null
+          and ${table.ttdUploadedAt} is null)
+        or
+        (${table.ttdPathname} is not null
+          and ${table.ttdMimeType} is not null
+          and ${table.ttdSizeBytes} is not null
+          and ${table.ttdUploadedAt} is not null)
+      )`,
+    ),
+  ],
+);
+
+export type PgBerkasValidasi = typeof berkasValidasi.$inferSelect;
+export type NewPgBerkasValidasi = typeof berkasValidasi.$inferInsert;

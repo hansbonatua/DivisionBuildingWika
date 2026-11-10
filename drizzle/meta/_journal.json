@@ -141,6 +141,20 @@
       "when": 1794203341334,
       "tag": "0019_project_documentation_period",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1794293012648,
+      "tag": "0020_berkas_pengajuan",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1794296932002,
+      "tag": "0021_berkas_catatan",
+      "breakpoints": true
     }
   ]
 }

@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { describe, it } from "node:test";
 import {
+  berkasMenu,
   getInitialSidebarAccordionState,
   getSidebarVisibility,
   knowledgeMenu,
@@ -18,6 +19,11 @@ const KNOWLEDGE_LINKS = [
 const PROGRAM_KERJA_LINKS = [
   "/dashboard/program-kerja/summary",
   "/dashboard/program-kerja/manage",
+];
+
+const BERKAS_LINKS = [
+  "/dashboard/berkas/ajukan",
+  "/dashboard/berkas/verifikasi",
 ];
 
 // The sidebar is a Client Component, so these regression tests exercise the
@@ -123,6 +129,32 @@ describe("Knowledge Management menu links", () => {
     for (const href of KNOWLEDGE_LINKS) {
       assert.equal(programKerjaHrefs.includes(href), false);
     }
+  });
+});
+
+describe("Berkas sidebar navigation", () => {
+  it("is visible to every role with BERKAS_VIEW", () => {
+    for (const role of ["Admin", "Head Office", "Management", "Project"]) {
+      assert.equal(getSidebarVisibility(role, false).showBerkas, true);
+    }
+    assert.equal(getSidebarVisibility("Guest", false).showBerkas, false);
+  });
+
+  it("opens its own accordion on Berkas routes and stays closed elsewhere", () => {
+    assert.equal(
+      getInitialSidebarAccordionState("/dashboard/berkas/ajukan").berkasOpen,
+      true,
+    );
+    assert.equal(
+      getInitialSidebarAccordionState("/dashboard/berkas/verifikasi").berkasOpen,
+      true,
+    );
+    assert.equal(getInitialSidebarAccordionState("/dashboard").berkasOpen, false);
+  });
+
+  it("keeps exactly the Ajukan and Verifikasi submenu routes", () => {
+    assert.deepEqual(berkasMenu.map((item) => item.href), BERKAS_LINKS);
+    assert.deepEqual(berkasMenu.map((item) => item.label), ["Ajukan", "Verifikasi"]);
   });
 });
 

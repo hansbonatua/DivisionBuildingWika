@@ -1,0 +1,2 @@
+ALTER TABLE "berkas_pengajuan" ADD COLUMN "catatan" text;--> statement-breakpoint
+ALTER TABLE "berkas_pengajuan" ADD CONSTRAINT "berkas_pengajuan_catatan_check" CHECK ("berkas_pengajuan"."catatan" is null or length("berkas_pengajuan"."catatan") <= 2000);

@@ -1,4 +1,4 @@
-import { BlobError, BlobNotFoundError, del, get, head } from "@vercel/blob";
+import { BlobError, BlobNotFoundError, del, get, head, put } from "@vercel/blob";
 
 // Thin, server-only wrapper around Vercel Blob (private store).
 //
@@ -136,6 +136,41 @@ export async function openBlobDownload(
 }
 
 /**
+ * Writes bytes owned by the server to the PRIVATE store. Access and collision
+ * policy are pinned here: callers cannot accidentally create a public object
+ * or overwrite an existing one. Client-uploaded files are never written through
+ * this helper; they arrive through a scoped upload token.
+ */
+export async function putPrivateBlob(
+  pathname: string,
+  body: Parameters<typeof put>[1],
+  contentType: string,
+): Promise<BlobObjectMetadata> {
+  await requireConfigured();
+  try {
+    const result = await put(pathname, body, {
+      access: "private",
+      allowOverwrite: false,
+      addRandomSuffix: false,
+      contentType,
+    });
+    // PutBlobResult intentionally omits size/uploadedAt; read the authoritative
+    // metadata once so callers get the same shape as headBlob().
+    const metadata = await headBlob(result.pathname);
+    if (metadata) return metadata;
+    return {
+      pathname: result.pathname,
+      size: 0,
+      contentType: result.contentType ?? contentType,
+      url: result.url,
+      uploadedAt: new Date(),
+    };
+  } catch (error) {
+    throw normalizeStorageError(error);
+  }
+}
+
+/**
  * Best-effort delete. A missing object is not an error (idempotent cleanup).
  * Callers must have already verified that no Template & Form row references the
  * pathname.
@@ -177,4 +212,33 @@ export async function isBlobPubliclyReachable(
   } catch {
     return null;
   }
+}
+
+/**
+ * Safe inline `Content-Disposition`. PDFs are streamed through the authenticated
+ * viewer route, never through a public Blob URL; this header keeps the browser
+ * from forcing a download while still providing a useful filename.
+ *
+ * A quoted ASCII fallback plus RFC 5987 encoding handles non-ASCII titles
+ * without allowing header injection.
+ */
+function contentDisposition(type: "inline" | "attachment", fileName: string): string {
+  const cleaned = fileName
+    .replace(/[\u0000-\u001f\u007f]/g, "")
+    .replace(/["\\]/g, "")
+    .trim();
+  const safeName = cleaned.length > 0 ? cleaned : "berkas.pdf";
+  const asciiFallback =
+    safeName.replace(/[^\x20-\x7e]/g, "_") || "berkas.pdf";
+  return `${type}; filename="${asciiFallback}"; filename*=UTF-8''${encodeURIComponent(
+    safeName,
+  )}`;
+}
+
+export function contentDispositionInline(fileName: string): string {
+  return contentDisposition("inline", fileName);
+}
+
+export function contentDispositionAttachment(fileName: string): string {
+  return contentDisposition("attachment", fileName);
 }

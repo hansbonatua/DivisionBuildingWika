@@ -11,6 +11,7 @@ import {
   ENGINEERING_DATABASE_CATEGORY_SLUGS,
   canViewEngineeringDatabase,
 } from "@/lib/engineering-database/access";
+import { canViewBerkas } from "@/lib/berkas/access";
 import { canManageCms } from "@/lib/cms/access";
 import { canViewKnowledgeManagement } from "@/lib/knowledge-management/access";
 import { canViewMasterProject } from "@/lib/master-project/access";
@@ -207,6 +208,41 @@ export const knowledgeMenu: SidebarItem[] = [
     ),
   },
 ];
+
+// Berkas is a Core Enterprise module. Visibility follows BERKAS_VIEW; the
+// Ajukan form itself additionally requires BERKAS_CREATE, and the Verifikasi
+// actions are record-scoped to the assigned validator (enforced by the API).
+export const berkasMenu: SidebarItem[] = [
+  {
+    label: "Ajukan",
+    href: "/dashboard/berkas/ajukan",
+    icon: (
+      <MenuIcon>
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+        <path d="M14 2v6h6" />
+        <path d="M12 18v-6" />
+        <path d="m9 15 3 3 3-3" />
+      </MenuIcon>
+    ),
+  },
+  {
+    label: "Verifikasi",
+    href: "/dashboard/berkas/verifikasi",
+    icon: (
+      <MenuIcon>
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+        <path d="M14 2v6h6" />
+        <path d="m9 15 2 2 4-4" />
+      </MenuIcon>
+    ),
+  },
+];
+
+const BERKAS_ROOT = "/dashboard/berkas";
+
+export function isBerkasPath(pathname: string): boolean {
+  return pathname === BERKAS_ROOT || pathname.startsWith(`${BERKAS_ROOT}/`);
+}
 
 // Metode Kerja Standar is its own top-level module with its own accordion.
 // Summary is always first (D-D-02), followed by the six disciplines A–F. Labels
@@ -419,6 +455,7 @@ export function isKnowledgeManagementPath(pathname: string): boolean {
 export type SidebarVisibility = {
   showProgramKerja: boolean;
   showKnowledgeManagement: boolean;
+  showBerkas: boolean;
   showMetodeKerja: boolean;
   showCalculationSheet: boolean;
   showProjectDocumentation: boolean;
@@ -441,6 +478,7 @@ export function getSidebarVisibility(
   const role = userRole ?? "";
   const showProgramKerja = canViewProgramKerja(role);
   const showKnowledgeManagement = canViewKnowledgeManagement(role);
+  const showBerkas = canViewBerkas(role);
   const showMetodeKerja = canViewMetodeKerja(role);
   // CST has no module access helper; it reads the central permission table.
   const showCalculationSheet = hasPermission(
@@ -465,6 +503,7 @@ export function getSidebarVisibility(
   return {
     showProgramKerja,
     showKnowledgeManagement,
+    showBerkas,
     showMetodeKerja,
     showCalculationSheet,
     showProjectDocumentation,
@@ -479,6 +518,7 @@ export function getSidebarVisibility(
       showOrganizationStructure ||
       showProgramKerja ||
       showKnowledgeManagement ||
+      showBerkas ||
       showMetodeKerja ||
       showCalculationSheet ||
       showProjectDocumentation ||
@@ -493,6 +533,7 @@ export type SidebarAccordionState = {
   landingOpen: boolean;
   programKerjaOpen: boolean;
   knowledgeOpen: boolean;
+  berkasOpen: boolean;
   metodeKerjaOpen: boolean;
   calculationSheetOpen: boolean;
   projectDocumentationOpen: boolean;
@@ -522,6 +563,7 @@ export function getInitialSidebarAccordionState(
     // accordion implicitly. `canViewKnowledgeManagement`/`canViewMetodeKerja`
     // still gate visibility (getSidebarVisibility), not the initial expansion.
     knowledgeOpen: isKnowledgeManagementPath(pathname),
+    berkasOpen: isBerkasPath(pathname),
     metodeKerjaOpen: isMetodeKerjaPath(pathname),
     calculationSheetOpen: isCalculationSheetPath(pathname),
     projectDocumentationOpen: isProjectDocumentationPath(pathname),
@@ -542,6 +584,7 @@ export default function DashboardSidebar({
   const {
     showProgramKerja,
     showKnowledgeManagement,
+    showBerkas,
     showMetodeKerja,
     showCalculationSheet,
     showProjectDocumentation,
@@ -563,6 +606,7 @@ export default function DashboardSidebar({
     (route) => pathname === route || pathname.startsWith(`${route}/`),
   );
   const isKnowledgeManagementRoute = isKnowledgeManagementPath(pathname);
+  const isBerkasRoute = isBerkasPath(pathname);
   const isMetodeKerjaRoute = isMetodeKerjaPath(pathname);
   const isCalculationSheetRoute = isCalculationSheetPath(pathname);
   const isProjectDocumentationRoute = isProjectDocumentationPath(pathname);
@@ -576,6 +620,7 @@ export default function DashboardSidebar({
     initialAccordions.programKerjaOpen,
   );
   const [knowledgeOpen, setKnowledgeOpen] = useState(initialAccordions.knowledgeOpen);
+  const [berkasOpen, setBerkasOpen] = useState(initialAccordions.berkasOpen);
   const [metodeKerjaOpen, setMetodeKerjaOpen] = useState(
     initialAccordions.metodeKerjaOpen,
   );
@@ -603,6 +648,9 @@ export default function DashboardSidebar({
     }
     if (isKnowledgeManagementRoute) {
       setKnowledgeOpen(true);
+    }
+    if (isBerkasRoute) {
+      setBerkasOpen(true);
     }
     if (isMetodeKerjaRoute) {
       setMetodeKerjaOpen(true);
@@ -976,6 +1024,55 @@ export default function DashboardSidebar({
                         aria-label="Project Documentation"
                       >
                         {projectDocumentationSubmenu.map(renderItem)}
+                      </nav>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+              {showBerkas ? (
+                <div className="mt-1">
+                  <div className="px-1">
+                    <button
+                      type="button"
+                      aria-expanded={berkasOpen}
+                      aria-controls="berkas-menu"
+                      onClick={() => setBerkasOpen((prev) => !prev)}
+                      className="flex w-full items-center justify-between rounded-lg border border-transparent px-2.5 py-2 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+                    >
+                      <span className="flex items-center gap-2.5">
+                        <span className="text-secondary">
+                          <MenuIcon>
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                            <path d="M14 2v6h6" />
+                            <path d="M8 13h8" />
+                            <path d="M8 17h5" />
+                          </MenuIcon>
+                        </span>
+                        <span>Berkas</span>
+                      </span>
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                        className={`text-slate-400 transition-transform duration-200 ${berkasOpen ? "rotate-180" : "rotate-0"}`}
+                      >
+                        <path d="m6 9 6 6 6-6" />
+                      </svg>
+                    </button>
+                  </div>
+                  {berkasOpen ? (
+                    <div id="berkas-menu">
+                      <nav
+                        className="ml-4 space-y-1 border-l-2 border-slate-100 pl-3"
+                        aria-label="Berkas"
+                      >
+                        {berkasMenu.map(renderItem)}
                       </nav>
                     </div>
                   ) : null}
