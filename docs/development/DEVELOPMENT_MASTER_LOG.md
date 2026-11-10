@@ -5,13 +5,58 @@ Dokumentasi audit repository ada di `docs/audit/`; dokumen ini mencatat **peruba
 
 ---
 
+## DL-2026-11-10-07 — Modul Berkas V1 IMPLEMENTED & VERIFIED
+
+| Field | Nilai |
+|---|---|
+| Feature ID | `ENT-BERKAS` |
+| Tanggal | 10 November 2026 |
+| Status | **IMPLEMENTED & VERIFIED** — runtime Vercel PASS (Owner-confirmed 10 November 2026); static checks PASS; migration `0020`, `0021`, dan `0022` **APPLIED** |
+| Commit | `1668685` (fondasi) → `a85d26f` (layout cover) → `bb0dfdd` (strict grid) → `d3813b3` (kode seri, landscape, delete) → `0805776` (reposisi kode seri); pass dokumentasi ini belum di-commit |
+| Branch | `main` |
+| Baseline | `0805776` |
+| Migration | `0020_berkas_pengajuan`, `0021_berkas_catatan`, `0022_berkas_kode_seri` — **APPLIED** (Owner-confirmed melalui runtime Vercel); journal 23 entry |
+
+### Perubahan
+- **Database schema (3 tabel):** `berkas_pengajuan` (status `MENUNGGU_TTD_1` → `MENUNGGU_TTD_2` → `SELESAI`, `version`, metadata PDF asli/generated, `catatan` ≤2.000, `kode_seri` ≤100), `berkas_penyusun` (maks 4, TTD wajib), `berkas_validasi` (tepat 2 slot, TTD opsional sampai giliran). Migration `0020` membuat 3 tabel, 5 FK, 7 index + unique constraint, dan 22 CHECK; `0021` menambah `catatan`; `0022` menambah `kode_seri` + CHECK 1–100.
+- **PDF Engine:** `pdf-lib` di server untuk cover dan merge; `pdfjs-dist` untuk viewer canvas dengan worker statis di `public/pdfjs/`. Cover A4 landscape 842 × 595 pt memakai grid strict 3 kolom (header 28, nama 30, jabatan 34, TTD 80, tanggal 16 pt), sehingga baris tidak bergeser meski judul panjang atau penyusun lebih dari satu.
+- **UI:** sidebar **Berkas** dengan submenu **Ajukan** dan **Verifikasi**; form pengajuan (PDF asli, penyusun, jabatan manual, dua validator, Kode Seri opsional), modal TTD, halaman verifikasi dengan catatan verifikator, viewer read-only, dan tombol/modal hapus khusus Admin.
+- **PDF Landscape:** cover dan halaman tanda tangan dicetak A4 landscape; merge cover + PDF asli dilakukan sekali saat Validator 2 menandatangani dan disimpan sebagai generated PDF.
+- **Watermark NIP:** teks `NIP: <nip>` diagonal 45°, abu-abu, opacity 0,15, ditempel per halaman saat download; user tanpa NIP ditolak 403 `NIP_REQUIRED`. Cover tidak dibangun ulang saat unduh.
+- **Kode Seri:** kolom `kode_seri` pada `berkas_pengajuan`; input opsional maksimal 100 karakter di form Ajukan; dikembalikan di DTO; digambar Helvetica Bold 9 pt rata kanan tepat di atas garis atas tabel cover, hanya bila terisi.
+- **Delete Admin:** permission `BERKAS_DELETE` hanya untuk Admin melalui super-application; route `DELETE /api/berkas/[id]`; repository menghapus record dan objek turunannya secara cascade; tombol/modal konfirmasi hanya tampil untuk Admin.
+- **Dokumentasi:** current state, master log, dan feature register disinkronkan pada pass ini; tidak ada perubahan source, database, atau API.
+
+### File impacted
+- Add/modify: `src/lib/pg/schema.ts`, `src/lib/berkas/{schema,repository,service,pdf-engine,access}.ts` + `pdf-engine.test.ts`; `src/app/api/berkas/[id]/{route,ttd,view,download}/route.ts`; `src/components/dashboard/berkas/{BerkasAjukanPage,BerkasFormDialog,BerkasDeleteDialog,BerkasTtdDialog,BerkasVerifikasiPage,PdfViewerModal,types}.tsx|ts`; `src/lib/auth/permissions.ts`; `drizzle/0020_berkas_pengajuan.sql`, `drizzle/0021_berkas_catatan.sql`, `drizzle/0022_berkas_kode_seri.sql`, snapshot `0020`–`0022`, `drizzle/meta/_journal.json`.
+- Pass dokumentasi ini hanya mengubah `docs/development/{CURRENT_PROJECT_STATE,DEVELOPMENT_MASTER_LOG,FEATURE_REGISTER}.md`.
+
+### Verifikasi
+| Pemeriksaan | Hasil | Sumber |
+|---|---|---|
+| `npx tsc --noEmit` | **PASS** | Freebuff |
+| `npx eslint` (Berkas) | **PASS**, 0 warning | Freebuff |
+| `npm test` | **248/248 PASS** (60 suite; termasuk test posisi kode seri di PDF) | Freebuff |
+| `git diff --check` | **PASS** | Freebuff |
+| Migration `0020` + `0021` + `0022` | **APPLIED** — journal 23 entry | Owner-confirmed melalui runtime Vercel |
+| Deploy Vercel | **PASS** | Owner-confirmed (10 November 2026) |
+| Runtime Vercel | **PASS** — pengajuan, verifikasi berurutan, cover landscape, kode seri, watermark NIP, delete Admin | **Owner-confirmed** (10 November 2026) |
+| PDF visual (cover, merge, watermark) | **PASS** — cover landscape dan kode seri di pojok kanan atas | Owner-confirmed |
+
+### Batasan
+- Runtime dijalankan Owner di Vercel; Freebuff tidak mereproduksi sesi 4 role pada pass dokumentasi ini.
+- Delete bersifat sengaja Admin-only dan menghapus objek turunan secara cascade; rollback `0022` adalah drop kolom `kode_seri`, sedangkan rollback `0020`/`0021` menghapus ketiga tabel Berkas (urutan: `berkas_validasi`, `berkas_penyusun`, `berkas_pengajuan`).
+- Tidak ada commit, push, deploy, migration, seed, atau DB write pada pass dokumentasi ini.
+
+---
+
 ## DL-2026-11-10-06 — Modul Berkas P4 A–E implemented
 
 | Field | Nilai |
 |---|---|
 | Feature ID | `ENT-BERKAS` |
 | Tanggal | 10 November 2026 |
-| Status | **IMPLEMENTED BUT NOT FULLY VERIFIED** — implementasi P4 A–E selesai; static checks PASS; migration `0020`/`0021` **CREATED / NOT APPLIED**; runtime Vercel/browser **NOT RUN** |
+| Status | **IMPLEMENTED BUT NOT FULLY VERIFIED** — implementasi P4 A–E selesai; static checks PASS; migration `0020`/`0021` **CREATED / NOT APPLIED**; runtime Vercel/browser **NOT RUN**. **Superseded oleh `DL-2026-11-10-07`.** |
 | Commit | `1668685` — `feat(berkas): implement ajukan and verifikasi modules with pdf watermark` (41 file, +15.037 / −1); pass dokumentasi ini belum di-commit |
 | Branch | `main` |
 | Baseline | `7e1b54d`; `HEAD` = `1668685` |
