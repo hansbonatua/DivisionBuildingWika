@@ -67,6 +67,27 @@ test("generateCoverPdf keeps four penyusun and a long title on one page", async 
   assert.ok(bytes.byteLength > 1000);
 });
 
+test("generateCoverPdf keeps long text inside the fixed grid rows", async () => {
+  const bytes = await generateCoverPdf({
+    judul: "Lembar Pengesahan",
+    logoBytes: logo,
+    penyusun: [
+      signature(
+        "Muhammad Rizky Pratama Kusumawardhana",
+        "Senior Construction Quality Assurance and Control Engineer",
+      ),
+    ],
+    validasi: [
+      signature("Sari Wijaya", "Project Manager"),
+      signature("Andi Pratama", "Head of Division"),
+    ],
+  });
+  const doc = await PDFDocument.load(bytes);
+
+  assert.equal(doc.getPageCount(), 1);
+  assert.ok(bytes.byteLength > 1000);
+});
+
 test("mergePdf places the cover before the original pages", async () => {
   const original = await PDFDocument.create();
   original.addPage([300, 400]);

@@ -33,16 +33,24 @@ const TITLE_MAX_LINES = 3;
 const TITLE_GAP = 30;
 const TITLE_TABLE_GAP = 34;
 
+// Fixed grid geometry: every row keeps a constant height, so long text can
+// only wrap inside its own cell and never pushes the signature or date.
 const HEADER_ROW_HEIGHT = 28;
+const NAME_ROW_HEIGHT = 28;
+const JABATAN_ROW_HEIGHT = 34;
+const TTD_ROW_HEIGHT = 56;
+const DATE_ROW_HEIGHT = 16;
+
 const HEADER_SIZE = 10;
-const NAME_SIZE = 10;
+const NAME_SIZE = 11;
 const JABATAN_SIZE = 9;
 const DATE_SIZE = 8;
-const MAX_TTD_WIDTH = 80;
-const MAX_TTD_HEIGHT = 40;
+const NAME_LINE_HEIGHT = 12;
+const JABATAN_LINE_HEIGHT = 10.5;
+const CELL_PADDING_X = 10;
+const MAX_TTD_WIDTH = 110;
+const MAX_TTD_HEIGHT = TTD_ROW_HEIGHT - 8;
 
-// The table has no outer box: only the two header rules and thin separators.
-const TABLE_BOTTOM = 96;
 const COLUMN_COUNT = 3;
 const COLUMN_WIDTH = CONTENT_WIDTH / COLUMN_COUNT;
 const COLUMN_X = [
@@ -218,168 +226,128 @@ async function drawSignature(
   });
 }
 
-function drawSignatureDate(
+function drawTextBlock(
   page: PDFPage,
-  signature: BerkasCoverSignature,
+  lines: string[],
   centerX: number,
-  y: number,
+  rowTop: number,
+  rowHeight: number,
   font: PDFFont,
+  size: number,
+  lineHeight: number,
 ): void {
-  drawCenteredText(
-    page,
-    `Tanggal: ${formatCoverDate(signature.ttdUploadedAt)}`,
-    centerX,
-    y,
-    font,
-    8,
-  );
-}
-
-async function drawValidatorCell(
-  doc: PDFDocument,
-  page: PDFPage,
-  fonts: CoverFonts,
-  signature: BerkasCoverSignature,
-  columnIndex: 1 | 2,
-  headerBottom: number,
-): Promise<void> {
-  const columnX = COLUMN_X[columnIndex];
-  const centerX = columnX + COLUMN_WIDTH / 2;
-  const contentWidth = COLUMN_WIDTH - 24;
-  const nameLines = wrapText(
-    signature.nama,
-    fonts.bold,
-    NAME_SIZE,
-    contentWidth,
-    2,
-  );
-  const jabatanLines = wrapText(
-    signature.jabatan,
-    fonts.regular,
-    JABATAN_SIZE,
-    contentWidth,
-    2,
-  );
-
-  // Name and jabatan start just below the header rule; the signature is placed
-  // in the remaining space so it can never overlap the name block.
-  let baseline = headerBottom - 20;
-  for (const line of nameLines) {
-    drawCenteredText(page, line, centerX, baseline, fonts.bold, NAME_SIZE);
-    baseline -= 12;
-  }
-  baseline -= 2;
-  for (const line of jabatanLines) {
+  if (lines.length === 0) return;
+  const firstCenter =
+    rowTop - rowHeight / 2 + ((lines.length - 1) * lineHeight) / 2;
+  lines.forEach((line, index) => {
     drawCenteredText(
       page,
       line,
       centerX,
-      baseline,
-      fonts.regular,
-      JABATAN_SIZE,
+      firstCenter - index * lineHeight - size * 0.35,
+      font,
+      size,
     );
-    baseline -= 10;
-  }
-
-  // Keep signature and date together as one block, centered in the space left
-  // below the name/jabatan text instead of anchoring the date to the page foot.
-  const availableTop = baseline - 10;
-  const availableBottom = TABLE_BOTTOM + 14;
-  const groupHeight = MAX_TTD_HEIGHT + 12 + DATE_SIZE;
-  const freeHeight = Math.max(0, availableTop - availableBottom);
-  const blockTop =
-    availableTop - Math.max(0, (freeHeight - groupHeight) / 2);
-  const dateY = blockTop - MAX_TTD_HEIGHT - 12;
-
-  await drawSignature(doc, page, signature, {
-    x: columnX + 12,
-    y: blockTop - MAX_TTD_HEIGHT,
-    width: COLUMN_WIDTH - 24,
-    height: MAX_TTD_HEIGHT,
   });
-  drawSignatureDate(page, signature, centerX, dateY, fonts.regular);
 }
 
-async function drawPenyusunCell(
+type CoverColumn = {
+  header: string;
+  signatures: BerkasCoverSignature[];
+};
+
+async function drawColumn(
   doc: PDFDocument,
   page: PDFPage,
   fonts: CoverFonts,
-  signatures: BerkasCoverSignature[],
-  headerBottom: number,
+  column: CoverColumn,
+  columnIndex: 0 | 1 | 2,
+  rowTops: number[],
 ): Promise<void> {
-  if (signatures.length === 0) return;
-
-  const columnX = COLUMN_X[0];
+  const columnX = COLUMN_X[columnIndex];
   const centerX = columnX + COLUMN_WIDTH / 2;
-  const contentWidth = COLUMN_WIDTH - 24;
-  const areaTop = headerBottom - 18;
-  const areaBottom = TABLE_BOTTOM + 14;
-  const blockHeight = (areaTop - areaBottom) / signatures.length;
+  const maxWidth = COLUMN_WIDTH - CELL_PADDING_X * 2;
 
-  for (let index = 0; index < signatures.length; index += 1) {
-    const signature = signatures[index];
-    const nameLines = wrapText(
-      signature.nama,
+  drawTextBlock(
+    page,
+    [column.header],
+    centerX,
+    rowTops[0],
+    HEADER_ROW_HEIGHT,
+    fonts.bold,
+    HEADER_SIZE,
+    HEADER_SIZE,
+  );
+
+  for (let index = 0; index < column.signatures.length; index += 1) {
+    const rowOffset = 1 + index * 4;
+    const nameTop = rowTops[rowOffset];
+    if (nameTop === undefined) break;
+
+    const signature = column.signatures[index];
+    drawTextBlock(
+      page,
+      wrapText(signature.nama, fonts.bold, NAME_SIZE, maxWidth, 2),
+      centerX,
+      nameTop,
+      NAME_ROW_HEIGHT,
       fonts.bold,
       NAME_SIZE,
-      contentWidth,
-      2,
+      NAME_LINE_HEIGHT,
     );
-    const jabatanLines = wrapText(
-      signature.jabatan,
+    drawTextBlock(
+      page,
+      wrapText(signature.jabatan, fonts.regular, JABATAN_SIZE, maxWidth, 3),
+      centerX,
+      rowTops[rowOffset + 1],
+      JABATAN_ROW_HEIGHT,
       fonts.regular,
       JABATAN_SIZE,
-      contentWidth,
-      2,
+      JABATAN_LINE_HEIGHT,
     );
 
-    const textHeight = nameLines.length * 12 + 2 + jabatanLines.length * 10;
-    const blockContentHeight =
-      textHeight + 6 + MAX_TTD_HEIGHT + 12 + DATE_SIZE + 4;
-    const blockTop = areaTop - index * blockHeight;
-    // Center each penyusun block inside its slot so repeated signers stay tidy.
-    let baseline =
-      blockTop - Math.max(0, (blockHeight - blockContentHeight) / 2);
-
-    for (const line of nameLines) {
-      drawCenteredText(page, line, centerX, baseline, fonts.bold, NAME_SIZE);
-      baseline -= 12;
-    }
-    baseline -= 2;
-    for (const line of jabatanLines) {
-      drawCenteredText(
-        page,
-        line,
-        centerX,
-        baseline,
-        fonts.regular,
-        JABATAN_SIZE,
-      );
-      baseline -= 10;
-    }
-
-    const ttdY = baseline - 6 - MAX_TTD_HEIGHT;
+    // The signature box is the whole TTD row minus a small padding, so the
+    // image is centered on both axes and can never enter the adjacent rows.
     await drawSignature(doc, page, signature, {
-      x: columnX + 12,
-      y: ttdY,
-      width: COLUMN_WIDTH - 24,
+      x: columnX + CELL_PADDING_X,
+      y: rowTops[rowOffset + 2] - TTD_ROW_HEIGHT + 4,
+      width: maxWidth,
       height: MAX_TTD_HEIGHT,
     });
-    drawSignatureDate(page, signature, centerX, ttdY - 12, fonts.regular);
+
+    drawTextBlock(
+      page,
+      [`Tanggal: ${formatCoverDate(signature.ttdUploadedAt)}`],
+      centerX,
+      rowTops[rowOffset + 3],
+      DATE_ROW_HEIGHT,
+      fonts.regular,
+      DATE_SIZE,
+      DATE_SIZE,
+    );
   }
 }
 
-function drawTable(
+function drawGrid(
   page: PDFPage,
-  fonts: CoverFonts,
   tableTop: number,
-  headerBottom: number,
+  tableBottom: number,
+  rowTops: number[],
 ): void {
-  for (const y of [tableTop, headerBottom]) {
+  page.drawRectangle({
+    x: MARGIN_X,
+    y: tableBottom,
+    width: CONTENT_WIDTH,
+    height: tableTop - tableBottom,
+    borderColor: GRID_LINE,
+    borderWidth: 0.8,
+  });
+
+  for (const y of rowTops.slice(1)) {
     page.drawLine({
       start: { x: MARGIN_X, y },
       end: { x: MARGIN_X + CONTENT_WIDTH, y },
-      thickness: 0.9,
+      thickness: 0.6,
       color: GRID_LINE,
     });
   }
@@ -387,23 +355,11 @@ function drawTable(
   for (const x of [COLUMN_X[1], COLUMN_X[2]]) {
     page.drawLine({
       start: { x, y: tableTop },
-      end: { x, y: TABLE_BOTTOM },
+      end: { x, y: tableBottom },
       thickness: 0.6,
       color: GRID_LINE,
     });
   }
-
-  const headers = ["Tim Penyusun", "Validasi 1", "Validasi 2"];
-  headers.forEach((header, index) => {
-    drawCenteredText(
-      page,
-      header,
-      COLUMN_X[index] + COLUMN_WIDTH / 2,
-      headerBottom + 9,
-      fonts.bold,
-      HEADER_SIZE,
-    );
-  });
 }
 
 /**
@@ -468,12 +424,35 @@ export async function generateCoverPdf(
   const lastTitleBaseline =
     firstTitleBaseline - (titleLines.length - 1) * TITLE_LINE_HEIGHT;
   const tableTop = lastTitleBaseline - TITLE_TABLE_GAP;
-  const headerBottom = tableTop - HEADER_ROW_HEIGHT;
 
-  drawTable(page, fonts, tableTop, headerBottom);
-  await drawPenyusunCell(doc, page, fonts, data.penyusun, headerBottom);
-  await drawValidatorCell(doc, page, fonts, data.validasi[0], 1, headerBottom);
-  await drawValidatorCell(doc, page, fonts, data.validasi[1], 2, headerBottom);
+  // The grid starts with the header row, then one fixed group of name, jabatan,
+  // signature and date rows per signer. Heights are constant, so the rows can
+  // never drift; extra penyusun simply add another identical row group.
+  const rowCount = Math.max(1, data.penyusun.length);
+  const rowTops: number[] = [tableTop];
+  let cursor = tableTop - HEADER_ROW_HEIGHT;
+  for (let index = 0; index < rowCount; index += 1) {
+    rowTops.push(cursor);
+    cursor -= NAME_ROW_HEIGHT;
+    rowTops.push(cursor);
+    cursor -= JABATAN_ROW_HEIGHT;
+    rowTops.push(cursor);
+    cursor -= TTD_ROW_HEIGHT;
+    rowTops.push(cursor);
+    cursor -= DATE_ROW_HEIGHT;
+  }
+  const tableBottom = cursor;
+
+  drawGrid(page, tableTop, tableBottom, rowTops);
+
+  const columns: CoverColumn[] = [
+    { header: "Tim Penyusun", signatures: data.penyusun },
+    { header: "Validasi 1", signatures: [data.validasi[0]] },
+    { header: "Validasi 2", signatures: [data.validasi[1]] },
+  ];
+  for (const [index, column] of columns.entries()) {
+    await drawColumn(doc, page, fonts, column, index as 0 | 1 | 2, rowTops);
+  }
 
   doc.setTitle(pdfSafeText(data.judul));
   doc.setAuthor("WIBEX");
