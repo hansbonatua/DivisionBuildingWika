@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   BERKAS_STATUS_LABELS,
-  berkasStatusNote,
   canSignBerkas,
   type BerkasAssignmentDto,
 } from "./types";
@@ -34,7 +33,6 @@ test("canSignBerkas hides the action after a signature or without assignment", (
   assert.equal(canSignBerkas("MENUNGGU_TTD_1", null), false);
 });
 
-test("status labels and notes cover completion", () => {
+test("status labels cover completion", () => {
   assert.equal(BERKAS_STATUS_LABELS.SELESAI, "Selesai");
-  assert.match(berkasStatusNote("SELESAI"), /final/i);
 });

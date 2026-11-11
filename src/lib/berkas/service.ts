@@ -443,6 +443,26 @@ async function readPrivateBlobBytes(
   return new Uint8Array(buffer);
 }
 
+/** Reject an uploaded signature that is not a decodable PNG/JPEG image. */
+async function assertDecodableTtdImage(
+  pathname: string,
+  mimeType: string,
+): Promise<void> {
+  const bytes = await readPrivateBlobBytes(pathname, "File TTD");
+  try {
+    const document = await PDFDocument.create();
+    if (mimeType === "image/png") {
+      await document.embedPng(bytes);
+    } else if (mimeType === "image/jpeg") {
+      await document.embedJpg(bytes);
+    } else {
+      throw new Error("Unsupported TTD image type");
+    }
+  } catch {
+    throw new BerkasValidationError("File TTD rusak atau tidak valid");
+  }
+}
+
 type BerkasCleanupContext = {
   operation: "create" | "revisi" | "ttd" | "delete";
   berkasId?: string;
@@ -884,7 +904,9 @@ export async function createBerkas(
 
   async function failCreate(error: Error): Promise<never> {
     if (!isReusedPathnameViolation(error)) {
-      await cleanupBerkasBlobs(cleanupPathnames, { operation: "create" });
+      await cleanupBerkasBlobsIfUnreferenced(cleanupPathnames, {
+        operation: "create",
+      });
     }
     throw error;
   }
@@ -985,14 +1007,16 @@ export async function createBerkas(
     );
     const pageCount = await readPdfPageCount(originalBytes, "PDF asli");
     const ttdFiles = await Promise.all(
-      input.penyusun.map((item) =>
-        verifyPrivateBlob(
+      input.penyusun.map(async (item) => {
+        const verified = await verifyPrivateBlob(
           item.ttdPathname,
           TTD_MIME_TYPES,
           TTD_MAX_BYTES,
           `TTD penyusun ${item.urutan}`,
-        ),
-      ),
+        );
+        await assertDecodableTtdImage(item.ttdPathname, verified.mimeType);
+        return verified;
+      }),
     );
 
     createdId = await insertBerkasWithChildren({
@@ -1022,7 +1046,9 @@ export async function createBerkas(
     });
   } catch (error) {
     if (!isReusedPathnameViolation(error)) {
-      await cleanupBerkasBlobs(allPathnames, { operation: "create" });
+      await cleanupBerkasBlobsIfUnreferenced(allPathnames, {
+        operation: "create",
+      });
     }
     mapWriteError(error);
   }
@@ -1060,13 +1086,18 @@ export async function submitTtd(
     TTD_MIME_TYPES,
     TTD_MAX_BYTES,
     `TTD Validator ${assignment.urutan}`,
-  ).catch(async (error) => {
-    await cleanupBerkasBlobsIfUnreferenced([pathname], {
-      operation: "ttd",
-      berkasId: id,
+  )
+    .then(async (result) => {
+      await assertDecodableTtdImage(pathname, result.mimeType);
+      return result;
+    })
+    .catch(async (error) => {
+      await cleanupBerkasBlobsIfUnreferenced([pathname], {
+        operation: "ttd",
+        berkasId: id,
+      });
+      return mapWriteError(error);
     });
-    return mapWriteError(error);
-  });
   const ttdUploadedAt = new Date();
 
   if (assignment.urutan === 1) {

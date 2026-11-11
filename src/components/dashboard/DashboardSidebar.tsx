@@ -38,6 +38,63 @@ type DashboardSidebarProps = {
   mslAccess?: boolean;
 };
 
+/** Presentational link used by every sidebar menu. Badge count is opt-in. */
+export function SidebarMenuItem({
+  item,
+  badgeCount = 0,
+  isActive,
+  onClose,
+}: {
+  item: SidebarItem;
+  badgeCount?: number;
+  isActive: boolean;
+  onClose: () => void;
+}) {
+  const badge =
+    badgeCount > 0 ? (
+      <span
+        className="inline-flex min-w-5 shrink-0 items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold leading-4 text-white"
+        aria-label={`${badgeCount} Berkas membutuhkan tindakan`}
+      >
+        {badgeCount}
+      </span>
+    ) : null;
+
+  if (isActive) {
+    return (
+      <Link
+        href={item.href}
+        onClick={onClose}
+        aria-current="page"
+        className="flex items-center justify-between rounded-lg bg-blue-50 px-3 py-2 text-xs font-bold text-secondary transition-colors"
+      >
+        <span className="flex min-w-0 items-center gap-2">
+          <span className="text-secondary">{item.icon}</span>
+          <span className="truncate">{item.label}</span>
+        </span>
+        <span className="flex shrink-0 items-center gap-2">
+          {badge}
+          <span className="h-1.5 w-1.5 rounded-full bg-secondary" />
+        </span>
+      </Link>
+    );
+  }
+
+  return (
+    <Link
+      href={item.href}
+      onClick={onClose}
+      className="flex items-center justify-between rounded-lg px-3 py-2 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900"
+    >
+      <span className="flex min-w-0 items-center gap-2">
+        <span className="text-slate-400">{item.icon}</span>
+        <span className="truncate">{item.label}</span>
+      </span>
+      {badge}
+    </Link>
+  );
+}
+
 function MenuIcon({ children }: { children: React.ReactNode }) {
   return (
     <svg
@@ -734,50 +791,14 @@ export default function DashboardSidebar({
   }
 
   function renderItem(item: SidebarItem, badgeCount = 0) {
-    const isActive = isActivePath(item.href);
-    const badge =
-      badgeCount > 0 ? (
-        <span
-          className="inline-flex min-w-5 shrink-0 items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold leading-4 text-white"
-          aria-label={`${badgeCount} Berkas membutuhkan tindakan`}
-        >
-          {badgeCount}
-        </span>
-      ) : null;
-
-    if (isActive) {
-      return (
-        <Link
-          key={item.label}
-          href={item.href}
-          onClick={onClose}
-          aria-current="page"
-          className="flex items-center justify-between rounded-lg bg-blue-50 px-3 py-2 text-xs font-bold text-secondary transition-colors"
-        >
-          <span className="flex min-w-0 items-center gap-2">
-            <span className="text-secondary">{item.icon}</span>
-            <span className="truncate">{item.label}</span>
-          </span>
-          <span className="flex shrink-0 items-center gap-2">
-            {badge}
-            <span className="h-1.5 w-1.5 rounded-full bg-secondary" />
-          </span>
-        </Link>
-      );
-    }
     return (
-      <Link
+      <SidebarMenuItem
         key={item.label}
-        href={item.href}
-        onClick={onClose}
-        className="flex items-center justify-between rounded-lg px-3 py-2 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900"
-      >
-        <span className="flex min-w-0 items-center gap-2">
-          <span className="text-slate-400">{item.icon}</span>
-          <span className="truncate">{item.label}</span>
-        </span>
-        {badge}
-      </Link>
+        item={item}
+        badgeCount={badgeCount}
+        isActive={isActivePath(item.href)}
+        onClose={onClose}
+      />
     );
   }
 
@@ -837,7 +858,7 @@ export default function DashboardSidebar({
           {showCms && landingOpen ? (
             <div id="landing-page-manager-menu">
               <nav className="ml-4 space-y-1 border-l-2 border-slate-100 pl-3" aria-label="Landing Page Manager">
-                {landingSubMenu.map(renderItem)}
+                {landingSubMenu.map((item) => renderItem(item))}
               </nav>
             </div>
           ) : null}
@@ -897,7 +918,7 @@ export default function DashboardSidebar({
                     <div id="program-kerja-menu" className="space-y-1">
                       {showProgramKerja ? (
                         <nav className="ml-4 space-y-1 border-l-2 border-slate-100 pl-3" aria-label="Program Kerja">
-                          {programKerjaMenu.map(renderItem)}
+                          {programKerjaMenu.map((item) => renderItem(item))}
                         </nav>
                       ) : null}
                     </div>
@@ -945,7 +966,7 @@ export default function DashboardSidebar({
                         className="ml-4 space-y-1 border-l-2 border-slate-100 pl-3"
                         aria-label="Knowledge Management"
                       >
-                        {knowledgeMenu.map(renderItem)}
+                        {knowledgeMenu.map((item) => renderItem(item))}
                       </nav>
                     </div>
                   ) : null}
@@ -992,7 +1013,7 @@ export default function DashboardSidebar({
                         className="ml-4 space-y-1 border-l-2 border-slate-100 pl-3"
                         aria-label="Metode Kerja Standar"
                       >
-                        {metodeKerjaMenu.map(renderItem)}
+                        {metodeKerjaMenu.map((item) => renderItem(item))}
                       </nav>
                     </div>
                   ) : null}
@@ -1034,7 +1055,7 @@ export default function DashboardSidebar({
                         className="ml-4 space-y-1 border-l-2 border-slate-100 pl-3"
                         aria-label="Calculation Sheet Template"
                       >
-                        {calculationSheetMenu.map(renderItem)}
+                        {calculationSheetMenu.map((item) => renderItem(item))}
                       </nav>
                     </div>
                   ) : null}
@@ -1080,7 +1101,7 @@ export default function DashboardSidebar({
                         className="ml-4 space-y-1 border-l-2 border-slate-100 pl-3"
                         aria-label="Project Documentation"
                       >
-                        {projectDocumentationSubmenu.map(renderItem)}
+                        {projectDocumentationSubmenu.map((item) => renderItem(item))}
                       </nav>
                     </div>
                   ) : null}
@@ -1206,7 +1227,7 @@ export default function DashboardSidebar({
                         className="ml-4 space-y-1 border-l-2 border-slate-100 pl-3"
                         aria-label="Master Project"
                       >
-                        {masterProjectMenu.map(renderItem)}
+                        {masterProjectMenu.map((item) => renderItem(item))}
                       </nav>
                     </div>
                   ) : null}
@@ -1255,7 +1276,7 @@ export default function DashboardSidebar({
                       >
                         {(showMsl ? [mslMenuItem] : [])
                           .concat(showEngineeringDatabase ? engineeringDatabaseMenu : [])
-                          .map(renderItem)}
+                          .map((item) => renderItem(item))}
                       </nav>
                     </div>
                   ) : null}

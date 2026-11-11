@@ -10,6 +10,7 @@ export const BERKAS_UPLOAD_TOKEN_URL = "/api/berkas/upload-token";
 export const PDF_MAX_BYTES = 20 * 1024 * 1024;
 export const TTD_MAX_BYTES = 2 * 1024 * 1024;
 const PDFJS_WORKER_SRC = "/pdfjs/pdf.worker.min.mjs";
+export const PDFJS_STANDARD_FONT_DATA_URL = "/pdfjs/standard_fonts/";
 
 type PdfjsModule = typeof import("pdfjs-dist");
 
@@ -118,6 +119,7 @@ export async function getPdfPageCount(file: File): Promise<number> {
   const pdfjs = await loadPdfjs();
   const loadingTask = pdfjs.getDocument({
     data: new Uint8Array(await file.arrayBuffer()),
+    standardFontDataUrl: PDFJS_STANDARD_FONT_DATA_URL,
   });
   const document = await loadingTask.promise;
   try {

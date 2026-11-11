@@ -75,19 +75,6 @@ export function berkasStatusClass(status: BerkasStatus): string {
   return "border-emerald-200 bg-emerald-50 text-emerald-700";
 }
 
-export function berkasStatusNote(status: BerkasStatus): string {
-  if (status === "MENUNGGU_TTD_1") {
-    return "Menunggu tanda tangan Validator 1.";
-  }
-  if (status === "MENUNGGU_TTD_2") {
-    return "Menunggu tanda tangan Validator 2.";
-  }
-  if (status === "DITOLAK") {
-    return "Ditolak — pengaju dapat mengirim revisi PDF.";
-  }
-  return "Selesai — file PDF final tersedia.";
-}
-
 export function canSignBerkas(
   status: BerkasStatus,
   assignment:
@@ -109,17 +96,6 @@ export function formatBerkasCreatedDate(value: string | null | undefined): strin
     day: "2-digit",
     month: "short",
     year: "numeric",
-    timeZone: "Asia/Jakarta",
-  }).format(date);
-}
-
-export function formatBerkasDate(value: string | null | undefined): string {
-  if (!value) return "—";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "—";
-  return new Intl.DateTimeFormat("id-ID", {
-    dateStyle: "medium",
-    timeStyle: "short",
     timeZone: "Asia/Jakarta",
   }).format(date);
 }

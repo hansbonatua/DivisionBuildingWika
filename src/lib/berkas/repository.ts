@@ -162,26 +162,6 @@ function dbOrDefault(db?: BerkasDb): BerkasDb {
   return db ?? getPgDb();
 }
 
-export async function listBerkasRows(
-  pemohonId?: string,
-): Promise<BerkasListRow[]> {
-  const query = getPgDb()
-    .select(parentColumns)
-    .from(berkasPengajuan)
-    .innerJoin(users, eq(berkasPengajuan.pemohonId, users.id));
-
-  if (pemohonId) {
-    return query
-      .where(eq(berkasPengajuan.pemohonId, pemohonId))
-      .orderBy(desc(berkasPengajuan.createdAt), desc(berkasPengajuan.id));
-  }
-
-  return query.orderBy(
-    desc(berkasPengajuan.createdAt),
-    desc(berkasPengajuan.id),
-  );
-}
-
 export type BerkasPageInput = {
   pemohonId?: string;
   search?: string;

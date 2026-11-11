@@ -1,0 +1,2 @@
+CREATE INDEX "berkas_pengajuan_judul_trgm_idx" ON "berkas_pengajuan" USING gin ("judul" gin_trgm_ops);--> statement-breakpoint
+CREATE INDEX "berkas_pengajuan_kode_seri_trgm_idx" ON "berkas_pengajuan" USING gin ("kode_seri" gin_trgm_ops);

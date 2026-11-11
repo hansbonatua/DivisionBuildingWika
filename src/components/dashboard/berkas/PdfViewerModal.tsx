@@ -2,7 +2,11 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import type { PDFDocumentLoadingTask, PDFDocumentProxy } from "pdfjs-dist";
-import { loadPdfjs, readApiErrorMessage } from "@/components/dashboard/berkas/client";
+import {
+  loadPdfjs,
+  PDFJS_STANDARD_FONT_DATA_URL,
+  readApiErrorMessage,
+} from "@/components/dashboard/berkas/client";
 import type { BerkasDto } from "@/components/dashboard/berkas/types";
 
 function PdfPage({
@@ -145,6 +149,7 @@ export default function PdfViewerModal({
         const pdfjs = await loadPdfjs();
         const loadingTask = pdfjs.getDocument({
           data: new Uint8Array(bytes),
+          standardFontDataUrl: PDFJS_STANDARD_FONT_DATA_URL,
         });
         loadingTaskRef.current = loadingTask;
         const loaded = await loadingTask.promise;

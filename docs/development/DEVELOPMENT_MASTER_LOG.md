@@ -5,6 +5,49 @@ Dokumentasi audit repository ada di `docs/audit/`; dokumen ini mencatat **peruba
 
 ---
 
+## DL-2026-11-12-05 — Berkas Final Polish (Production-Ready)
+
+| Field | Nilai |
+|---|---|
+| Feature ID | `ENT-BERKAS` |
+| Tanggal | 12 November 2026 |
+| Status | **IMPLEMENTED & VERIFIED (Production-Ready)** — Audit Readiness dan Final Polish selesai; static checks PASS (256/256, 61 suite); migration `0024_berkas_search_index` **APPLIED** |
+| Commit | Belum di-commit; pass dokumentasi ini tidak melakukan commit/push |
+| Branch | `main` |
+| Baseline | `0805776` + working tree Final Polish |
+| Migration | `0024_berkas_search_index` — **APPLIED** (12 November 2026); journal 25 entry |
+
+### Perubahan
+- **Index pencarian:** index GIN trigram `berkas_pengajuan_judul_trgm_idx` dan `berkas_pengajuan_kode_seri_trgm_idx` ditambahkan pada schema dan migration `0024_berkas_search_index`; migration sudah **APPLIED**.
+- **Validasi TTD:** `assertDecodableTtdImage` memakai `pdf-lib` (`embedPng`/`embedJpg`) untuk memastikan TTD penyusun dan validator benar-benar PNG/JPEG yang dapat didekode; file rusak ditolak dengan error 400 `File TTD rusak atau tidak valid`.
+- **Orphan blob:** cleanup pada `createBerkas` (termasuk `failCreate`) sekarang memakai `cleanupBerkasBlobsIfUnreferenced`, sehingga blob yang sudah direferensikan tidak dihapus saat kegagalan/acknowledgment ambigu.
+- **Dead code:** `listBerkasRows`, `formatBerkasDate`, dan `berkasStatusNote` dihapus beserta assertion test yang tidak lagi relevan.
+- **PDF.js:** folder `standard_fonts` disalin ke `public/pdfjs/standard_fonts/`; `standardFontDataUrl` dikonfigurasi pada viewer dan page-count loader; warning font pada test dibersihkan.
+- **Audit Readiness:** seluruh temuan High & Medium ditutup; modul dinyatakan `IMPLEMENTED & VERIFIED (Production-Ready)`.
+
+### File impacted
+- Backend: `src/lib/berkas/service.ts`, `src/lib/berkas/repository.ts`, `src/lib/pg/schema.ts`.
+- Frontend: `src/components/dashboard/berkas/{client,PdfViewerModal,types}.tsx|ts` dan test terkait.
+- Data/docs: `drizzle/0024_berkas_search_index.sql`, `drizzle/meta/0024_snapshot.json`, `public/pdfjs/standard_fonts/`, serta tiga dokumen development ini.
+- Pass dokumentasi ini hanya mengubah tiga dokumen development dan tidak mengubah kode, database, atau API.
+
+### Verifikasi
+| Pemeriksaan | Hasil | Sumber |
+|---|---|---|
+| `npx tsc --noEmit` | **PASS** | Freebuff |
+| `npx eslint` (file Final Polish) | **PASS** | Freebuff |
+| `npm test` | **256/256 PASS** (61 suite) | Freebuff |
+| `git diff --check` | **PASS** | Freebuff |
+| Migration `0024_berkas_search_index` | **APPLIED**; journal 25 entry | Owner-confirmed |
+| Audit Readiness High & Medium | **CLOSED** — seluruh temuan diselesaikan | Freebuff + Owner |
+
+### Batasan
+- Migration `0024` tidak dijalankan ulang pada pass dokumentasi ini; status APPLIED mengikuti konfirmasi Owner.
+- Smoke test browser Sprint 2/final polish tidak direproduksi pada pass dokumentasi ini; verifikasi Final Polish berbasis static checks dan 256 test.
+- Tidak ada commit, push, deploy, migration, seed, atau DB write pada pass ini.
+
+---
+
 ## DL-2026-11-12-03 — Berkas Sprint 2 & Final Polish
 
 | Field | Nilai |

@@ -1151,6 +1151,15 @@ export const berkasPengajuan = pgTable(
       .where(sql`${table.kodeSeri} is not null`),
     index("berkas_pengajuan_pemohon_created_idx").on(table.pemohonId, table.createdAt),
     index("berkas_pengajuan_status_created_idx").on(table.status, table.createdAt),
+    // Search uses ILIKE '%...%' on these columns; pg_trgm is enabled in 0004.
+    index("berkas_pengajuan_judul_trgm_idx").using(
+      "gin",
+      sql`${table.judul} gin_trgm_ops`,
+    ),
+    index("berkas_pengajuan_kode_seri_trgm_idx").using(
+      "gin",
+      sql`${table.kodeSeri} gin_trgm_ops`,
+    ),
     check(
       "berkas_pengajuan_judul_check",
       sql`length(btrim(${table.judul})) between 1 and 200`,

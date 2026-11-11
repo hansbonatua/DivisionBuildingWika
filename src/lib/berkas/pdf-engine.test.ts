@@ -12,6 +12,7 @@ import {
 } from "@/lib/berkas/pdf-engine";
 
 const logo = new Uint8Array(readFileSync("public/asset/WIKA-LOGO.png"));
+const STANDARD_FONT_DATA_URL = "public/pdfjs/standard_fonts/";
 
 function signature(nama: string, jabatan: string): BerkasCoverSignature {
   return {
@@ -53,7 +54,10 @@ test("generateCoverPdf places the kode seri above the table, right-aligned", asy
     ...coverData(),
     kodeSeri: "WIKA/BA/2026/001",
   });
-  const doc = await pdfjs.getDocument({ data: bytes.slice() }).promise;
+  const doc = await pdfjs.getDocument({
+    data: bytes.slice(),
+    standardFontDataUrl: STANDARD_FONT_DATA_URL,
+  }).promise;
   const content = await doc.getPage(1).then((page) => page.getTextContent());
   const items = content.items.flatMap((item) =>
     "str" in item
@@ -87,7 +91,10 @@ test("generateCoverPdf places the kode seri above the table, right-aligned", asy
 
 test("generateCoverPdf adds a red title rule and WIKA footer on the cover", async () => {
   const bytes = await generateCoverPdf(coverData());
-  const doc = await pdfjs.getDocument({ data: bytes.slice() }).promise;
+  const doc = await pdfjs.getDocument({
+    data: bytes.slice(),
+    standardFontDataUrl: STANDARD_FONT_DATA_URL,
+  }).promise;
   const page = await doc.getPage(1);
   const content = await page.getTextContent();
   const items = content.items.flatMap((item) =>

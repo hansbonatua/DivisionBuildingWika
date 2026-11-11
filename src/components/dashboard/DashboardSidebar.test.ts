@@ -1,13 +1,18 @@
 import assert from "node:assert/strict";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, it } from "node:test";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import {
   berkasMenu,
+  calculationSheetMenu,
   getInitialSidebarAccordionState,
   getSidebarVisibility,
   knowledgeMenu,
   programKerjaMenu,
+  SidebarMenuItem,
+  type SidebarItem,
 } from "./DashboardSidebar";
 
 const KNOWLEDGE_LINKS = [
@@ -25,6 +30,28 @@ const BERKAS_LINKS = [
   "/dashboard/berkas/ajukan",
   "/dashboard/berkas/verifikasi",
 ];
+
+const DASHBOARD_SIDEBAR_SOURCE = readFileSync(
+  path.join(
+    process.cwd(),
+    "src",
+    "components",
+    "dashboard",
+    "DashboardSidebar.tsx",
+  ),
+  "utf8",
+);
+
+function renderMenuItem(item: SidebarItem, badgeCount = 0): string {
+  return renderToStaticMarkup(
+    createElement(SidebarMenuItem, {
+      item,
+      badgeCount,
+      isActive: false,
+      onClose: () => {},
+    }),
+  );
+}
 
 // The sidebar is a Client Component, so these regression tests exercise the
 // pure navigation model it renders from rather than a DOM (the repository has
@@ -155,6 +182,46 @@ describe("Berkas sidebar navigation", () => {
   it("keeps exactly the Ajukan and Verifikasi submenu routes", () => {
     assert.deepEqual(berkasMenu.map((item) => item.href), BERKAS_LINKS);
     assert.deepEqual(berkasMenu.map((item) => item.label), ["Ajukan", "Verifikasi"]);
+  });
+});
+
+describe("Berkas sidebar badge isolation", () => {
+  it("never passes Array.map index as a badge count to non-Berkas menus", () => {
+    assert.equal(DASHBOARD_SIDEBAR_SOURCE.includes(".map(renderItem)"), false);
+  });
+
+  it("passes berkasNotifCount only to the Berkas submenu", () => {
+    const badgeCalls =
+      DASHBOARD_SIDEBAR_SOURCE.match(/renderItem\(item, berkasNotifCount\)/g) ?? [];
+    assert.equal(badgeCalls.length, 1);
+  });
+
+  it("keeps Knowledge Management and CST on the no-badge callback", () => {
+    assert.match(
+      DASHBOARD_SIDEBAR_SOURCE,
+      /knowledgeMenu\.map\(\(item\) => renderItem\(item\)\)/,
+    );
+    assert.match(
+      DASHBOARD_SIDEBAR_SOURCE,
+      /calculationSheetMenu\.map\(\(item\) => renderItem\(item\)\)/,
+    );
+  });
+
+  it("renders Knowledge Management and CST without Berkas badges", () => {
+    const nonBerkasMarkup = [knowledgeMenu, calculationSheetMenu]
+      .flat()
+      .map((item) => renderMenuItem(item))
+      .join("");
+
+    assert.doesNotMatch(nonBerkasMarkup, /Berkas membutuhkan tindakan/);
+    assert.doesNotMatch(nonBerkasMarkup, /bg-red-500/);
+  });
+
+  it("renders the Berkas badge when a count is supplied", () => {
+    const berkasMarkup = renderMenuItem(berkasMenu[0], 5);
+
+    assert.match(berkasMarkup, /5 Berkas membutuhkan tindakan/);
+    assert.match(berkasMarkup, />5</);
   });
 });
 
