@@ -84,10 +84,12 @@ export default function PdfViewerModal({
   const titleId = useId();
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
+  const viewerRef = useRef<HTMLDivElement>(null);
   const loadingTaskRef = useRef<PDFDocumentLoadingTask | null>(null);
   const [document, setDocument] = useState<PDFDocumentProxy | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     const previousFocus =
@@ -121,6 +123,7 @@ export default function PdfViewerModal({
     async function loadDocument(): Promise<void> {
       setLoading(true);
       setError(null);
+      setCurrentPage(1);
       try {
         const viewUrl =
           type === "generated"
@@ -170,6 +173,15 @@ export default function PdfViewerModal({
       loadingTaskRef.current = null;
     };
   }, [berkas.id, type]);
+
+  function goToPage(nextPage: number): void {
+    if (!document) return;
+    const next = Math.min(Math.max(1, nextPage), document.numPages);
+    setCurrentPage(next);
+    viewerRef.current?.scrollTo({ top: 0, behavior: "auto" });
+  }
+
+  const activePage = document ? Math.min(currentPage, document.numPages) : 1;
 
   function handleTab(event: React.KeyboardEvent<HTMLDivElement>): void {
     if (event.key !== "Tab") return;
@@ -238,7 +250,10 @@ export default function PdfViewerModal({
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto bg-slate-100 px-3 py-4 sm:px-6">
+        <div
+          ref={viewerRef}
+          className="min-h-0 flex-1 overflow-y-auto bg-slate-100 px-3 py-4 sm:px-6"
+        >
           {loading ? (
             <div className="flex h-full min-h-64 flex-col items-center justify-center gap-3 text-xs font-semibold text-primary/60">
               <span className="h-7 w-7 animate-spin rounded-full border-2 border-secondary/30 border-t-secondary" />
@@ -251,13 +266,37 @@ export default function PdfViewerModal({
             </div>
           ) : document ? (
             <div className="space-y-4">
-              {Array.from({ length: document.numPages }, (_, index) => (
-                <PdfPage
-                  key={index + 1}
-                  document={document}
-                  pageNumber={index + 1}
-                />
-              ))}
+              <div className="mx-auto flex max-w-[960px] items-center justify-between gap-3 rounded-xl border border-outline bg-white px-3 py-2 shadow-sm">
+                <button
+                  type="button"
+                  onClick={() => goToPage(activePage - 1)}
+                  disabled={activePage <= 1}
+                  aria-label="Halaman sebelumnya"
+                  className="rounded-lg border border-outline bg-white px-3 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Sebelumnya
+                </button>
+                <span
+                  aria-live="polite"
+                  className="text-xs font-semibold text-primary/70"
+                >
+                  Halaman {activePage} dari {document.numPages}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => goToPage(activePage + 1)}
+                  disabled={activePage >= document.numPages}
+                  aria-label="Halaman berikutnya"
+                  className="rounded-lg border border-outline bg-white px-3 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Berikutnya
+                </button>
+              </div>
+              <PdfPage
+                key={activePage}
+                document={document}
+                pageNumber={activePage}
+              />
             </div>
           ) : null}
         </div>

@@ -11,7 +11,7 @@ import {
   ENGINEERING_DATABASE_CATEGORY_SLUGS,
   canViewEngineeringDatabase,
 } from "@/lib/engineering-database/access";
-import { canViewBerkas } from "@/lib/berkas/access";
+import { canValidateBerkas, canViewBerkas } from "@/lib/berkas/access";
 import { canManageCms } from "@/lib/cms/access";
 import { canViewKnowledgeManagement } from "@/lib/knowledge-management/access";
 import { canViewMasterProject } from "@/lib/master-project/access";
@@ -598,6 +598,7 @@ export default function DashboardSidebar({
     showUserDirectory,
     showCoreEnterprise,
   } = getSidebarVisibility(userRole, mslAccess);
+  const showBerkasVerifikasi = canValidateBerkas(userRole ?? "");
   const landingRoutes = landingSubMenu.map((item) => item.href);
   const isLandingRoute = landingRoutes.some(
     (route) => pathname === route || pathname.startsWith(`${route}/`),
@@ -1138,9 +1139,15 @@ export default function DashboardSidebar({
                         className="ml-4 space-y-1 border-l-2 border-slate-100 pl-3"
                         aria-label="Berkas"
                       >
-                        {berkasMenu.map((item) =>
-                          renderItem(item, berkasNotifCount),
-                        )}
+                        {berkasMenu
+                          .filter(
+                            (item) =>
+                              item.href !== "/dashboard/berkas/verifikasi" ||
+                              showBerkasVerifikasi,
+                          )
+                          .map((item) =>
+                            renderItem(item, berkasNotifCount),
+                          )}
                       </nav>
                     </div>
                   ) : null}

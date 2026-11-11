@@ -10,10 +10,15 @@ export default async function BerkasVerifikasiRoute() {
     redirect("/login");
   }
 
+  const canValidate = canValidateBerkas(user.role);
+  if (!canValidate) {
+    redirect("/dashboard/berkas/ajukan");
+  }
+
   return (
     <BerkasVerifikasiPage
       isAdmin={isAdmin(user.role)}
-      canValidate={canValidateBerkas(user.role)}
+      canValidate={canValidate}
     />
   );
 }

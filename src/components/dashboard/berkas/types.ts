@@ -64,7 +64,7 @@ export function isBerkasStatus(value: unknown): value is BerkasStatus {
 
 export function berkasStatusClass(status: BerkasStatus): string {
   if (status === "MENUNGGU_TTD_1") {
-    return "border-red-200 bg-red-50 text-red-700";
+    return "border-amber-200 bg-amber-50 text-amber-700";
   }
   if (status === "MENUNGGU_TTD_2") {
     return "border-amber-200 bg-amber-50 text-amber-700";

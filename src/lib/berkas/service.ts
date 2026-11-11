@@ -18,12 +18,14 @@ import {
   findBerkasForUpdate,
   findBerkasValidasiRowsForUpdate,
   insertBerkasWithChildren,
+  isBerkasPathnameReferenced,
   listBerkasAssignmentsByUser,
   listBerkasPage as listBerkasPageRows,
   updateBerkasRejectionRow,
   updateBerkasRevisionRow,
   updateBerkasStatusRow,
   updateBerkasValidasiTtdRow,
+  type BerkasDeletionRow,
   type BerkasDetailRow,
   type BerkasListRow,
   type BerkasValidasiRow,
@@ -441,13 +443,15 @@ async function readPrivateBlobBytes(
   return new Uint8Array(buffer);
 }
 
+type BerkasCleanupContext = {
+  operation: "create" | "revisi" | "ttd" | "delete";
+  berkasId?: string;
+};
+
 /** Best-effort blob cleanup. It never throws and never logs pathname values. */
 export async function cleanupBerkasBlobs(
   pathnames: string[],
-  context: {
-    operation: "create" | "revisi" | "ttd" | "delete";
-    berkasId?: string;
-  },
+  context: BerkasCleanupContext,
 ): Promise<void> {
   const unique = [...new Set(pathnames.filter((pathname) => pathname.trim()))];
   if (unique.length === 0) return;
@@ -469,6 +473,50 @@ export async function cleanupBerkasBlobs(
       skipped,
       total: unique.length,
     });
+  }
+}
+
+/**
+ * Defers deletion when the pathname is already referenced by a row. This is
+ * required after a failed request: another concurrent request may have won
+ * the transaction and committed the same pathname before our catch ran.
+ */
+async function cleanupBerkasBlobsIfUnreferenced(
+  pathnames: string[],
+  context: BerkasCleanupContext,
+): Promise<void> {
+  const unique = [...new Set(pathnames.filter((pathname) => pathname.trim()))];
+  if (unique.length === 0) return;
+
+  const checks = await Promise.all(
+    unique.map(async (pathname) => {
+      try {
+        return {
+          pathname,
+          referenced: await isBerkasPathnameReferenced(pathname),
+          checkFailed: false,
+        };
+      } catch {
+        return { pathname, referenced: true, checkFailed: true };
+      }
+    }),
+  );
+
+  const failedChecks = checks.filter((check) => check.checkFailed).length;
+  if (failedChecks > 0) {
+    console.warn("Berkas blob cleanup reference check failed", {
+      operation: context.operation,
+      berkasId: context.berkasId,
+      failed: failedChecks,
+      total: unique.length,
+    });
+  }
+
+  const unreferenced = checks
+    .filter((check) => !check.referenced)
+    .map((check) => check.pathname);
+  if (unreferenced.length > 0) {
+    await cleanupBerkasBlobs(unreferenced, context);
   }
 }
 
@@ -841,21 +889,29 @@ export async function createBerkas(
     throw error;
   }
 
-  const penyusunUsers = await Promise.all(
-    input.penyusun.map((item) =>
-      requireActiveUser(item.userId, "Penyusun"),
-    ),
-  );
-  const validatorUsers = await Promise.all(
-    input.validasi.map((item) =>
-      requireActiveUser(item.userId, "Validator"),
-    ),
-  );
-  if (validatorUsers.some((user) => !isEligibleValidatorRole(user.role))) {
-    return failCreate(
-      new BerkasValidationError(
-        "Validator harus Admin, Head Office, atau Management",
+  let penyusunUsers: Awaited<ReturnType<typeof requireActiveUser>>[] = [];
+  let validatorUsers: Awaited<ReturnType<typeof requireActiveUser>>[] = [];
+  try {
+    penyusunUsers = await Promise.all(
+      input.penyusun.map((item) =>
+        requireActiveUser(item.userId, "Penyusun"),
       ),
+    );
+    validatorUsers = await Promise.all(
+      input.validasi.map((item) =>
+        requireActiveUser(item.userId, "Validator"),
+      ),
+    );
+    if (validatorUsers.some((user) => !isEligibleValidatorRole(user.role))) {
+      throw new BerkasValidationError(
+        "Validator harus Admin, Head Office, atau Management",
+      );
+    }
+  } catch (error) {
+    return failCreate(
+      error instanceof Error
+        ? error
+        : new BerkasValidationError("Gagal memvalidasi user Berkas"),
     );
   }
 
@@ -1005,7 +1061,10 @@ export async function submitTtd(
     TTD_MAX_BYTES,
     `TTD Validator ${assignment.urutan}`,
   ).catch(async (error) => {
-    await cleanupBerkasBlobs([pathname], { operation: "ttd", berkasId: id });
+    await cleanupBerkasBlobsIfUnreferenced([pathname], {
+      operation: "ttd",
+      berkasId: id,
+    });
     return mapWriteError(error);
   });
   const ttdUploadedAt = new Date();
@@ -1068,7 +1127,10 @@ export async function submitTtd(
         }
       });
     } catch (error) {
-      await cleanupBerkasBlobs([pathname], { operation: "ttd", berkasId: id });
+      await cleanupBerkasBlobsIfUnreferenced([pathname], {
+        operation: "ttd",
+        berkasId: id,
+      });
       mapWriteError(error);
     }
   } else {
@@ -1150,13 +1212,12 @@ export async function submitTtd(
       });
     } catch (error) {
       // The transaction did not commit; do not leave unreferenced artifacts.
-      if (generatedPathname) {
-        await cleanupBerkasBlobs([generatedPathname], {
-          operation: "ttd",
-          berkasId: id,
-        });
-      }
-      await cleanupBerkasBlobs([pathname], { operation: "ttd", berkasId: id });
+      await cleanupBerkasBlobsIfUnreferenced(
+        [generatedPathname, pathname].filter(
+          (value): value is string => Boolean(value),
+        ),
+        { operation: "ttd", berkasId: id },
+      );
       mapWriteError(error);
     }
   }
@@ -1179,18 +1240,25 @@ export async function deleteBerkas(
 ): Promise<{ id: string }> {
   assertDeleteAccess(actor);
 
-  const row = await findBerkasDeletionRowById(id);
-  if (!row) {
-    throw new BerkasNotFoundError();
-  }
-
+  let row: BerkasDeletionRow | null = null;
   try {
-    const deleted = await deleteBerkasRow(id);
-    if (!deleted) {
-      throw new BerkasNotFoundError();
-    }
+    row = await getPgDb().transaction(async (tx) => {
+      const current = await findBerkasDeletionRowById(id, tx);
+      if (!current) {
+        throw new BerkasNotFoundError();
+      }
+      const deleted = await deleteBerkasRow(id, tx);
+      if (!deleted) {
+        throw new BerkasNotFoundError();
+      }
+      return current;
+    });
   } catch (error) {
     mapWriteError(error);
+  }
+
+  if (!row) {
+    throw new BerkasNotFoundError();
   }
 
   const pathnames = [
@@ -1354,7 +1422,7 @@ export async function revisiBerkas(
     );
   } catch (error) {
     if (!isReusedPathnameViolation(error)) {
-      await cleanupBerkasBlobs([input.newPdfPathname], {
+      await cleanupBerkasBlobsIfUnreferenced([input.newPdfPathname], {
         operation: "revisi",
         berkasId: id,
       });
