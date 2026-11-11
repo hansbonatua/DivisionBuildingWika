@@ -85,6 +85,57 @@ test("generateCoverPdf places the kode seri above the table, right-aligned", asy
   );
 });
 
+test("generateCoverPdf adds a red title rule and WIKA footer on the cover", async () => {
+  const bytes = await generateCoverPdf(coverData());
+  const doc = await pdfjs.getDocument({ data: bytes.slice() }).promise;
+  const page = await doc.getPage(1);
+  const content = await page.getTextContent();
+  const items = content.items.flatMap((item) =>
+    "str" in item
+      ? [{ text: item.str, y: item.transform[5] }]
+      : [],
+  );
+  const footerLines = [
+    "Dokumen Proposal Teknis ini dibuat oleh PT WIJAYA KARYA (Persero) Tbk.",
+    "Dilarang menduplikasikan Dokumen ini tanpa izin tertulis dari PT WIJAYA KARYA (Persero) Tbk.",
+  ];
+
+  for (const line of footerLines) {
+    assert.ok(
+      items.some((item) => item.text.includes(line)),
+      `footer line should be drawn: ${line}`,
+    );
+  }
+  const footerItems = items.filter((item) =>
+    footerLines.some((line) => item.text.includes(line)),
+  );
+  assert.ok(
+    footerItems.every((item) => item.y < 35),
+    "footer text should sit inside the 35pt bottom band",
+  );
+
+  const operators = await page.getOperatorList();
+  const hasRedRule = operators.fnArray.some((fn, index) => {
+    if (fn !== pdfjs.OPS.setStrokeRGBColor) return false;
+    const args = operators.argsArray[index] as ArrayLike<unknown> | undefined;
+    return args?.[0] === "#ff0000";
+  });
+  const hasThickRule = operators.fnArray.some((fn, index) => {
+    if (fn !== pdfjs.OPS.setLineWidth) return false;
+    const args = operators.argsArray[index] as ArrayLike<number> | undefined;
+    return Boolean(args && Math.abs(Number(args[0]) - 2) < 0.01);
+  });
+  const hasDarkBlueFooter = operators.fnArray.some((fn, index) => {
+    if (fn !== pdfjs.OPS.setFillRGBColor) return false;
+    const args = operators.argsArray[index] as ArrayLike<unknown> | undefined;
+    return args?.[0] === "#00264c";
+  });
+
+  assert.ok(hasRedRule, "the title rule should be red");
+  assert.ok(hasThickRule, "the title rule should be 2pt thick");
+  assert.ok(hasDarkBlueFooter, "the footer band should be dark blue");
+});
+
 test("generateCoverPdf keeps two penyusun and a long title on one landscape page", async () => {
   const bytes = await generateCoverPdf({
     judul:

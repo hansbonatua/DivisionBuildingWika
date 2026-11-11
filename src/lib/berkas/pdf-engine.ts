@@ -32,7 +32,9 @@ const TITLE_SIZE = 16;
 const TITLE_LINE_HEIGHT = 20;
 const TITLE_MAX_LINES = 3;
 const TITLE_GAP = 30;
-const TITLE_TABLE_GAP = 34;
+const TITLE_RULE_GAP = 9;
+const TITLE_TABLE_GAP = 28;
+const TITLE_RULE_OVERHANG = 12;
 
 // Fixed grid geometry: every row keeps a constant height, so long text can
 // only wrap inside its own cell and never pushes the signature or date.
@@ -61,8 +63,17 @@ const COLUMN_X = [
 ] as const;
 
 const BLACK = rgb(0, 0, 0);
+const WHITE = rgb(1, 1, 1);
 const GRID_LINE = rgb(0.8, 0.8, 0.8);
 const WATERMARK_GRAY = rgb(0.5, 0.5, 0.5);
+const TITLE_RULE_RED = rgb(1, 0, 0);
+const COVER_FOOTER_BLUE = rgb(0, 0.15, 0.3);
+const COVER_FOOTER_HEIGHT = 35;
+const COVER_FOOTER_SIZE = 8;
+const COVER_FOOTER_LINES = [
+  "Dokumen Proposal Teknis ini dibuat oleh PT WIJAYA KARYA (Persero) Tbk.",
+  "Dilarang menduplikasikan Dokumen ini tanpa izin tertulis dari PT WIJAYA KARYA (Persero) Tbk.",
+] as const;
 
 export type BerkasCoverSignature = {
   nama: string;
@@ -447,7 +458,17 @@ export async function generateCoverPdf(
 
   const lastTitleBaseline =
     firstTitleBaseline - (titleLines.length - 1) * TITLE_LINE_HEIGHT;
-  const tableTop = lastTitleBaseline - TITLE_TABLE_GAP;
+  const titleRuleY = lastTitleBaseline - TITLE_RULE_GAP;
+  page.drawLine({
+    start: { x: MARGIN_X - TITLE_RULE_OVERHANG, y: titleRuleY },
+    end: {
+      x: MARGIN_X + CONTENT_WIDTH + TITLE_RULE_OVERHANG,
+      y: titleRuleY,
+    },
+    thickness: 2,
+    color: TITLE_RULE_RED,
+  });
+  const tableTop = titleRuleY - TITLE_TABLE_GAP;
 
   // The grid starts with the header row, then one fixed group of name, jabatan,
   // signature and date rows per signer. Heights are constant, so the rows can
@@ -478,6 +499,25 @@ export async function generateCoverPdf(
   for (const [index, column] of columns.entries()) {
     await drawColumn(doc, page, fonts, column, index as 0 | 1 | 2, rowTops);
   }
+
+  page.drawRectangle({
+    x: 0,
+    y: 0,
+    width: PAGE_WIDTH,
+    height: COVER_FOOTER_HEIGHT,
+    color: COVER_FOOTER_BLUE,
+  });
+  COVER_FOOTER_LINES.forEach((line, index) => {
+    drawCenteredText(
+      page,
+      line,
+      PAGE_WIDTH / 2,
+      21 - index * 11,
+      fonts.regular,
+      COVER_FOOTER_SIZE,
+      WHITE,
+    );
+  });
 
   doc.setTitle(pdfSafeText(data.judul));
   doc.setAuthor("WIBEX");

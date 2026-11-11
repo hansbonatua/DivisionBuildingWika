@@ -1,4 +1,15 @@
-import { and, asc, count, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  ilike,
+  inArray,
+  isNull,
+  or,
+  sql,
+} from "drizzle-orm";
 import { getPgDb, type PgDatabase } from "@/lib/pg/client";
 import {
   berkasPengajuan,
@@ -223,6 +234,50 @@ export async function listBerkasPage(
     .where(where);
 
   return { rows, totalData: Number(totalRows[0]?.total ?? 0) };
+}
+
+export async function countBerkasNeedsAction(
+  userId: string,
+): Promise<number> {
+  const [validatorRows, rejectedRows] = await Promise.all([
+    getPgDb()
+      .select({ total: count() })
+      .from(berkasValidasi)
+      .innerJoin(
+        berkasPengajuan,
+        eq(berkasValidasi.berkasId, berkasPengajuan.id),
+      )
+      .where(
+        and(
+          eq(berkasValidasi.validatorUserId, userId),
+          isNull(berkasValidasi.ttdPathname),
+          or(
+            and(
+              eq(berkasValidasi.urutan, 1),
+              eq(berkasPengajuan.status, "MENUNGGU_TTD_1"),
+            ),
+            and(
+              eq(berkasValidasi.urutan, 2),
+              eq(berkasPengajuan.status, "MENUNGGU_TTD_2"),
+            ),
+          ),
+        ),
+      ),
+    getPgDb()
+      .select({ total: count() })
+      .from(berkasPengajuan)
+      .where(
+        and(
+          eq(berkasPengajuan.pemohonId, userId),
+          eq(berkasPengajuan.status, "DITOLAK"),
+        ),
+      ),
+  ]);
+
+  return (
+    Number(validatorRows[0]?.total ?? 0) +
+    Number(rejectedRows[0]?.total ?? 0)
+  );
 }
 
 export async function listBerkasAssignmentsByUser(

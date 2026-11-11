@@ -74,9 +74,11 @@ function PdfPage({
 
 export default function PdfViewerModal({
   berkas,
+  type = "original",
   onClose,
 }: {
   berkas: Pick<BerkasDto, "id" | "judul">;
+  type?: "original" | "generated";
   onClose: () => void;
 }) {
   const titleId = useId();
@@ -120,7 +122,11 @@ export default function PdfViewerModal({
       setLoading(true);
       setError(null);
       try {
-        const response = await fetch(`/api/berkas/${berkas.id}/view`, {
+        const viewUrl =
+          type === "generated"
+            ? `/api/berkas/${berkas.id}/view?type=generated`
+            : `/api/berkas/${berkas.id}/view`;
+        const response = await fetch(viewUrl, {
           cache: "no-store",
           signal: controller.signal,
         });
@@ -163,7 +169,7 @@ export default function PdfViewerModal({
       void loadingTaskRef.current?.destroy();
       loadingTaskRef.current = null;
     };
-  }, [berkas.id]);
+  }, [berkas.id, type]);
 
   function handleTab(event: React.KeyboardEvent<HTMLDivElement>): void {
     if (event.key !== "Tab") return;
@@ -200,7 +206,9 @@ export default function PdfViewerModal({
         <div className="flex items-start justify-between gap-4 border-b border-outline bg-background/70 px-5 py-4">
           <div className="min-w-0">
             <p className="text-[11px] font-bold uppercase tracking-wide text-secondary">
-              Pratinjau PDF · View Only
+              {type === "generated"
+                ? "Pratinjau PDF Final · View Only"
+                : "Pratinjau PDF · View Only"}
             </p>
             <h2 id={titleId} className="mt-1 truncate text-lg font-bold text-primary">
               {berkas.judul}
@@ -255,7 +263,9 @@ export default function PdfViewerModal({
         </div>
 
         <div className="border-t border-outline bg-white px-5 py-3 text-center text-[11px] font-medium text-primary/50">
-          Dokumen ini hanya dapat dilihat. Tombol unduh tersedia pada kolom File Generate setelah proses selesai.
+          {type === "generated"
+            ? "Pratinjau hasil akhir sudah diberi watermark NIP dan hanya dapat dilihat."
+            : "Dokumen ini hanya dapat dilihat. Tombol unduh tersedia pada kolom File Generate setelah proses selesai."}
         </div>
       </div>
     </div>

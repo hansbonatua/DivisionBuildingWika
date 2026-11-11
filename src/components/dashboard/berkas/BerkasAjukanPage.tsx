@@ -25,6 +25,10 @@ const bodyCell = "border-b border-outline/50 px-4 py-3 align-middle text-xs text
 const PAGE_SIZE = 10;
 
 type Feedback = { kind: "success" | "error"; message: string };
+type ViewTarget = {
+  berkas: BerkasDto;
+  type: "original" | "generated";
+};
 
 export default function BerkasAjukanPage({
   currentUser,
@@ -51,7 +55,7 @@ export default function BerkasAjukanPage({
     totalPages: 0,
   });
   const [formOpen, setFormOpen] = useState(false);
-  const [viewBerkas, setViewBerkas] = useState<BerkasDto | null>(null);
+  const [viewBerkas, setViewBerkas] = useState<ViewTarget | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<BerkasDto | null>(null);
   const [revisionTarget, setRevisionTarget] = useState<BerkasDto | null>(null);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
@@ -318,7 +322,9 @@ export default function BerkasAjukanPage({
                           </span>
                           <button
                             type="button"
-                            onClick={() => setViewBerkas(record)}
+                            onClick={() =>
+                              setViewBerkas({ berkas: record, type: "original" })
+                            }
                             className="text-left text-xs font-bold text-primary underline-offset-2 hover:text-secondary hover:underline"
                             title="Lihat PDF"
                           >
@@ -339,19 +345,34 @@ export default function BerkasAjukanPage({
                       </td>
                       <td className={bodyCell}>
                         {record.status === "SELESAI" ? (
-                          <button
-                            type="button"
-                            onClick={() => void handleDownload(record)}
-                            disabled={downloadingId === record.id}
-                            className="inline-flex items-center gap-1.5 rounded-lg border border-secondary/25 bg-blue-50 px-2.5 py-1.5 text-[11px] font-bold text-secondary transition-colors hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
-                          >
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                              <path d="M12 3v12" />
-                              <path d="m7 10 5 5 5-5" />
-                              <path d="M5 21h14" />
-                            </svg>
-                            {downloadingId === record.id ? "Menyiapkan..." : "Download"}
-                          </button>
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setViewBerkas({ berkas: record, type: "generated" })
+                              }
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-secondary/25 bg-blue-50 px-2 py-1.5 text-[11px] font-bold text-secondary transition-colors hover:bg-blue-100"
+                            >
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" />
+                                <circle cx="12" cy="12" r="3" />
+                              </svg>
+                              Preview
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void handleDownload(record)}
+                              disabled={downloadingId === record.id}
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-secondary/25 bg-blue-50 px-2 py-1.5 text-[11px] font-bold text-secondary transition-colors hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                <path d="M12 3v12" />
+                                <path d="m7 10 5 5 5-5" />
+                                <path d="M5 21h14" />
+                              </svg>
+                              {downloadingId === record.id ? "Menyiapkan..." : "Download"}
+                            </button>
+                          </div>
                         ) : (
                           <span className="text-primary/35">—</span>
                         )}
@@ -432,7 +453,11 @@ export default function BerkasAjukanPage({
         />
       ) : null}
       {viewBerkas ? (
-        <PdfViewerModal berkas={viewBerkas} onClose={() => setViewBerkas(null)} />
+        <PdfViewerModal
+          berkas={viewBerkas.berkas}
+          type={viewBerkas.type}
+          onClose={() => setViewBerkas(null)}
+        />
       ) : null}
       {revisionTarget ? (
         <BerkasRevisiDialog

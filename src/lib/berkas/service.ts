@@ -9,6 +9,7 @@ import {
 } from "@/lib/berkas/access";
 import {
   clearBerkasValidasiTtdRows,
+  countBerkasNeedsAction,
   deleteBerkasRow,
   findBerkasDeletionRowById,
   findBerkasDetailRowById,
@@ -705,6 +706,13 @@ export async function ensureBerkasValidatorUpload(
   assertTtdWindow(detail.status as BerkasStatus, assignment);
 }
 
+export async function getBerkasNotificationCount(
+  actor: BerkasActor,
+): Promise<number> {
+  assertViewAccess(actor);
+  return countBerkasNeedsAction(actor.id);
+}
+
 export async function listBerkasPage(
   actor: BerkasActor,
   input: { search?: string; page: number; limit: number },
@@ -1359,7 +1367,7 @@ export async function revisiBerkas(
   return toDetail(updated);
 }
 
-export async function downloadBerkas(
+export async function getWatermarkedGeneratedPdf(
   actor: BerkasActor,
   id: string,
 ): Promise<BerkasDownload> {
@@ -1399,4 +1407,11 @@ export async function downloadBerkas(
     bytes: watermarked,
     fileName: downloadFileName(row.judul, row.id),
   };
+}
+
+export async function downloadBerkas(
+  actor: BerkasActor,
+  id: string,
+): Promise<BerkasDownload> {
+  return getWatermarkedGeneratedPdf(actor, id);
 }

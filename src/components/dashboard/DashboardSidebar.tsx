@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { PERMISSIONS, hasPermission } from "@/lib/auth/permissions";
@@ -581,6 +581,7 @@ export default function DashboardSidebar({
   const pathname = usePathname();
   const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
+  const [berkasNotifCount, setBerkasNotifCount] = useState(0);
   const {
     showProgramKerja,
     showKnowledgeManagement,
@@ -638,6 +639,45 @@ export default function DashboardSidebar({
   );
   const [previousPathname, setPreviousPathname] = useState(pathname);
 
+  useEffect(() => {
+    if (!showBerkas) return;
+
+    let active = true;
+    const controller = new AbortController();
+
+    async function loadNotificationCount(): Promise<void> {
+      try {
+        const response = await fetch("/api/berkas/notifications", {
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        if (!response.ok) return;
+        const body = (await response.json()) as { needsAction?: unknown };
+        if (
+          active &&
+          typeof body.needsAction === "number" &&
+          Number.isInteger(body.needsAction) &&
+          body.needsAction >= 0
+        ) {
+          setBerkasNotifCount(body.needsAction);
+        }
+      } catch {
+        // Notification count is auxiliary; keep the last known value.
+      }
+    }
+
+    void loadNotificationCount();
+    const timer = window.setInterval(() => {
+      void loadNotificationCount();
+    }, 30_000);
+
+    return () => {
+      active = false;
+      controller.abort();
+      window.clearInterval(timer);
+    };
+  }, [pathname, showBerkas]);
+
   if (pathname !== previousPathname) {
     setPreviousPathname(pathname);
     if (isLandingRoute) {
@@ -692,8 +732,18 @@ export default function DashboardSidebar({
     router.refresh();
   }
 
-  function renderItem(item: SidebarItem) {
+  function renderItem(item: SidebarItem, badgeCount = 0) {
     const isActive = isActivePath(item.href);
+    const badge =
+      badgeCount > 0 ? (
+        <span
+          className="inline-flex min-w-5 shrink-0 items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold leading-4 text-white"
+          aria-label={`${badgeCount} Berkas membutuhkan tindakan`}
+        >
+          {badgeCount}
+        </span>
+      ) : null;
+
     if (isActive) {
       return (
         <Link
@@ -703,11 +753,14 @@ export default function DashboardSidebar({
           aria-current="page"
           className="flex items-center justify-between rounded-lg bg-blue-50 px-3 py-2 text-xs font-bold text-secondary transition-colors"
         >
-          <span className="flex items-center gap-2">
+          <span className="flex min-w-0 items-center gap-2">
             <span className="text-secondary">{item.icon}</span>
-            <span>{item.label}</span>
+            <span className="truncate">{item.label}</span>
           </span>
-          <span className="h-1.5 w-1.5 rounded-full bg-secondary" />
+          <span className="flex shrink-0 items-center gap-2">
+            {badge}
+            <span className="h-1.5 w-1.5 rounded-full bg-secondary" />
+          </span>
         </Link>
       );
     }
@@ -716,10 +769,13 @@ export default function DashboardSidebar({
         key={item.label}
         href={item.href}
         onClick={onClose}
-        className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900"
+        className="flex items-center justify-between rounded-lg px-3 py-2 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900"
       >
-        <span className="text-slate-400">{item.icon}</span>
-        <span className="truncate">{item.label}</span>
+        <span className="flex min-w-0 items-center gap-2">
+          <span className="text-slate-400">{item.icon}</span>
+          <span className="truncate">{item.label}</span>
+        </span>
+        {badge}
       </Link>
     );
   }
@@ -1050,20 +1106,30 @@ export default function DashboardSidebar({
                         </span>
                         <span>Berkas</span>
                       </span>
-                      <svg
-                        width="14"
-                        height="14"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        aria-hidden="true"
-                        className={`text-slate-400 transition-transform duration-200 ${berkasOpen ? "rotate-180" : "rotate-0"}`}
-                      >
-                        <path d="m6 9 6 6 6-6" />
-                      </svg>
+                      <span className="flex shrink-0 items-center gap-2">
+                        {berkasNotifCount > 0 ? (
+                          <span
+                            className="inline-flex min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold leading-4 text-white"
+                            aria-label={`${berkasNotifCount} Berkas membutuhkan tindakan`}
+                          >
+                            {berkasNotifCount}
+                          </span>
+                        ) : null}
+                        <svg
+                          width="14"
+                          height="14"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          aria-hidden="true"
+                          className={`text-slate-400 transition-transform duration-200 ${berkasOpen ? "rotate-180" : "rotate-0"}`}
+                        >
+                          <path d="m6 9 6 6 6-6" />
+                        </svg>
+                      </span>
                     </button>
                   </div>
                   {berkasOpen ? (
@@ -1072,7 +1138,9 @@ export default function DashboardSidebar({
                         className="ml-4 space-y-1 border-l-2 border-slate-100 pl-3"
                         aria-label="Berkas"
                       >
-                        {berkasMenu.map(renderItem)}
+                        {berkasMenu.map((item) =>
+                          renderItem(item, berkasNotifCount),
+                        )}
                       </nav>
                     </div>
                   ) : null}

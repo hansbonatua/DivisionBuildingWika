@@ -5,6 +5,53 @@ Dokumentasi audit repository ada di `docs/audit/`; dokumen ini mencatat **peruba
 
 ---
 
+## DL-2026-11-12-03 — Berkas Sprint 2 & Final Polish
+
+| Field | Nilai |
+|---|---|
+| Feature ID | `ENT-BERKAS` |
+| Tanggal | 12 November 2026 |
+| Status | **IMPLEMENTED & VERIFIED** — Sprint 2 dan final polish selesai; static checks PASS (251/251, 60 suite); Sprint 1 runtime Vercel PASS (Owner-confirmed 10 November 2026); smoke test browser untuk fitur baru belum dijalankan pada pass dokumentasi ini |
+| Commit | Belum di-commit; working tree memuat perubahan Sprint 2/final polish |
+| Branch | `main` |
+| Baseline | `0805776` + working tree Sprint 2/final polish |
+| Migration | `0023_berkas_sprint2` — **APPLIED** (mengikuti konfirmasi database Sprint 2 sudah dimigrasi); journal 24 entry |
+
+### Perubahan
+- **Sprint 2 database:** status `DITOLAK`; kolom `rejection_reason` (1–2.000), `rejected_at`, `rejected_by` (FK users), `revision_count` (default 0, CHECK ≥0); CHECK rejection state; partial unique index `kode_seri` hanya untuk nilai non-null. Migration `0023_berkas_sprint2`.
+- **Reject & revisi API:** `POST /api/berkas/[id]/reject` untuk Admin atau validator slot aktif; `PUT /api/berkas/[id]/revisi` hanya pemohon/Admin, memverifikasi PDF baru dan page count server-side, mereset ke `MENUNGGU_TTD_1`, mengosongkan TTD validator, menaikkan `revision_count`, dan membersihkan PDF/TTD lama setelah commit.
+- **Pagination & search:** `GET /api/berkas?search=&page=&limit=` mengembalikan `data`, `assignments`, dan `pagination`; UI Ajukan/Verifikasi memakai search debounce 300ms dan navigasi Prev/Next.
+- **Orphan blob cleanup:** `cleanupBerkasBlobs()` best-effort, tidak throw, dipanggil pada create gagal, TTD gagal, revisi, dan delete; pathname milik record lain tidak dihapus saat unique-pathname conflict.
+- **Server-side page count:** PDF asli dan PDF revisi dihitung dengan `pdf-lib`; batas 1–200 halaman ditegakkan kembali di server.
+- **Preview watermark:** `getWatermarkedGeneratedPdf()` dipakai bersama oleh download dan `GET /api/berkas/[id]/view?type=generated`; keduanya memakai watermark NIP yang sama dan response preview `inline`, `private, no-store`.
+- **Info pengunggah:** tabel Ajukan menampilkan ikon tautan, `Oleh: [Pemohon], [Tanggal]` dengan format PDOC (`12 Nov 2026`), serta nama/ukuran file; klik judul tetap membuka PDF original.
+- **Cover styling:** garis merah 2 pt di bawah judul dan footer biru gelap 35 pt berisi dua baris peringatan hak cipta WIKA, hanya pada halaman cover; `applyWatermark` tidak diubah.
+- **Notifikasi Sidebar:** `GET /api/berkas/notifications` mengembalikan `{ needsAction }` dari validator slot aktif dan Berkas `DITOLAK` milik pemohon; badge merah pada accordion Berkas dan submenu Ajukan/Verifikasi, fetch saat mount/route berubah dan interval 30 detik.
+- **UI Sprint 2:** dialog Revisi menampilkan alasan penolakan dan upload PDF baru; dialog Tolak mewajibkan alasan ≤2.000 karakter; baris `DITOLAK` tidak menampilkan Upload TTD; status badge `DITOLAK` merah gelap; catatan TTD maksimum 2.000 karakter.
+
+### File impacted
+- Backend: `src/lib/pg/schema.ts`, `src/lib/berkas/{schema,repository,service,pdf-engine,access}.ts`, route `src/app/api/berkas/{route,upload-token,notifications}/route.ts`, `src/app/api/berkas/[id]/{ttd,view,download,reject,revisi}/route.ts`.
+- Frontend: `src/components/dashboard/berkas/{BerkasAjukanPage,BerkasVerifikasiPage,BerkasRevisiDialog,BerkasRejectDialog,BerkasPagination,PdfViewerModal,types,client,BerkasTtdDialog}.tsx|ts`, route pages Ajukan/Verifikasi, dan `src/components/dashboard/DashboardSidebar.tsx`.
+- Data/docs: `drizzle/0023_berkas_sprint2.sql`, snapshot `0023`, `drizzle/meta/_journal.json`, dan tiga dokumen development ini.
+
+### Verifikasi
+| Pemeriksaan | Hasil | Sumber |
+|---|---|---|
+| `npx next typegen` | **PASS** — route type baru tersedia | Freebuff |
+| `npx tsc --noEmit` | **PASS** | Freebuff |
+| `npx eslint` (Berkas + Sidebar + route baru) | **PASS** | Freebuff |
+| `npm test` | **251/251 PASS** (60 suite; termasuk test cover/garis merah/footer WIKA) | Freebuff |
+| `git diff --check` | **PASS** | Freebuff |
+| Runtime browser Sprint 2/final polish | **NOT RUN pada pass ini** — Sprint 1 V1 runtime Vercel PASS (Owner-confirmed 10 November 2026) | — |
+| Migration `0023` | **APPLIED** (konfirmasi database Sprint 2 sudah dimigrasi); journal 24 entry | Owner-confirmed melalui konteks P4 UI |
+
+### Batasan
+- Smoke test browser untuk Revisi, Tolak, preview watermark, badge Sidebar, dan cover PDF belum dijalankan pada pass dokumentasi ini.
+- Perubahan kode Sprint 2/final polish masih berada di working tree dan belum di-commit; dokumentasi ini tidak melakukan commit/push.
+- Migration `0023` tidak dijalankan ulang pada pass dokumentasi; status apply mengikuti konfirmasi Owner bahwa database Sprint 2 sudah dimigrasi.
+
+---
+
 ## DL-2026-11-10-07 — Modul Berkas V1 IMPLEMENTED & VERIFIED
 
 | Field | Nilai |
