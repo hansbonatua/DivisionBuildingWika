@@ -2,6 +2,7 @@ import { and, asc, eq, ilike, inArray, ne, or, sql } from "drizzle-orm";
 import { getPgDb, type PgDatabase } from "@/lib/pg/client";
 import {
   masterProjects,
+  projectPhotos,
   users,
   type NewPgMasterProject,
 } from "@/lib/pg/schema";
@@ -144,6 +145,16 @@ export async function updateMasterProjectRow(
     .where(eq(masterProjects.id, id))
     .returning({ id: masterProjects.id });
   return rows.length > 0;
+}
+
+export async function listProjectPhotoPathnames(
+  projectId: string,
+): Promise<string[]> {
+  const rows = await getPgDb()
+    .select({ blobPathname: projectPhotos.blobPathname })
+    .from(projectPhotos)
+    .where(eq(projectPhotos.projectId, projectId));
+  return rows.map((row) => row.blobPathname);
 }
 
 export async function deleteMasterProjectRow(

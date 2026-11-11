@@ -6,6 +6,7 @@ import {
   integer,
   numeric,
   pgTable,
+  smallint,
   primaryKey,
   text,
   timestamp,
@@ -497,6 +498,62 @@ export const masterProjects = pgTable(
 
 export type PgMasterProject = typeof masterProjects.$inferSelect;
 export type NewPgMasterProject = typeof masterProjects.$inferInsert;
+
+// SASAA project photo slots. Exactly four rows per project are enforced by the
+// service transaction; this table enforces one row per (project, slot), a valid
+// public object shape, and a 5 MB image metadata boundary. Blob ownership is
+// tracked by the immutable pathname, while blob_url is the render field.
+export const projectPhotos = pgTable(
+  "project_photos",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => masterProjects.id, { onDelete: "cascade" }),
+    slot: smallint("slot").notNull(),
+    blobUrl: text("blob_url").notNull(),
+    blobPathname: text("blob_pathname").notNull(),
+    altText: text("alt_text"),
+    contentType: text("content_type").notNull(),
+    sizeBytes: integer("size_bytes").notNull(),
+    createdBy: uuid("created_by")
+      .notNull()
+      .references(() => users.id, { onDelete: "no action" }),
+    updatedBy: uuid("updated_by").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    unique("project_photos_project_slot_unique").on(table.projectId, table.slot),
+    uniqueIndex("project_photos_blob_pathname_unique").on(table.blobPathname),
+    check("project_photos_slot_check", sql`${table.slot} BETWEEN 1 AND 4`),
+    check(
+      "project_photos_url_check",
+      sql`${table.blobUrl} ~ '^https://' AND length(${table.blobUrl}) <= 2048`,
+    ),
+    check(
+      "project_photos_pathname_check",
+      sql`length(btrim(${table.blobPathname})) > 0`,
+    ),
+    check(
+      "project_photos_alt_check",
+      sql`${table.altText} IS NULL OR length(${table.altText}) <= 200`,
+    ),
+    check(
+      "project_photos_content_type_check",
+      sql`${table.contentType} IN ('image/jpeg','image/png','image/webp','image/avif')`,
+    ),
+    check(
+      "project_photos_size_check",
+      sql`${table.sizeBytes} BETWEEN 1 AND 5242880`,
+    ),
+  ],
+);
+
+export type PgProjectPhoto = typeof projectPhotos.$inferSelect;
+export type NewPgProjectPhoto = typeof projectPhotos.$inferInsert;
 
 // ---------------------------------------------------------------------------
 // Core Enterprise: Engineering Databases (V1).

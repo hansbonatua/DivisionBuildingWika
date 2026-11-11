@@ -36,6 +36,7 @@ export const PERMISSIONS = {
   MASTER_PROJECT_CREATE: "MASTER_PROJECT_CREATE",
   MASTER_PROJECT_EDIT: "MASTER_PROJECT_EDIT",
   MASTER_PROJECT_DELETE: "MASTER_PROJECT_DELETE",
+  MASTER_PROJECT_PHOTOS_MANAGE: "MASTER_PROJECT_PHOTOS_MANAGE",
 
   ENGINEERING_DATABASE_VIEW: "ENGINEERING_DATABASE_VIEW",
   ENGINEERING_DATABASE_MANAGE: "ENGINEERING_DATABASE_MANAGE",
@@ -75,10 +76,9 @@ export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
 // instead of being repeated in every role array (and therefore impossible to
 // forget).
 //
-// CMS_MANAGE and USER_MANAGE are Admin-only by construction (empty role lists)
-// and are enforced across sidebar, dashboard tiles, page guards, API routes and
-// services (see @/lib/cms/access and @/lib/users/access). DASHBOARD_SASAA_VIEW
-// is reserved for the future module; it is not used by any route today.
+// CMS_MANAGE, USER_MANAGE, and MASTER_PROJECT_PHOTOS_MANAGE are Admin-only by
+// construction (empty role lists). DASHBOARD_SASAA_VIEW is the SASAA read model
+// and is available to every canonical role.
 const NON_ADMIN_PERMISSION_ROLES: Record<Permission, readonly UserRole[]> = {
   CMS_MANAGE: [],
   USER_MANAGE: [],
@@ -95,6 +95,7 @@ const NON_ADMIN_PERMISSION_ROLES: Record<Permission, readonly UserRole[]> = {
   MASTER_PROJECT_CREATE: [HEAD_OFFICE_ROLE],
   MASTER_PROJECT_EDIT: [HEAD_OFFICE_ROLE, PROJECT_ROLE],
   MASTER_PROJECT_DELETE: [HEAD_OFFICE_ROLE],
+  MASTER_PROJECT_PHOTOS_MANAGE: [],
 
   ENGINEERING_DATABASE_VIEW: [HEAD_OFFICE_ROLE, PROJECT_ROLE, MANAGEMENT_ROLE],
   ENGINEERING_DATABASE_MANAGE: [HEAD_OFFICE_ROLE, PROJECT_ROLE],
@@ -150,7 +151,7 @@ const NON_ADMIN_PERMISSION_ROLES: Record<Permission, readonly UserRole[]> = {
   ORGANIZATION_STRUCTURE_VIEW: [HEAD_OFFICE_ROLE, PROJECT_ROLE, MANAGEMENT_ROLE],
   ORGANIZATION_STRUCTURE_MANAGE: [],
 
-  DASHBOARD_SASAA_VIEW: [HEAD_OFFICE_ROLE, MANAGEMENT_ROLE],
+  DASHBOARD_SASAA_VIEW: [HEAD_OFFICE_ROLE, PROJECT_ROLE, MANAGEMENT_ROLE],
 };
 
 // Feature-level access check. Unknown role strings are never Admin and are not

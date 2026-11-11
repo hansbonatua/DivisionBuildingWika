@@ -11,6 +11,7 @@ import {
   findDuplicateMasterProject,
   getMasterProjectById,
   insertMasterProject,
+  listProjectPhotoPathnames,
   listMasterProjectPicOptions as listPicOptionRows,
   listMasterProjects as listMasterProjectRows,
   updateMasterProjectRow,
@@ -22,6 +23,7 @@ import type {
   CreateMasterProjectInput,
   UpdateMasterProjectInput,
 } from "@/lib/master-project/schema";
+import { cleanupProjectPhotoBlobs } from "@/lib/dashboard/sasaa-service";
 import { findUserById } from "@/lib/users/repository";
 import { ADMIN_ROLE, HEAD_OFFICE_ROLE } from "@/lib/users/roles";
 
@@ -306,6 +308,10 @@ export async function deleteMasterProject(
   // Hard delete semantics are unchanged: the row is removed, never
   // soft-deleted. Only the refusal case is mapped (23503 → 409).
   const existing = await getMasterProjectOrThrow(id);
+  // Capture ownership before the cascade removes project_photos rows. Blobs
+  // are deleted only after the database transaction commits successfully, so
+  // a refused delete never destroys files that are still referenced.
+  const photoPathnames = await listProjectPhotoPathnames(id);
   let deleted: boolean;
   try {
     deleted = await getPgDb().transaction(async (tx) => {
@@ -333,6 +339,7 @@ export async function deleteMasterProject(
   if (!deleted) {
     throw new MasterProjectNotFoundError();
   }
+  await cleanupProjectPhotoBlobs(photoPathnames);
   return { deleted: true, id };
 }
 

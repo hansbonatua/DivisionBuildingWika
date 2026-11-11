@@ -443,6 +443,18 @@ const templateFormMenu: SidebarItem = {
 
 const masterProjectMenu: SidebarItem[] = [
   {
+    label: "Dashboard SASAA",
+    href: "/dashboard/master-project/sasaa",
+    icon: (
+      <MenuIcon>
+        <path d="M3 3v18h18" />
+        <path d="M7 15v3" />
+        <path d="M12 10v8" />
+        <path d="M17 6v12" />
+      </MenuIcon>
+    ),
+  },
+  {
     label: "Kelola Project",
     href: "/dashboard/master-project/manage",
     icon: (
@@ -451,6 +463,17 @@ const masterProjectMenu: SidebarItem[] = [
         <path d="M8 7h8" />
         <path d="M8 12h8" />
         <path d="M8 17h5" />
+      </MenuIcon>
+    ),
+  },
+  {
+    label: "Kelola Foto Proyek",
+    href: "/dashboard/master-project/photos",
+    icon: (
+      <MenuIcon>
+        <rect width="18" height="18" x="3" y="3" rx="2" />
+        <circle cx="8.5" cy="8.5" r="1.5" />
+        <path d="m21 15-5-5L5 21" />
       </MenuIcon>
     ),
   },
@@ -518,6 +541,8 @@ export type SidebarVisibility = {
   showProjectDocumentation: boolean;
   showTemplateForm: boolean;
   showMasterProject: boolean;
+  showSasaa: boolean;
+  showMasterProjectPhotos: boolean;
   showEngineeringDatabase: boolean;
   showMsl: boolean;
   showOrganizationStructure: boolean;
@@ -548,6 +573,11 @@ export function getSidebarVisibility(
   );
   const showTemplateForm = canViewTemplateForm(role);
   const showMasterProject = canViewMasterProject(role);
+  const showSasaa = hasPermission(role, PERMISSIONS.DASHBOARD_SASAA_VIEW);
+  const showMasterProjectPhotos = hasPermission(
+    role,
+    PERMISSIONS.MASTER_PROJECT_PHOTOS_MANAGE,
+  );
   const showEngineeringDatabase = canViewEngineeringDatabase(role);
   const showMsl = canViewMsl({ role, mslAccess: mslAccess === true });
   const showOrganizationStructure = canViewOrganizationStructure(role);
@@ -566,6 +596,8 @@ export function getSidebarVisibility(
     showProjectDocumentation,
     showTemplateForm,
     showMasterProject,
+    showSasaa,
+    showMasterProjectPhotos,
     showEngineeringDatabase,
     showMsl,
     showOrganizationStructure,
@@ -581,6 +613,8 @@ export function getSidebarVisibility(
       showProjectDocumentation ||
       showTemplateForm ||
       showMasterProject ||
+      showSasaa ||
+      showMasterProjectPhotos ||
       showEngineeringDatabase ||
       showMsl,
   };
@@ -648,6 +682,8 @@ export default function DashboardSidebar({
     showProjectDocumentation,
     showTemplateForm,
     showMasterProject,
+    showSasaa,
+    showMasterProjectPhotos,
     showEngineeringDatabase,
     showMsl,
     showOrganizationStructure,
@@ -1181,7 +1217,7 @@ export default function DashboardSidebar({
                   </nav>
                 </div>
               ) : null}
-              {showMasterProject ? (
+              {showMasterProject || showSasaa || showMasterProjectPhotos ? (
                 <div className="mt-1">
                   <div className="px-1">
                     <button
@@ -1227,7 +1263,17 @@ export default function DashboardSidebar({
                         className="ml-4 space-y-1 border-l-2 border-slate-100 pl-3"
                         aria-label="Master Project"
                       >
-                        {masterProjectMenu.map((item) => renderItem(item))}
+                        {masterProjectMenu
+                          .filter((item) => {
+                            if (item.href === "/dashboard/master-project/sasaa") {
+                              return showSasaa;
+                            }
+                            if (item.href === "/dashboard/master-project/photos") {
+                              return showMasterProjectPhotos;
+                            }
+                            return showMasterProject;
+                          })
+                          .map((item) => renderItem(item))}
                       </nav>
                     </div>
                   ) : null}

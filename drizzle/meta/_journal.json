@@ -183,6 +183,13 @@
       "when": 1794382542055,
       "tag": "0025_activity_logs",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1794385989930,
+      "tag": "0026_project_photos",
+      "breakpoints": true
     }
   ]
 }
