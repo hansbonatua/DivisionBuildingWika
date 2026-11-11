@@ -13,7 +13,22 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
-import { sql } from "drizzle-orm";
+import { desc, sql } from "drizzle-orm";
+
+export const ACTIVITY_ACTIONS = [
+  "CREATE",
+  "UPDATE",
+  "DELETE",
+  "SIGN",
+  "REJECT",
+  "REVISE",
+] as const;
+
+export type ActivityAction = (typeof ACTIVITY_ACTIONS)[number];
+
+export const ACTIVITY_ENTITY_TYPES = ["BERKAS", "MASTER_PROJECT", "PDOC"] as const;
+
+export type ActivityEntityType = (typeof ACTIVITY_ENTITY_TYPES)[number];
 
 export const BERKAS_STATUSES = [
   "MENUNGGU_TTD_1",
@@ -1349,3 +1364,47 @@ export const berkasValidasi = pgTable(
 
 export type PgBerkasValidasi = typeof berkasValidasi.$inferSelect;
 export type NewPgBerkasValidasi = typeof berkasValidasi.$inferInsert;
+
+// Append-only dashboard activity feed. The title is a display snapshot; no
+// blob pathname, PDF content, rejection reason, or credential is stored here.
+// actor_user_id is nullable because deleting a user must not be blocked by
+// their historical activity (the UI renders a neutral fallback name).
+export const activityLogs = pgTable(
+  "activity_logs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    actorUserId: uuid("actor_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    action: text("action").$type<ActivityAction>().notNull(),
+    entityType: text("entity_type").$type<ActivityEntityType>().notNull(),
+    title: text("title").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("activity_logs_created_at_idx").on(desc(table.createdAt)),
+    index("activity_logs_actor_created_at_idx").on(
+      table.actorUserId,
+      desc(table.createdAt),
+    ),
+    index("activity_logs_entity_created_at_idx").on(
+      table.entityType,
+      desc(table.createdAt),
+    ),
+    check(
+      "activity_logs_action_check",
+      sql`${table.action} in ('CREATE', 'UPDATE', 'DELETE', 'SIGN', 'REJECT', 'REVISE')`,
+    ),
+    check(
+      "activity_logs_entity_type_check",
+      sql`${table.entityType} in ('BERKAS', 'MASTER_PROJECT', 'PDOC')`,
+    ),
+    check(
+      "activity_logs_title_check",
+      sql`length(btrim(${table.title})) between 1 and 200`,
+    ),
+  ],
+);
+
+export type PgActivityLog = typeof activityLogs.$inferSelect;
+export type NewPgActivityLog = typeof activityLogs.$inferInsert;

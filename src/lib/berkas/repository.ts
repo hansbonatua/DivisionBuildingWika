@@ -417,9 +417,10 @@ export async function updateBerkasValidasiTtdRow(
 
 export async function insertBerkasWithChildren(
   input: InsertBerkasInput,
+  tx?: PgTransaction,
 ): Promise<string> {
-  return getPgDb().transaction(async (tx) => {
-    const parentRows = await tx
+  const write = async (db: PgTransaction): Promise<string> => {
+    const parentRows = await db
       .insert(berkasPengajuan)
       .values({
         judul: input.judul,
@@ -438,7 +439,7 @@ export async function insertBerkasWithChildren(
       throw new Error("Failed to create Berkas");
     }
 
-    await tx.insert(berkasPenyusun).values(
+    await db.insert(berkasPenyusun).values(
       input.penyusun.map((item) => ({
         berkasId: parent.id,
         userId: item.userId,
@@ -451,7 +452,7 @@ export async function insertBerkasWithChildren(
       })),
     );
 
-    await tx.insert(berkasValidasi).values(
+    await db.insert(berkasValidasi).values(
       input.validasi.map((item) => ({
         berkasId: parent.id,
         urutan: item.urutan,
@@ -462,7 +463,9 @@ export async function insertBerkasWithChildren(
     );
 
     return parent.id;
-  });
+  };
+
+  return tx ? write(tx) : getPgDb().transaction(write);
 }
 
 export async function findBerkasForUpdate(
@@ -490,6 +493,7 @@ export async function findBerkasForUpdate(
 
 export type BerkasDeletionRow = {
   id: string;
+  judul: string;
   originalPdfPathname: string;
   generatedPdfPathname: string | null;
   penyusunTtdPathnames: string[];
@@ -504,6 +508,7 @@ export async function findBerkasDeletionRowById(
   const parentRows = await db
     .select({
       id: berkasPengajuan.id,
+      judul: berkasPengajuan.judul,
       originalPdfPathname: berkasPengajuan.originalPdfPathname,
       generatedPdfPathname: berkasPengajuan.generatedPdfPathname,
     })

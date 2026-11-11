@@ -1,4 +1,5 @@
 import { PERMISSIONS, hasPermission } from "@/lib/auth/permissions";
+import { logActivity } from "@/lib/activity-log/service";
 import {
   findProjectById,
   findProjectDocumentationViewByPeriod,
@@ -21,6 +22,7 @@ import {
   isUniqueViolation,
 } from "@/lib/pg/errors";
 import { PDOC_WEEKS } from "@/lib/project-documentation/constants";
+import { getPgDb } from "@/lib/pg/client";
 
 // Business logic for Project Documentation (PDOC).
 //
@@ -454,7 +456,16 @@ export async function updateDocumentation(
   };
 
   try {
-    await upsertProjectDocumentation(projectId, year, month, data, actor.id);
+    await getPgDb().transaction(async (tx) => {
+      await upsertProjectDocumentation(projectId, year, month, data, actor.id, tx);
+      await logActivity(
+        actor.id,
+        "UPDATE",
+        "PDOC",
+        `${project.name} — ${year}-${month}`,
+        tx,
+      );
+    });
   } catch (error) {
     mapWriteError(error);
   }

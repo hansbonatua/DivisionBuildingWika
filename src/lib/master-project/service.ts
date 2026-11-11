@@ -4,6 +4,8 @@ import {
   canEditMasterProject,
   canViewMasterProject,
 } from "@/lib/master-project/access";
+import { logActivity } from "@/lib/activity-log/service";
+import { getPgDb } from "@/lib/pg/client";
 import {
   deleteMasterProjectRow,
   findDuplicateMasterProject,
@@ -220,12 +222,19 @@ export async function createMasterProject(
   await assertUnique(input.name, input.location);
 
   try {
-    const id = await insertMasterProject({
-      name: input.name,
-      location: input.location,
-      year: input.year,
-      picUserId: input.picUserId,
-      createdBy: actor.id,
+    const id = await getPgDb().transaction(async (tx) => {
+      const createdId = await insertMasterProject(
+        {
+          name: input.name,
+          location: input.location,
+          year: input.year,
+          picUserId: input.picUserId,
+          createdBy: actor.id,
+        },
+        tx,
+      );
+      await logActivity(actor.id, "CREATE", "MASTER_PROJECT", input.name, tx);
+      return createdId;
     });
     return toItem(await getMasterProjectOrThrow(id));
   } catch (error) {
@@ -264,10 +273,19 @@ export async function updateMasterProject(
   if (input.picUserId !== undefined) patch.picUserId = input.picUserId;
 
   try {
-    const updated = await updateMasterProjectRow(id, patch);
-    if (!updated) {
-      throw new MasterProjectNotFoundError();
-    }
+    await getPgDb().transaction(async (tx) => {
+      const updated = await updateMasterProjectRow(id, patch, tx);
+      if (!updated) {
+        throw new MasterProjectNotFoundError();
+      }
+      await logActivity(
+        actor.id,
+        "UPDATE",
+        "MASTER_PROJECT",
+        input.name ?? existing.name,
+        tx,
+      );
+    });
     return toItem(await getMasterProjectOrThrow(id));
   } catch (error) {
     if (isUniqueViolation(error)) {
@@ -287,9 +305,22 @@ export async function deleteMasterProject(
 
   // Hard delete semantics are unchanged: the row is removed, never
   // soft-deleted. Only the refusal case is mapped (23503 → 409).
+  const existing = await getMasterProjectOrThrow(id);
   let deleted: boolean;
   try {
-    deleted = await deleteMasterProjectRow(id);
+    deleted = await getPgDb().transaction(async (tx) => {
+      const didDelete = await deleteMasterProjectRow(id, tx);
+      if (didDelete) {
+        await logActivity(
+          actor.id,
+          "DELETE",
+          "MASTER_PROJECT",
+          existing.name,
+          tx,
+        );
+      }
+      return didDelete;
+    });
   } catch (error) {
     if (isForeignKeyViolation(error)) {
       throw new MasterProjectConflictError(

@@ -176,6 +176,13 @@
       "when": 1794378931904,
       "tag": "0024_berkas_search_index",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1794382542055,
+      "tag": "0025_activity_logs",
+      "breakpoints": true
     }
   ]
 }

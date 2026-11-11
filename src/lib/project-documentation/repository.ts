@@ -14,7 +14,8 @@ import {
 // query through aliases, so the list never performs a query per project or per
 // week.
 
-export type ProjectDocumentationDb = PgDatabase;
+type PgTransaction = Parameters<Parameters<PgDatabase["transaction"]>[0]>[0];
+export type ProjectDocumentationDb = PgDatabase | PgTransaction;
 
 function dbOrDefault(db?: ProjectDocumentationDb): ProjectDocumentationDb {
   return db ?? getPgDb();

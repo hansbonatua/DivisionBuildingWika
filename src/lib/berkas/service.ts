@@ -50,6 +50,7 @@ import type {
   RevisiBerkasInput,
 } from "@/lib/berkas/schema";
 import { getPgDb } from "@/lib/pg/client";
+import { logActivity } from "@/lib/activity-log/service";
 import { isForeignKeyViolation, isUniqueViolation } from "@/lib/pg/errors";
 import type { BerkasStatus } from "@/lib/pg/schema";
 import {
@@ -1019,30 +1020,37 @@ export async function createBerkas(
       }),
     );
 
-    createdId = await insertBerkasWithChildren({
-      judul: input.judul,
-      kodeSeri: input.kodeSeri?.trim() || null,
-      pemohonId: actor.id,
-      originalPdfPathname: input.originalPdf.pathname,
-      originalPdfName,
-      originalPdfMimeType: original.mimeType,
-      originalPdfSizeBytes: original.blob.size,
-      originalPdfPageCount: pageCount,
-      penyusun: input.penyusun.map((item, index) => ({
-        userId: item.userId,
-        namaSnapshot: item.nama?.trim() || penyusunUsers[index].name,
-        jabatanSnapshot: item.jabatan,
-        urutan: item.urutan,
-        ttdPathname: item.ttdPathname,
-        ttdMimeType: ttdFiles[index].mimeType,
-        ttdSizeBytes: ttdFiles[index].blob.size,
-      })),
-      validasi: input.validasi.map((item, index) => ({
-        userId: item.userId,
-        urutan: item.urutan,
-        namaSnapshot: item.nama?.trim() || validatorUsers[index].name,
-        jabatanSnapshot: item.jabatan,
-      })),
+    createdId = await getPgDb().transaction(async (tx) => {
+      const id = await insertBerkasWithChildren(
+        {
+          judul: input.judul,
+          kodeSeri: input.kodeSeri?.trim() || null,
+          pemohonId: actor.id,
+          originalPdfPathname: input.originalPdf.pathname,
+          originalPdfName,
+          originalPdfMimeType: original.mimeType,
+          originalPdfSizeBytes: original.blob.size,
+          originalPdfPageCount: pageCount,
+          penyusun: input.penyusun.map((item, index) => ({
+            userId: item.userId,
+            namaSnapshot: item.nama?.trim() || penyusunUsers[index].name,
+            jabatanSnapshot: item.jabatan,
+            urutan: item.urutan,
+            ttdPathname: item.ttdPathname,
+            ttdMimeType: ttdFiles[index].mimeType,
+            ttdSizeBytes: ttdFiles[index].blob.size,
+          })),
+          validasi: input.validasi.map((item, index) => ({
+            userId: item.userId,
+            urutan: item.urutan,
+            namaSnapshot: item.nama?.trim() || validatorUsers[index].name,
+            jabatanSnapshot: item.jabatan,
+          })),
+        },
+        tx,
+      );
+      await logActivity(actor.id, "CREATE", "BERKAS", input.judul, tx);
+      return id;
     });
   } catch (error) {
     if (!isReusedPathnameViolation(error)) {
@@ -1156,6 +1164,7 @@ export async function submitTtd(
             "Versi Berkas sudah berubah. Muat ulang data terbaru.",
           );
         }
+        await logActivity(actor.id, "SIGN", "BERKAS", detail.judul, tx);
       });
     } catch (error) {
       await cleanupBerkasBlobsIfUnreferenced([pathname], {
@@ -1240,6 +1249,7 @@ export async function submitTtd(
             "Versi Berkas sudah berubah. Muat ulang data terbaru.",
           );
         }
+        await logActivity(actor.id, "SIGN", "BERKAS", detail.judul, tx);
       });
     } catch (error) {
       // The transaction did not commit; do not leave unreferenced artifacts.
@@ -1282,6 +1292,7 @@ export async function deleteBerkas(
       if (!deleted) {
         throw new BerkasNotFoundError();
       }
+      await logActivity(actor.id, "DELETE", "BERKAS", current.judul, tx);
       return current;
     });
   } catch (error) {
@@ -1364,6 +1375,7 @@ export async function rejectBerkas(
           "Versi Berkas sudah berubah. Muat ulang data terbaru.",
         );
       }
+      await logActivity(actor.id, "REJECT", "BERKAS", detail.judul, tx);
     });
   } catch (error) {
     mapWriteError(error);
@@ -1445,6 +1457,7 @@ export async function revisiBerkas(
         );
       }
       await clearBerkasValidasiTtdRows(id, tx);
+      await logActivity(actor.id, "REVISE", "BERKAS", detail.judul, tx);
     });
 
     await cleanupBerkasBlobs(

@@ -1,5 +1,5 @@
 import { and, asc, eq, ilike, inArray, ne, or, sql } from "drizzle-orm";
-import { getPgDb } from "@/lib/pg/client";
+import { getPgDb, type PgDatabase } from "@/lib/pg/client";
 import {
   masterProjects,
   users,
@@ -18,6 +18,13 @@ export type MasterProjectRow = {
   createdAt: Date;
   updatedAt: Date;
 };
+
+type PgTransaction = Parameters<Parameters<PgDatabase["transaction"]>[0]>[0];
+export type MasterProjectDb = PgDatabase | PgTransaction;
+
+function dbOrDefault(db?: MasterProjectDb): MasterProjectDb {
+  return db ?? getPgDb();
+}
 
 export type MasterProjectPicOptionRow = {
   id: string;
@@ -113,8 +120,9 @@ export async function findDuplicateMasterProject(
 
 export async function insertMasterProject(
   data: NewPgMasterProject,
+  db: MasterProjectDb = dbOrDefault(),
 ): Promise<string> {
-  const rows = await getPgDb()
+  const rows = await db
     .insert(masterProjects)
     .values(data)
     .returning({ id: masterProjects.id });
@@ -128,8 +136,9 @@ export async function insertMasterProject(
 export async function updateMasterProjectRow(
   id: string,
   data: MasterProjectMutableData,
+  db: MasterProjectDb = dbOrDefault(),
 ): Promise<boolean> {
-  const rows = await getPgDb()
+  const rows = await db
     .update(masterProjects)
     .set({ ...data, updatedAt: new Date() })
     .where(eq(masterProjects.id, id))
@@ -137,8 +146,11 @@ export async function updateMasterProjectRow(
   return rows.length > 0;
 }
 
-export async function deleteMasterProjectRow(id: string): Promise<boolean> {
-  const rows = await getPgDb()
+export async function deleteMasterProjectRow(
+  id: string,
+  db: MasterProjectDb = dbOrDefault(),
+): Promise<boolean> {
+  const rows = await db
     .delete(masterProjects)
     .where(eq(masterProjects.id, id))
     .returning({ id: masterProjects.id });
