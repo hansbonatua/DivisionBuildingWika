@@ -1,8 +1,8 @@
 # CURRENT PROJECT STATE — BDWIKA / WIBEX
 
-Terakhir diperbarui: 12 November 2026 (Modul Berkas Sprint 1 & 2 + Audit Readiness + Final Polish `IMPLEMENTED & VERIFIED (Production-Ready)` — Sprint 1 runtime Vercel PASS, Owner-confirmed 10 November 2026; Audit Readiness/Final Polish static checks PASS (256/256, 61 suite); migration `0020`–`0024` **APPLIED**, termasuk `0024_berkas_search_index`; PDOC V1 + Monthly Delta dan CST `IMPLEMENTED & VERIFIED`; runtime browser 4 role PDOC/CST PASS, Owner-confirmed 10 November 2026; WIBEX Governance & Workflow **APPROVED & EFFECTIVE**, Owner Hans, 10 November 2026).
+Terakhir diperbarui: 12 November 2026 (Dashboard Welcoming `IMPLEMENTED & VERIFIED` — commit `eb77e1c`, migration `0025_activity_logs` APPLIED; Modul Berkas Sprint 1 & 2 + Audit Readiness + Final Polish `IMPLEMENTED & VERIFIED (Production-Ready)` — Sprint 1 runtime Vercel PASS, Owner-confirmed 10 November 2026; Audit Readiness/Final Polish static checks PASS (256/256, 61 suite); migration `0020`–`0024` **APPLIED**, termasuk `0024_berkas_search_index`; PDOC V1 + Monthly Delta dan CST `IMPLEMENTED & VERIFIED`; runtime browser 4 role PDOC/CST PASS, Owner-confirmed 10 November 2026; WIBEX Governance & Workflow **APPROVED & EFFECTIVE**, Owner Hans, 10 November 2026).
 
-**Status proyek:** `PARTIALLY VERIFIED` — MKS, KM V2, PDOC, CST, dan **Berkas** `IMPLEMENTED & VERIFIED (Production-Ready)` (RBAC 4 role, Owner confirmed; Berkas Sprint 1 diuji Owner di Vercel; Audit Readiness & Final Polish PASS dengan 256/256 test). Bukti: `DL-2026-11-09-01`, `DL-2026-11-09-02`, `DL-2026-11-10-03`, `DL-2026-11-10-04`, `DL-2026-11-10-05`, `DL-2026-11-10-06`, `DL-2026-11-10-07`, `DL-2026-11-12-03`, `DL-2026-11-12-05`.
+**Status proyek:** `PARTIALLY VERIFIED` — MKS, KM V2, PDOC, CST, **Berkas** `IMPLEMENTED & VERIFIED (Production-Ready)`, dan **Dashboard Welcoming** `IMPLEMENTED & VERIFIED` (RBAC 4 role, Owner confirmed; Berkas Sprint 1 diuji Owner di Vercel; Audit Readiness & Final Polish PASS dengan 256/256 test). Bukti: `DL-2026-11-09-01`, `DL-2026-11-09-02`, `DL-2026-11-10-03`, `DL-2026-11-10-04`, `DL-2026-11-10-05`, `DL-2026-11-10-06`, `DL-2026-11-10-07`, `DL-2026-11-12-03`, `DL-2026-11-12-05`, `DL-2026-11-12-06`.
 
 **Tata kelola:** WIBEX Development Governance dan WIBEX Engineering Workflow **APPROVED & EFFECTIVE** — disetujui Owner (Hans), 10 November 2026.
 
@@ -13,15 +13,15 @@ Terakhir diperbarui: 12 November 2026 (Modul Berkas Sprint 1 & 2 + Audit Readine
 | Root | `D:\MagangHub-Wika-StaffEngDigitalisasiBuilding\progress\bdwika` |
 | Branch | `main` (tracking `origin/main`) |
 | Baseline fitur | `a7527e1` — `feat: project documentation monthly recap and summary report` |
-| HEAD | `0805776` — `style(berkas): move serial code to top right corner of pdf` (remote-tracking tidak di-fetch pada pass ini) |
+| HEAD | `eb77e1c` — `feat(dashboard): implement welcoming dashboard UI with stats and activities` (sudah di-push; remote-tracking tidak di-fetch pada pass ini) |
 | Stack | Next.js 16.3.8 · React 19.2.8 · TypeScript 5.9.3 · Tailwind 4 · Drizzle ORM · PostgreSQL (Neon) · MongoDB · Vercel Blob |
 | Node / npm | v24 · npm 10 |
 | Dev server | tidak dikelola Freebuff pada E; runtime dilakukan Owner (Owner confirmed) |
-| Database | `neondb` (PostgreSQL 18.6), journal file **25 entry**; `0017_calculation_sheet_templates` **APPLIED** (Owner-confirmed melalui runtime 10 November 2026); `0018_project_documentations` **APPLIED**; **0019 APPLIED** — `0019_project_documentation_period`; **`0020_berkas_pengajuan`, `0021_berkas_catatan`, `0022_berkas_kode_seri`, `0023_berkas_sprint2`, dan `0024_berkas_search_index` APPLIED** (`0020`–`0022` Owner-confirmed melalui runtime Vercel 10 November 2026; `0023` mengikuti konfirmasi database Sprint 2; `0024` index GIN trigram judul/kode_seri, APPLIED 12 November 2026) |
+| Database | `neondb` (PostgreSQL 18.6), journal file **26 entry**; `0017_calculation_sheet_templates` **APPLIED** (Owner-confirmed melalui runtime 10 November 2026); `0018_project_documentations` **APPLIED**; **0019 APPLIED** — `0019_project_documentation_period`; **`0020_berkas_pengajuan`, `0021_berkas_catatan`, `0022_berkas_kode_seri`, `0023_berkas_sprint2`, dan `0024_berkas_search_index` APPLIED** (`0020`–`0022` Owner-confirmed melalui runtime Vercel 10 November 2026; `0023` mengikuti konfirmasi database Sprint 2; `0024` index GIN trigram judul/kode_seri, APPLIED 12 November 2026; `0025_activity_logs` **APPLIED** 12 November 2026) |
 
-## 2. Working Tree (Sprint 2/final polish belum di-commit; HEAD `0805776`)
+## 2. Working Tree (clean; HEAD `eb77e1c`)
 
-Baseline verifikasi: `HEAD` = `0805776`; working tree masih memuat perubahan kode Sprint 2 Berkas dan final polish yang belum di-commit. Pass dokumentasi ini hanya mengubah tiga dokumen development dan **tidak** melakukan commit/push.
+Baseline verifikasi: `HEAD` = `eb77e1c` — `feat(dashboard): implement welcoming dashboard UI with stats and activities`; working tree bersih sebelum pass dokumentasi ini. Commit Dashboard Welcoming sudah di-push ke Vercel. Pass dokumentasi ini hanya mengubah tiga dokumen development dan **tidak** melakukan commit/push.
 
 | Item | Nilai |
 |---|---|
@@ -36,8 +36,8 @@ Baseline verifikasi: `HEAD` = `0805776`; working tree masih memuat perubahan kod
 | Baseline dokumentasi/UI | `8cfef26` — `chore: align sidebar text and elevate PDOC status to verified` |
 | Range fitur PDOC | `5636113..a7527e1`; 41 file, +15.396 / −29 |
 | Isi commit PDOC | PDOC V1 + Monthly Delta, migration `0018`/`0019`, halaman Rekap Bulanan + Summary, sidebar accordion, dan sinkronisasi dokumen |
-| Status remote | `0805776` di `main`; remote-tracking tidak di-fetch pada pass ini |
-| Migration | `0017` **APPLIED** (Owner-confirmed melalui runtime); `0018` **APPLIED**; `0019` **APPLIED**; `0020`, `0021`, dan `0022` **APPLIED** (Owner-confirmed melalui runtime Vercel 10 November 2026); `0023_berkas_sprint2` **APPLIED** (konfirmasi database Sprint 2 sudah dimigrasi); `0024_berkas_search_index` **APPLIED** (index GIN trigram judul/kode_seri, 12 November 2026) |
+| Status remote | `eb77e1c` di `main` dan sudah di-push ke Vercel; remote-tracking tidak di-fetch pada pass ini |
+| Migration | `0017` **APPLIED** (Owner-confirmed melalui runtime); `0018` **APPLIED**; `0019` **APPLIED**; `0020`, `0021`, dan `0022` **APPLIED** (Owner-confirmed melalui runtime Vercel 10 November 2026); `0023_berkas_sprint2` **APPLIED** (konfirmasi database Sprint 2 sudah dimigrasi); `0024_berkas_search_index` **APPLIED** (index GIN trigram judul/kode_seri, 12 November 2026); `0025_activity_logs` **APPLIED** 12 November 2026 |
 
 Detail file historis sebelum commit tersedia di Git history; jangan menyalin tabel working tree lama sebagai kondisi saat ini.
 
@@ -52,8 +52,10 @@ Detail file historis sebelum commit tersedia di Git history; jangan menyalin tab
 | ESLint (PDOC + sidebar) | `npx eslint src/lib/project-documentation src/app/api/project-documentation src/components/dashboard/project-documentation src/components/dashboard/DashboardSidebar.tsx src/components/dashboard/projectDocumentationSidebar.test.ts src/app/dashboard/project-documentation` | 0 | PASS |
 | ESLint (Berkas) | `npx eslint src/lib/berkas src/components/dashboard/berkas src/app/api/berkas src/app/dashboard/berkas src/components/dashboard/DashboardSidebar.tsx src/lib/auth/permissions.ts src/lib/storage/blob.ts` | 0 | PASS |
 | Diff hygiene | `git diff --check` | 0 | PASS |
-| Drift Drizzle | `npx drizzle-kit generate` | — | tidak dijalankan pada task dokumentasi; snapshot `0019`–`0024` tersedia |
-| Migration | `npx drizzle-kit migrate` | — | **0017–0024 APPLIED** (Owner-confirmed; `0020`–`0022` melalui runtime Vercel 10 November 2026; `0023` mengikuti konfirmasi database Sprint 2; `0024` APPLIED 12 November 2026); tidak dijalankan pada task ini |
+| Dashboard Welcoming (static) | `npx tsc --noEmit` + ESLint file dashboard | 0 | PASS |
+| Test Dashboard Welcoming | `npm test` | 0 | **256/256 PASS** (61 suite) |
+| Drift Drizzle | `npx drizzle-kit generate` | — | tidak dijalankan pada task dokumentasi; snapshot `0019`–`0025` tersedia |
+| Migration | `npx drizzle-kit migrate` | — | **0017–0025 APPLIED** (Owner-confirmed; `0020`–`0022` melalui runtime Vercel 10 November 2026; `0023` mengikuti konfirmasi database Sprint 2; `0024` APPLIED 12 November 2026; `0025_activity_logs` APPLIED 12 November 2026); tidak dijalankan pada task ini |
 | Runtime CST | Browser, 4 role | — | **PASS** (Owner-confirmed 10 November 2026) |
 | Runtime PDOC | Browser desktop + mobile, 4 role | — | **PASS** (Owner-confirmed 10 November 2026) |
 | Runtime Berkas | Vercel, 4 role | — | **PASS untuk Sprint 1 V1** — pengajuan, verifikasi berurutan, cover landscape, kode seri, watermark NIP, delete Admin (Owner-confirmed 10 November 2026); Audit Readiness & Final Polish PASS melalui 256/256 test; smoke test browser Sprint 2/final polish belum dijalankan pada pass dokumentasi ini |
@@ -152,9 +154,21 @@ Detail file historis sebelum commit tersedia di Git history; jangan menyalin tab
 - **Verifikasi:** `npx tsc --noEmit` PASS, ESLint file terkait PASS, `npm test` **256/256 PASS** (61 suite), `git diff --check` PASS. Runtime browser alur Sprint 2/final polish belum direproduksi pada pass dokumentasi ini.
 - **Detail:** `DL-2026-11-12-05` (Final Polish Production-Ready); `DL-2026-11-12-03` (Sprint 2).
 
-## 10. Langkah Berikutnya
+## 10. Dashboard Welcoming (12 November 2026)
+
+**Status:** `IMPLEMENTED & VERIFIED` — commit `eb77e1c` (`feat(dashboard): implement welcoming dashboard UI with stats and activities`) sudah di-push ke Vercel; migration `0025_activity_logs` **APPLIED**; static checks PASS (256/256, 61 suite).
+
+- **Aktivitas:** tabel `activity_logs` dan `logActivity(actorId, action, entityType, title, tx?)`; penulisan log ikut transaksi domain agar tidak ada aktivitas tanpa perubahan data.
+- **Integrasi:** Berkas (`createBerkas`, submit TTD, reject, revisi, delete), Master Project (create/update/delete), dan PDOC (update dokumentasi).
+- **Data dashboard:** `getDashboardData(actor)` mengembalikan statistik, Action Center, dan lima aktivitas terbaru; scope mengikuti role (Project melihat proyek sebagai PIC, Berkas sebagai pemohon, aktivitas sebagai aktor; Admin/Head Office/Management melihat data global). MSL dan Total User ditampilkan `null`/“Tidak tersedia” bila belum tersedia.
+- **UI:** `/dashboard` adalah Server Component yang memanggil `getCurrentUser()` dan `getDashboardData()`, lalu merender `DashboardView` client. Komponen: `WelcomeCard`, `StatGrid`/`StatCard`, `ActionCenter`, `QuickLinks`, `ActivityFeed`, dan `DashboardSkeleton`.
+- **Empty state:** Action Center menampilkan “Tidak ada tindakan yang dibutuhkan saat ini. Kerja bagus!”; Activity Feed menampilkan “Belum ada aktivitas tercatat”.
+- **Verifikasi:** `npx tsc --noEmit` PASS, ESLint file dashboard PASS, `npm test` **256/256 PASS** (61 suite), `git diff --check` PASS. Runtime/visual tidak direproduksi pada pass dokumentasi ini.
+- **Detail:** `DL-2026-11-12-06`; commit `eb77e1c`.
+
+## 11. Langkah Berikutnya
 
 1. Modul Berkas sudah `IMPLEMENTED & VERIFIED (Production-Ready)`; final acceptance tercatat pada `DL-2026-11-12-05`.
-2. Smoke test browser opsional untuk Revisi, Tolak, preview watermark, badge Sidebar, dan cover PDF jika akan deploy ulang.
+2. Smoke test browser opsional untuk Dashboard Welcoming, Revisi, Tolak, preview watermark, badge Sidebar, dan cover PDF jika akan deploy ulang.
 3. Modul berikutnya: Dashboard SASAA (belum dimulai).
-4. Pemeliharaan: pantau drift schema (snapshot `0024` tersedia) dan perilaku PDF pada perubahan berikutnya.
+4. Pemeliharaan: pantau drift schema (snapshot `0025` tersedia) dan perilaku PDF pada perubahan berikutnya.

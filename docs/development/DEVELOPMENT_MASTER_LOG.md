@@ -5,6 +5,49 @@ Dokumentasi audit repository ada di `docs/audit/`; dokumen ini mencatat **peruba
 
 ---
 
+## DL-2026-11-12-06 — Dashboard Welcoming (Backend & UI)
+
+| Field | Nilai |
+|---|---|
+| Feature ID | `ENT-DASHBOARD` |
+| Tanggal | 12 November 2026 |
+| Status | **IMPLEMENTED & VERIFIED** — commit `eb77e1c` sudah di-push ke Vercel; static checks PASS (256/256, 61 suite); migration `0025_activity_logs` **APPLIED**; log terintegrasi ke Berkas, Master Project, dan PDOC |
+| Commit | `eb77e1c` — `feat(dashboard): implement welcoming dashboard UI with stats and activities`; sudah di-push ke Vercel |
+| Branch | `main` |
+| Baseline | `0805776` + implementasi Dashboard Welcoming |
+| Migration | `0025_activity_logs` — **APPLIED** (12 November 2026); journal 26 entry |
+
+### Perubahan
+- **Tabel `activity_logs`:** menyimpan `actor_user_id` (nullable), `action`, `entity_type`, `title`, dan timestamp; migration `0025_activity_logs` sudah **APPLIED**.
+- **`logActivity()`:** fungsi `logActivity(actorId, action, entityType, title, tx?)` di `src/lib/activity-log/service.ts`; dapat memakai transaksi domain agar log dan perubahan data tersimpan atomik.
+- **Integrasi tiga modul:** Berkas (`createBerkas`, submit TTD, reject, revisi, delete), Master Project (create/update/delete), dan PDOC (update dokumentasi).
+- **`getDashboardData()`:** query role-scoped untuk statistik, Action Center, dan lima aktivitas terbaru; Project dibatasi pada proyek sebagai PIC, Berkas sebagai pemohon, dan aktivitas sebagai aktor; Admin/Head Office/Management melihat data global.
+- **UI Dashboard:** `/dashboard` menjadi Server Component yang memanggil `getCurrentUser()` dan `getDashboardData()`, lalu merender `DashboardView` client. Komponen: `WelcomeCard`, `StatGrid`/`StatCard`, `ActionCenter`, `QuickLinks`, `ActivityFeed`, dan `DashboardSkeleton`; route `loading.tsx` menampilkan skeleton.
+- **Empty state:** Action Center menampilkan “Tidak ada tindakan yang dibutuhkan saat ini. Kerja bagus!”; Activity Feed menampilkan “Belum ada aktivitas tercatat”. Statistik yang belum tersedia ditampilkan `-` dan “Tidak tersedia”.
+
+### File impacted
+- Backend: `src/lib/pg/schema.ts`, `src/lib/activity-log/service.ts`, `src/lib/dashboard/service.ts`, serta integrasi di `src/lib/berkas/{service,repository}.ts`, `src/lib/master-project/{service,repository}.ts`, dan `src/lib/project-documentation/{service,repository}.ts`.
+- Frontend: `src/app/dashboard/{page,loading}.tsx` dan `src/components/dashboard/welcoming/*`.
+- Data/docs: `drizzle/0025_activity_logs.sql`, `drizzle/meta/0025_snapshot.json`, `drizzle/meta/_journal.json`, dan tiga dokumen development ini.
+- Pass dokumentasi ini hanya mengubah tiga dokumen development dan tidak mengubah kode, database, atau API.
+
+### Verifikasi
+| Pemeriksaan | Hasil | Sumber |
+|---|---|---|
+| `npx tsc --noEmit` | **PASS** | Freebuff |
+| `npx eslint` (file dashboard) | **PASS** | Freebuff |
+| `npm test` | **256/256 PASS** (61 suite) | Freebuff |
+| `git diff --check` | **PASS** | Freebuff |
+| Migration `0025_activity_logs` | **APPLIED**; journal 26 entry | Owner-confirmed |
+| Commit/push Vercel | `eb77e1c` sudah di-push | Owner-confirmed |
+
+### Batasan
+- Migration `0025` tidak dijalankan ulang pada pass dokumentasi ini; status APPLIED mengikuti konteks P8 dan konfirmasi Owner.
+- Runtime/visual Dashboard Welcoming tidak direproduksi pada pass dokumentasi ini; verifikasi UI mengacu pada static checks dan commit yang sudah di-push.
+- Tidak ada commit, push, deploy, migration, seed, atau DB write pada pass ini.
+
+---
+
 ## DL-2026-11-12-05 — Berkas Final Polish (Production-Ready)
 
 | Field | Nilai |
