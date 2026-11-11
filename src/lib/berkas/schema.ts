@@ -176,6 +176,27 @@ export const uploadTtdSchema = z
 
 export type UploadTtdInput = z.infer<typeof uploadTtdSchema>;
 
+export const rejectBerkasSchema = z
+  .object({
+    reason: z
+      .string()
+      .trim()
+      .min(1, "Alasan penolakan wajib diisi")
+      .max(2000, "Alasan penolakan maksimal 2000 karakter"),
+  })
+  .strict();
+
+export type RejectBerkasInput = z.infer<typeof rejectBerkasSchema>;
+
+export const revisiBerkasSchema = z
+  .object({
+    newPdfPathname: uploadPathField,
+    fileName: fileNameField.optional(),
+  })
+  .strict();
+
+export type RevisiBerkasInput = z.infer<typeof revisiBerkasSchema>;
+
 // Payload carried in @vercel/blob/client `clientPayload`; the token route
 // parses it to constrain the pathname, size and content type.
 export const berkasUploadClientPayloadSchema = z

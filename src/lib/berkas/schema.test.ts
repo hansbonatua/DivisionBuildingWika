@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { createBerkasSchema, uploadTtdSchema } from "./schema";
+import {
+  createBerkasSchema,
+  rejectBerkasSchema,
+  revisiBerkasSchema,
+  uploadTtdSchema,
+} from "./schema";
 
 const ACTOR_ID = "11111111-1111-4111-8111-111111111111";
 const UPLOAD_ID = "22222222-2222-4222-8222-222222222222";
@@ -62,6 +67,31 @@ test("createBerkasSchema rejects an empty manual jabatan", () => {
   const input = validCreate();
   input.validasi[0] = { ...input.validasi[0], jabatan: "   " };
   assert.equal(createBerkasSchema.safeParse(input).success, false);
+});
+
+test("rejectBerkasSchema requires a trimmed reason up to 2000 chars", () => {
+  assert.equal(rejectBerkasSchema.parse({ reason: "  Tidak lengkap.  " }).reason, "Tidak lengkap.");
+  assert.equal(rejectBerkasSchema.safeParse({ reason: "   " }).success, false);
+  assert.equal(
+    rejectBerkasSchema.safeParse({ reason: "x".repeat(2001) }).success,
+    false,
+  );
+});
+
+test("revisiBerkasSchema accepts only a Berkas upload PDF path", () => {
+  const valid = {
+    newPdfPathname: `berkas/uploads/${ACTOR_ID}/${UPLOAD_ID}/original/revisi.pdf`,
+    fileName: "revisi.pdf",
+  };
+  assert.equal(revisiBerkasSchema.safeParse(valid).success, true);
+  assert.equal(
+    revisiBerkasSchema.safeParse({ newPdfPathname: "berkas/lain.pdf" }).success,
+    false,
+  );
+  assert.equal(
+    revisiBerkasSchema.safeParse({ ...valid, fileName: "revisi.txt" }).success,
+    false,
+  );
 });
 
 test("uploadTtdSchema accepts and trims catatan, including null", () => {

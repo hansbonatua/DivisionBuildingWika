@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { canCreateBerkas, canDeleteBerkas } from "@/lib/berkas/access";
+import { isAdmin } from "@/lib/users/roles";
 import BerkasAjukanPage from "@/components/dashboard/berkas/BerkasAjukanPage";
 
 export default async function BerkasAjukanRoute() {
@@ -14,6 +15,7 @@ export default async function BerkasAjukanRoute() {
       currentUser={{ id: user.id, name: user.name, position: user.position }}
       canCreate={canCreateBerkas(user.role)}
       canDelete={canDeleteBerkas(user.role)}
+      isAdmin={isAdmin(user.role)}
     />
   );
 }

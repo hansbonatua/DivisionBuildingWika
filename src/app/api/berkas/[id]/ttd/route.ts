@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { canValidateBerkas } from "@/lib/berkas/access";
 import { uploadTtdSchema } from "@/lib/berkas/schema";
 import { submitTtd } from "@/lib/berkas/service";
 import {
@@ -21,6 +22,12 @@ export async function POST(request: Request, context: RouteContext) {
   try {
     const auth = await getActor();
     if ("response" in auth) return auth.response;
+    if (!canValidateBerkas(auth.actor.role)) {
+      return NextResponse.json(
+        { error: { message: "Anda tidak memiliki akses validasi Berkas" } },
+        { status: 403 },
+      );
+    }
 
     const { id } = await context.params;
     if (!isUuid(id)) return invalidIdResponse();

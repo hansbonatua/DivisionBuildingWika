@@ -273,7 +273,7 @@ export default function BerkasTtdDialog({
               <textarea
                 id={catatanId}
                 rows={3}
-                maxLength={500}
+                maxLength={2000}
                 value={catatan}
                 disabled={busy}
                 onChange={(event) => setCatatan(event.target.value)}
@@ -281,7 +281,7 @@ export default function BerkasTtdDialog({
                 className={inputClass}
               />
               <p className="mt-1 text-right text-[11px] text-primary/45">
-                {catatan.length}/500
+                {catatan.length}/2000
               </p>
             </div>
 

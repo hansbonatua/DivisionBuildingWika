@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import BerkasDeleteDialog from "@/components/dashboard/berkas/BerkasDeleteDialog";
 import BerkasFormDialog from "@/components/dashboard/berkas/BerkasFormDialog";
+import BerkasPagination from "@/components/dashboard/berkas/BerkasPagination";
+import BerkasRevisiDialog from "@/components/dashboard/berkas/BerkasRevisiDialog";
 import PdfViewerModal from "@/components/dashboard/berkas/PdfViewerModal";
 import {
   downloadBerkasFile,
@@ -11,13 +13,16 @@ import {
 import {
   BERKAS_STATUS_LABELS,
   berkasStatusClass,
+  formatBerkasCreatedDate,
   formatBerkasSize,
   type BerkasDto,
+  type BerkasPaginationDto,
 } from "@/components/dashboard/berkas/types";
 
 const headerCell =
   "whitespace-nowrap border-b border-outline bg-background px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-primary/60";
 const bodyCell = "border-b border-outline/50 px-4 py-3 align-middle text-xs text-primary/80";
+const PAGE_SIZE = 10;
 
 type Feedback = { kind: "success" | "error"; message: string };
 
@@ -25,21 +30,40 @@ export default function BerkasAjukanPage({
   currentUser,
   canCreate,
   canDelete,
+  isAdmin,
 }: {
   currentUser: { id: string; name: string; position: string };
   canCreate: boolean;
   canDelete: boolean;
+  isAdmin: boolean;
 }) {
   const [records, setRecords] = useState<BerkasDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState<BerkasPaginationDto>({
+    page: 1,
+    limit: PAGE_SIZE,
+    totalData: 0,
+    totalPages: 0,
+  });
   const [formOpen, setFormOpen] = useState(false);
   const [viewBerkas, setViewBerkas] = useState<BerkasDto | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<BerkasDto | null>(null);
+  const [revisionTarget, setRevisionTarget] = useState<BerkasDto | null>(null);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
-  const hasLoadedRef = useRef(false);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setSearch(searchInput.trim());
+      setPage(1);
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [searchInput]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -49,7 +73,12 @@ export default function BerkasAjukanPage({
       setLoading(true);
       setError(null);
       try {
-        const response = await fetch("/api/berkas", {
+        const params = new URLSearchParams({
+          page: String(page),
+          limit: String(PAGE_SIZE),
+        });
+        if (search) params.set("search", search);
+        const response = await fetch(`/api/berkas?${params.toString()}`, {
           cache: "no-store",
           signal: controller.signal,
         });
@@ -58,11 +87,34 @@ export default function BerkasAjukanPage({
             await readApiErrorMessage(response, "Gagal memuat data Berkas."),
           );
         }
-        const body = (await response.json()) as { data?: unknown };
+        const body = (await response.json()) as {
+          data?: unknown;
+          pagination?: Partial<BerkasPaginationDto>;
+        };
         if (!Array.isArray(body.data)) throw new Error("Format data tidak valid.");
         if (!active) return;
-        setRecords(body.data as BerkasDto[]);
-        hasLoadedRef.current = true;
+        const nextRecords = body.data as BerkasDto[];
+        const totalData =
+          typeof body.pagination?.totalData === "number"
+            ? body.pagination.totalData
+            : nextRecords.length;
+        const totalPages =
+          typeof body.pagination?.totalPages === "number"
+            ? body.pagination.totalPages
+            : Math.ceil(totalData / PAGE_SIZE);
+        setRecords(nextRecords);
+        setPagination({
+          page:
+            typeof body.pagination?.page === "number"
+              ? body.pagination.page
+              : page,
+          limit:
+            typeof body.pagination?.limit === "number"
+              ? body.pagination.limit
+              : PAGE_SIZE,
+          totalData,
+          totalPages,
+        });
       } catch (loadError) {
         if (!active || controller.signal.aborted) return;
         setError(
@@ -80,7 +132,7 @@ export default function BerkasAjukanPage({
       active = false;
       controller.abort();
     };
-  }, [reloadToken]);
+  }, [page, search, reloadToken]);
 
   useEffect(() => {
     if (!feedback) return;
@@ -89,13 +141,26 @@ export default function BerkasAjukanPage({
   }, [feedback]);
 
   function reload(): void {
-    setLoading(!hasLoadedRef.current);
     setReloadToken((value) => value + 1);
   }
 
   function handleSaved(record: BerkasDto): void {
     setFormOpen(false);
-    setFeedback({ kind: "success", message: `Berkas "${record.judul}" berhasil diajukan.` });
+    setFeedback({
+      kind: "success",
+      message: `Berkas "${record.judul}" berhasil diajukan.`,
+    });
+    setPage(1);
+    reload();
+  }
+
+  function handleRevisionSaved(record: BerkasDto): void {
+    setRevisionTarget(null);
+    setFeedback({
+      kind: "success",
+      message: `Revisi "${record.judul}" berhasil dikirim dan menunggu TTD Validator 1.`,
+    });
+    setPage(1);
     reload();
   }
 
@@ -174,6 +239,38 @@ export default function BerkasAjukanPage({
       ) : null}
 
       <div className="overflow-hidden rounded-2xl border border-outline bg-white shadow-sm">
+        <div className="flex flex-col gap-3 border-b border-outline/70 bg-background/50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="relative w-full sm:max-w-sm">
+            <svg
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-primary/40"
+              aria-hidden="true"
+            >
+              <circle cx="11" cy="11" r="8" />
+              <path d="m21 21-4.3-4.3" />
+            </svg>
+            <input
+              type="search"
+              maxLength={100}
+              value={searchInput}
+              onChange={(event) => setSearchInput(event.target.value)}
+              placeholder="Cari judul, kode seri, atau pemohon..."
+              aria-label="Cari Berkas"
+              className="h-9 w-full rounded-lg border border-outline bg-white pl-9 pr-3 text-xs font-semibold text-primary placeholder:font-normal placeholder:text-primary/40 focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
+            />
+          </div>
+          <p className="text-[11px] font-semibold text-primary/60">
+            {pagination.totalData} Berkas
+          </p>
+        </div>
+
         <div className="overflow-x-auto">
           <table className="min-w-full border-collapse">
             <thead>
@@ -183,107 +280,148 @@ export default function BerkasAjukanPage({
                 <th className={headerCell}>Status</th>
                 <th className={headerCell}>File Generate</th>
                 <th className={headerCell}>Catatan</th>
-                {canDelete ? (
-                  <th className={`${headerCell} w-16 text-center`}>Aksi</th>
-                ) : null}
+                <th className={`${headerCell} w-24 text-center`}>Aksi</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={canDelete ? 6 : 5} className="px-4 py-14 text-center text-xs font-semibold text-primary/50">
+                  <td colSpan={6} className="px-4 py-14 text-center text-xs font-semibold text-primary/50">
                     Memuat data Berkas...
                   </td>
                 </tr>
               ) : records.length === 0 ? (
                 <tr>
-                  <td colSpan={canDelete ? 6 : 5} className="px-4 py-14 text-center text-xs font-semibold text-primary/50">
-                    Belum ada Berkas yang diajukan.
+                  <td colSpan={6} className="px-4 py-14 text-center text-xs font-semibold text-primary/50">
+                    {search
+                      ? "Tidak ada Berkas yang cocok dengan pencarian."
+                      : "Belum ada Berkas yang diajukan."}
                   </td>
                 </tr>
               ) : (
-                records.map((record, index) => (
-                  <tr key={record.id} className="transition-colors hover:bg-background/40">
-                    <td className={`${bodyCell} text-center font-semibold text-primary/50`}>
-                      {index + 1}
-                    </td>
-                    <td className={bodyCell}>
-                      <button
-                        type="button"
-                        onClick={() => setViewBerkas(record)}
-                        className="text-left text-xs font-bold text-primary underline-offset-2 hover:text-secondary hover:underline"
-                        title="Lihat PDF"
-                      >
-                        {record.judul}
-                      </button>
-                      <p className="mt-1 text-[11px] font-medium text-primary/45">
-                        {record.originalPdf.name} · {formatBerkasSize(record.originalPdf.sizeBytes)}
-                      </p>
-                    </td>
-                    <td className={bodyCell}>
-                      <span className={`inline-flex whitespace-nowrap rounded-full border px-2.5 py-1 text-[11px] font-bold ${berkasStatusClass(record.status)}`}>
-                        {BERKAS_STATUS_LABELS[record.status]}
-                      </span>
-                    </td>
-                    <td className={bodyCell}>
-                      {record.status === "SELESAI" ? (
-                        <button
-                          type="button"
-                          onClick={() => void handleDownload(record)}
-                          disabled={downloadingId === record.id}
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-secondary/25 bg-blue-50 px-2.5 py-1.5 text-[11px] font-bold text-secondary transition-colors hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                            <path d="M12 3v12" />
-                            <path d="m7 10 5 5 5-5" />
-                            <path d="M5 21h14" />
-                          </svg>
-                          {downloadingId === record.id ? "Menyiapkan..." : "Download"}
-                        </button>
-                      ) : (
-                        <span className="text-primary/35">—</span>
-                      )}
-                    </td>
-                    <td className={`${bodyCell} max-w-xs`}>
-                      <span className="line-clamp-2">
-                        {record.catatan?.trim() || "—"}
-                      </span>
-                    </td>
-                    {canDelete ? (
-                      <td className={`${bodyCell} text-center`}>
-                        <button
-                          type="button"
-                          onClick={() => setDeleteTarget(record)}
-                          aria-label={`Hapus ${record.judul}`}
-                          title={`Hapus ${record.judul}`}
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-red-700 transition-colors hover:bg-red-100"
-                        >
-                          <svg
-                            width="14"
-                            height="14"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            aria-hidden="true"
-                          >
-                            <path d="M3 6h18" />
-                            <path d="M8 6V4h8v2" />
-                            <path d="m19 6-1 14H6L5 6" />
-                            <path d="M10 11v5" />
-                            <path d="M14 11v5" />
-                          </svg>
-                        </button>
+                records.map((record, index) => {
+                  const canRevise =
+                    record.status === "DITOLAK" &&
+                    (isAdmin || record.pemohon.id === currentUser.id);
+                  return (
+                    <tr key={record.id} className="transition-colors hover:bg-background/40">
+                      <td className={`${bodyCell} text-center font-semibold text-primary/50`}>
+                        {(page - 1) * PAGE_SIZE + index + 1}
                       </td>
-                    ) : null}
-                  </tr>
-                ))
+                      <td className={bodyCell}>
+                        <div className="flex items-start gap-1.5">
+                          <span
+                            aria-hidden="true"
+                            className="text-[10px] leading-4"
+                          >
+                            🔗
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setViewBerkas(record)}
+                            className="text-left text-xs font-bold text-primary underline-offset-2 hover:text-secondary hover:underline"
+                            title="Lihat PDF"
+                          >
+                            {record.judul}
+                          </button>
+                        </div>
+                        <p className="mt-1 text-xs font-normal text-gray-500">
+                          Oleh: {record.pemohon.name}, {formatBerkasCreatedDate(record.createdAt)}
+                        </p>
+                        <p className="mt-1 text-[11px] font-medium text-primary/45">
+                          {record.originalPdf.name} · {formatBerkasSize(record.originalPdf.sizeBytes)}
+                        </p>
+                      </td>
+                      <td className={bodyCell}>
+                        <span className={`inline-flex whitespace-nowrap rounded-full border px-2.5 py-1 text-[11px] font-bold ${berkasStatusClass(record.status)}`}>
+                          {BERKAS_STATUS_LABELS[record.status]}
+                        </span>
+                      </td>
+                      <td className={bodyCell}>
+                        {record.status === "SELESAI" ? (
+                          <button
+                            type="button"
+                            onClick={() => void handleDownload(record)}
+                            disabled={downloadingId === record.id}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-secondary/25 bg-blue-50 px-2.5 py-1.5 text-[11px] font-bold text-secondary transition-colors hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                              <path d="M12 3v12" />
+                              <path d="m7 10 5 5 5-5" />
+                              <path d="M5 21h14" />
+                            </svg>
+                            {downloadingId === record.id ? "Menyiapkan..." : "Download"}
+                          </button>
+                        ) : (
+                          <span className="text-primary/35">—</span>
+                        )}
+                      </td>
+                      <td className={`${bodyCell} max-w-xs`}>
+                        <span className="line-clamp-2">
+                          {record.catatan?.trim() || "—"}
+                        </span>
+                      </td>
+                      <td className={`${bodyCell} text-center`}>
+                        <div className="flex flex-wrap items-center justify-center gap-1.5">
+                          {canRevise ? (
+                            <button
+                              type="button"
+                              onClick={() => setRevisionTarget(record)}
+                              className="inline-flex items-center gap-1 rounded-lg border border-red-300 bg-red-50 px-2.5 py-1.5 text-[11px] font-bold text-red-800 transition-colors hover:bg-red-100"
+                            >
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                <path d="M21 12a9 9 0 1 1-2.6-6.4" />
+                                <path d="M21 3v6h-6" />
+                              </svg>
+                              Revisi
+                            </button>
+                          ) : null}
+                          {canDelete ? (
+                            <button
+                              type="button"
+                              onClick={() => setDeleteTarget(record)}
+                              aria-label={`Hapus ${record.judul}`}
+                              title={`Hapus ${record.judul}`}
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-red-700 transition-colors hover:bg-red-100"
+                            >
+                              <svg
+                                width="14"
+                                height="14"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                aria-hidden="true"
+                              >
+                                <path d="M3 6h18" />
+                                <path d="M8 6V4h8v2" />
+                                <path d="m19 6-1 14H6L5 6" />
+                                <path d="M10 11v5" />
+                                <path d="M14 11v5" />
+                              </svg>
+                            </button>
+                          ) : null}
+                          {!canRevise && !canDelete ? (
+                            <span className="text-primary/35">—</span>
+                          ) : null}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
         </div>
+        <BerkasPagination
+          page={pagination.page}
+          totalPages={pagination.totalPages}
+          totalData={pagination.totalData}
+          loading={loading}
+          onPageChange={setPage}
+        />
       </div>
 
       {formOpen ? (
@@ -296,6 +434,14 @@ export default function BerkasAjukanPage({
       {viewBerkas ? (
         <PdfViewerModal berkas={viewBerkas} onClose={() => setViewBerkas(null)} />
       ) : null}
+      {revisionTarget ? (
+        <BerkasRevisiDialog
+          berkas={revisionTarget}
+          actorId={currentUser.id}
+          onClose={() => setRevisionTarget(null)}
+          onSaved={handleRevisionSaved}
+        />
+      ) : null}
       {deleteTarget ? (
         <BerkasDeleteDialog
           berkas={deleteTarget}
@@ -303,14 +449,16 @@ export default function BerkasAjukanPage({
           onDeleted={() => {
             const target = deleteTarget;
             if (!target) return;
-            setRecords((current) =>
-              current.filter((item) => item.id !== target.id),
-            );
             setFeedback({
               kind: "success",
               message: `Berkas "${target.judul}" berhasil dihapus.`,
             });
             setDeleteTarget(null);
+            if (records.length === 1 && page > 1) {
+              setPage(page - 1);
+            } else {
+              reload();
+            }
           }}
         />
       ) : null}

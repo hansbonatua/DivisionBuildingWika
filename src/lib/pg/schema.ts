@@ -19,6 +19,7 @@ export const BERKAS_STATUSES = [
   "MENUNGGU_TTD_1",
   "MENUNGGU_TTD_2",
   "SELESAI",
+  "DITOLAK",
 ] as const;
 
 export type BerkasStatus = (typeof BERKAS_STATUSES)[number];
@@ -1113,6 +1114,12 @@ export const berkasPengajuan = pgTable(
     judul: text("judul").notNull(),
     kodeSeri: text("kode_seri"),
     catatan: text("catatan"),
+    rejectionReason: text("rejection_reason"),
+    rejectedAt: timestamp("rejected_at", { withTimezone: true }),
+    rejectedBy: uuid("rejected_by").references(() => users.id, {
+      onDelete: "no action",
+    }),
+    revisionCount: integer("revision_count").notNull().default(0),
     pemohonId: uuid("pemohon_id")
       .notNull()
       .references(() => users.id, { onDelete: "no action" }),
@@ -1139,6 +1146,9 @@ export const berkasPengajuan = pgTable(
     uniqueIndex("berkas_pengajuan_generated_pdf_pathname_unique")
       .on(table.generatedPdfPathname)
       .where(sql`${table.generatedPdfPathname} is not null`),
+    uniqueIndex("berkas_pengajuan_kode_seri_unique")
+      .on(table.kodeSeri)
+      .where(sql`${table.kodeSeri} is not null`),
     index("berkas_pengajuan_pemohon_created_idx").on(table.pemohonId, table.createdAt),
     index("berkas_pengajuan_status_created_idx").on(table.status, table.createdAt),
     check(
@@ -1175,9 +1185,21 @@ export const berkasPengajuan = pgTable(
     ),
     check(
       "berkas_pengajuan_status_check",
-      sql`${table.status} in ('MENUNGGU_TTD_1', 'MENUNGGU_TTD_2', 'SELESAI')`,
+      sql`${table.status} in ('MENUNGGU_TTD_1', 'MENUNGGU_TTD_2', 'SELESAI', 'DITOLAK')`,
     ),
     check("berkas_pengajuan_version_check", sql`${table.version} >= 1`),
+    check(
+      "berkas_pengajuan_rejection_reason_check",
+      sql`${table.rejectionReason} is null or length(btrim(${table.rejectionReason})) between 1 and 2000`,
+    ),
+    check(
+      "berkas_pengajuan_revision_count_check",
+      sql`${table.revisionCount} >= 0`,
+    ),
+    check(
+      "berkas_pengajuan_rejection_state_check",
+      sql`${table.status} <> 'DITOLAK' or (${table.rejectedAt} is not null and ${table.rejectedBy} is not null and ${table.rejectionReason} is not null)`,
+    ),
     check(
       "berkas_pengajuan_generated_path_check",
       sql`${table.generatedPdfPathname} is null or ${table.generatedPdfPathname} <> ${table.originalPdfPathname}`,

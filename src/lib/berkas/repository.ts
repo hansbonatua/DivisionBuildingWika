@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import { getPgDb, type PgDatabase } from "@/lib/pg/client";
 import {
   berkasPengajuan,
@@ -20,6 +20,10 @@ const parentColumns = {
   judul: berkasPengajuan.judul,
   kodeSeri: berkasPengajuan.kodeSeri,
   catatan: berkasPengajuan.catatan,
+  rejectionReason: berkasPengajuan.rejectionReason,
+  rejectedAt: berkasPengajuan.rejectedAt,
+  rejectedBy: berkasPengajuan.rejectedBy,
+  revisionCount: berkasPengajuan.revisionCount,
   pemohonId: berkasPengajuan.pemohonId,
   pemohonName: users.name,
   originalPdfPathname: berkasPengajuan.originalPdfPathname,
@@ -38,6 +42,10 @@ export type BerkasListRow = {
   judul: string;
   kodeSeri: string | null;
   catatan: string | null;
+  rejectionReason: string | null;
+  rejectedAt: Date | null;
+  rejectedBy: string | null;
+  revisionCount: number;
   pemohonId: string;
   pemohonName: string;
   originalPdfPathname: string;
@@ -163,9 +171,73 @@ export async function listBerkasRows(
   );
 }
 
+export type BerkasPageInput = {
+  pemohonId?: string;
+  search?: string;
+  page: number;
+  limit: number;
+};
+
+export type BerkasPageResult = {
+  rows: BerkasListRow[];
+  totalData: number;
+};
+
+function escapeLikePattern(value: string): string {
+  return value.replace(/[\\%_]/g, "\\$&");
+}
+
+/** Paginated list used by GET /api/berkas; filters never bypass row scope. */
+export async function listBerkasPage(
+  input: BerkasPageInput,
+): Promise<BerkasPageResult> {
+  const conditions = [];
+  if (input.pemohonId) {
+    conditions.push(eq(berkasPengajuan.pemohonId, input.pemohonId));
+  }
+  const search = input.search?.trim();
+  if (search) {
+    const pattern = `%${escapeLikePattern(search)}%`;
+    const matching = or(
+      ilike(berkasPengajuan.judul, pattern),
+      ilike(berkasPengajuan.kodeSeri, pattern),
+      ilike(users.name, pattern),
+    );
+    if (matching) conditions.push(matching);
+  }
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+  const rows = await getPgDb()
+    .select(parentColumns)
+    .from(berkasPengajuan)
+    .innerJoin(users, eq(berkasPengajuan.pemohonId, users.id))
+    .where(where)
+    .orderBy(desc(berkasPengajuan.createdAt), desc(berkasPengajuan.id))
+    .limit(input.limit)
+    .offset((input.page - 1) * input.limit);
+
+  const totalRows = await getPgDb()
+    .select({ total: count() })
+    .from(berkasPengajuan)
+    .innerJoin(users, eq(berkasPengajuan.pemohonId, users.id))
+    .where(where);
+
+  return { rows, totalData: Number(totalRows[0]?.total ?? 0) };
+}
+
 export async function listBerkasAssignmentsByUser(
   validatorUserId: string,
+  berkasIds?: string[],
 ): Promise<BerkasAssignmentRow[]> {
+  if (berkasIds && berkasIds.length === 0) return [];
+
+  const condition = berkasIds
+    ? and(
+        eq(berkasValidasi.validatorUserId, validatorUserId),
+        inArray(berkasValidasi.berkasId, berkasIds),
+      )
+    : eq(berkasValidasi.validatorUserId, validatorUserId);
+
   return getPgDb()
     .select({
       berkasId: berkasValidasi.berkasId,
@@ -174,7 +246,7 @@ export async function listBerkasAssignmentsByUser(
       ttdUploadedAt: berkasValidasi.ttdUploadedAt,
     })
     .from(berkasValidasi)
-    .where(eq(berkasValidasi.validatorUserId, validatorUserId))
+    .where(condition)
     .orderBy(asc(berkasValidasi.berkasId), asc(berkasValidasi.urutan));
 }
 
@@ -433,6 +505,94 @@ export async function deleteBerkasRow(id: string): Promise<boolean> {
     .where(eq(berkasPengajuan.id, id))
     .returning({ id: berkasPengajuan.id });
   return rows.length > 0;
+}
+
+export async function updateBerkasRejectionRow(
+  id: string,
+  expectedVersion: number,
+  input: {
+    rejectionReason: string;
+    rejectedAt: Date;
+    rejectedBy: string;
+  },
+  db: BerkasDb = dbOrDefault(),
+): Promise<{ id: string; status: string; version: number } | null> {
+  const rows = await db
+    .update(berkasPengajuan)
+    .set({
+      status: "DITOLAK",
+      rejectionReason: input.rejectionReason,
+      rejectedAt: input.rejectedAt,
+      rejectedBy: input.rejectedBy,
+      version: sql`${berkasPengajuan.version} + 1`,
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(berkasPengajuan.id, id),
+        eq(berkasPengajuan.version, expectedVersion),
+      ),
+    )
+    .returning({
+      id: berkasPengajuan.id,
+      status: berkasPengajuan.status,
+      version: berkasPengajuan.version,
+    });
+  return rows[0] ?? null;
+}
+
+export async function updateBerkasRevisionRow(
+  id: string,
+  expectedVersion: number,
+  input: {
+    originalPdfPathname: string;
+    originalPdfName: string;
+    originalPdfMimeType: string;
+    originalPdfSizeBytes: number;
+    originalPdfPageCount: number;
+  },
+  db: BerkasDb = dbOrDefault(),
+): Promise<{ id: string; status: string; version: number } | null> {
+  const rows = await db
+    .update(berkasPengajuan)
+    .set({
+      ...input,
+      status: "MENUNGGU_TTD_1",
+      catatan: null,
+      completedAt: null,
+      generatedPdfPathname: null,
+      generatedPdfSizeBytes: null,
+      revisionCount: sql`${berkasPengajuan.revisionCount} + 1`,
+      version: sql`${berkasPengajuan.version} + 1`,
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(berkasPengajuan.id, id),
+        eq(berkasPengajuan.version, expectedVersion),
+      ),
+    )
+    .returning({
+      id: berkasPengajuan.id,
+      status: berkasPengajuan.status,
+      version: berkasPengajuan.version,
+    });
+  return rows[0] ?? null;
+}
+
+export async function clearBerkasValidasiTtdRows(
+  berkasId: string,
+  db: BerkasDb = dbOrDefault(),
+): Promise<void> {
+  await db
+    .update(berkasValidasi)
+    .set({
+      ttdPathname: null,
+      ttdMimeType: null,
+      ttdSizeBytes: null,
+      ttdUploadedAt: null,
+    })
+    .where(eq(berkasValidasi.berkasId, berkasId));
 }
 
 export async function updateBerkasStatusRow(

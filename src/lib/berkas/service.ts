@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { PDFDocument } from "pdf-lib";
 import {
   canCreateBerkas,
   canDeleteBerkas,
@@ -7,6 +8,7 @@ import {
   canViewBerkas,
 } from "@/lib/berkas/access";
 import {
+  clearBerkasValidasiTtdRows,
   deleteBerkasRow,
   findBerkasDeletionRowById,
   findBerkasDetailRowById,
@@ -16,7 +18,9 @@ import {
   findBerkasValidasiRowsForUpdate,
   insertBerkasWithChildren,
   listBerkasAssignmentsByUser,
-  listBerkasRows,
+  listBerkasPage as listBerkasPageRows,
+  updateBerkasRejectionRow,
+  updateBerkasRevisionRow,
   updateBerkasStatusRow,
   updateBerkasValidasiTtdRow,
   type BerkasDetailRow,
@@ -31,13 +35,17 @@ import {
   type GenerateCoverPdfData,
 } from "@/lib/berkas/pdf-engine";
 import {
-  isValidBerkasGeneratedPdfPathname,
   isValidBerkasUploadPathname,
+  parseBerkasUploadPathname,
   parseBerkasValidationTtdPathname,
   sanitizeBerkasFileName,
   type BerkasValidationRole,
 } from "@/lib/berkas/storage-path";
-import type { CreateBerkasInput } from "@/lib/berkas/schema";
+import type {
+  CreateBerkasInput,
+  RejectBerkasInput,
+  RevisiBerkasInput,
+} from "@/lib/berkas/schema";
 import { getPgDb } from "@/lib/pg/client";
 import { isForeignKeyViolation, isUniqueViolation } from "@/lib/pg/errors";
 import type { BerkasStatus } from "@/lib/pg/schema";
@@ -53,7 +61,14 @@ import {
   findUserById,
   listUsers as listUserRows,
 } from "@/lib/users/repository";
-import { isProject } from "@/lib/users/roles";
+import {
+  ADMIN_ROLE,
+  HEAD_OFFICE_ROLE,
+  MANAGEMENT_ROLE,
+  hasRole,
+  isAdmin,
+  isProject,
+} from "@/lib/users/roles";
 
 // Server-only business rules for Berkas. Routes never bypass this layer:
 // permission, ownership filter, blob verification, snapshots and the state
@@ -71,6 +86,9 @@ export type BerkasListItem = {
   judul: string;
   kodeSeri: string | null;
   catatan: string | null;
+  rejectionReason: string | null;
+  rejectedAt: string | null;
+  revisionCount: number;
   pemohon: { id: string; name: string };
   originalPdf: { name: string; sizeBytes: number };
   status: BerkasStatus;
@@ -128,12 +146,12 @@ export type BerkasAssignment = {
   ttdUploadedAt: string | null;
 };
 
-export type UpdateBerkasStatusInput = {
-  status: BerkasStatus;
-  expectedVersion: number;
-  completedAt?: Date | null;
-  generatedPdfPathname?: string | null;
-  generatedPdfSizeBytes?: number | null;
+export type BerkasPage = {
+  data: BerkasListItem[];
+  page: number;
+  limit: number;
+  totalData: number;
+  totalPages: number;
 };
 
 export class BerkasForbiddenError extends Error {
@@ -178,10 +196,27 @@ const ORIGINAL_PDF_MIME = "application/pdf";
 const TTD_MIME_TYPES = new Set(["image/png", "image/jpeg"]);
 
 const ALLOWED_TRANSITIONS: Record<BerkasStatus, readonly BerkasStatus[]> = {
-  MENUNGGU_TTD_1: ["MENUNGGU_TTD_2"],
-  MENUNGGU_TTD_2: ["SELESAI"],
+  MENUNGGU_TTD_1: ["MENUNGGU_TTD_2", "DITOLAK"],
+  MENUNGGU_TTD_2: ["SELESAI", "DITOLAK"],
+  DITOLAK: ["MENUNGGU_TTD_1"],
   SELESAI: [],
 };
+
+const VALIDATOR_ROLES = [
+  ADMIN_ROLE,
+  HEAD_OFFICE_ROLE,
+  MANAGEMENT_ROLE,
+] as const;
+
+function isEligibleValidatorRole(role: string): boolean {
+  return hasRole(role, ...VALIDATOR_ROLES);
+}
+
+function assertTransition(from: BerkasStatus, to: BerkasStatus): void {
+  if (!ALLOWED_TRANSITIONS[from]?.includes(to)) {
+    throw new BerkasConflictError("Transisi status Berkas tidak valid");
+  }
+}
 
 function assertActive(actor: BerkasActor): void {
   if (actor.status !== "active") {
@@ -246,6 +281,9 @@ function toListItem(row: BerkasListRow): BerkasListItem {
     judul: row.judul,
     kodeSeri: row.kodeSeri,
     catatan: row.catatan,
+    rejectionReason: row.rejectionReason,
+    rejectedAt: toIso(row.rejectedAt),
+    revisionCount: row.revisionCount,
     pemohon: { id: row.pemohonId, name: row.pemohonName },
     originalPdf: {
       name: row.originalPdfName,
@@ -291,6 +329,40 @@ function hasSqlState(error: unknown, code: string, depth = 0): boolean {
   }
   const cause = (error as { cause?: unknown }).cause;
   return cause === error ? false : hasSqlState(cause, code, depth + 1);
+}
+
+function sqlConstraint(error: unknown, depth = 0): string | null {
+  if (depth > 3 || typeof error !== "object" || error === null) return null;
+  const value = error as {
+    constraint?: unknown;
+    constraint_name?: unknown;
+    message?: unknown;
+  };
+  if (typeof value.constraint === "string") return value.constraint;
+  if (typeof value.constraint_name === "string") return value.constraint_name;
+  if (typeof value.message === "string") {
+    for (const name of [
+      "berkas_pengajuan_original_pdf_pathname_unique",
+      "berkas_pengajuan_generated_pdf_pathname_unique",
+      "berkas_penyusun_ttd_pathname_unique",
+      "berkas_validasi_ttd_pathname_unique",
+    ]) {
+      if (value.message.includes(name)) return name;
+    }
+  }
+  const cause = (error as { cause?: unknown }).cause;
+  return cause === error ? null : sqlConstraint(cause, depth + 1);
+}
+
+/** Never delete a pathname that another record may already own. */
+function isReusedPathnameViolation(error: unknown): boolean {
+  const constraint = sqlConstraint(error);
+  return (
+    constraint === "berkas_pengajuan_original_pdf_pathname_unique" ||
+    constraint === "berkas_pengajuan_generated_pdf_pathname_unique" ||
+    constraint === "berkas_penyusun_ttd_pathname_unique" ||
+    constraint === "berkas_validasi_ttd_pathname_unique"
+  );
 }
 
 function mapWriteError(error: unknown): never {
@@ -366,6 +438,56 @@ async function readPrivateBlobBytes(
   }
   const buffer = await new Response(download.stream).arrayBuffer();
   return new Uint8Array(buffer);
+}
+
+/** Best-effort blob cleanup. It never throws and never logs pathname values. */
+export async function cleanupBerkasBlobs(
+  pathnames: string[],
+  context: {
+    operation: "create" | "revisi" | "ttd" | "delete";
+    berkasId?: string;
+  },
+): Promise<void> {
+  const unique = [...new Set(pathnames.filter((pathname) => pathname.trim()))];
+  if (unique.length === 0) return;
+
+  const results = await Promise.allSettled(
+    unique.map((pathname) => deleteBlob(pathname)),
+  );
+  const failed = results.filter((result) => result.status === "rejected").length;
+  const skipped = results.filter(
+    (result) =>
+      result.status === "fulfilled" && result.value.reason !== "deleted",
+  ).length;
+
+  if (failed > 0 || skipped > 0) {
+    console.warn("Berkas blob cleanup incomplete", {
+      operation: context.operation,
+      berkasId: context.berkasId,
+      failed,
+      skipped,
+      total: unique.length,
+    });
+  }
+}
+
+async function readPdfPageCount(
+  bytes: Uint8Array,
+  label: string,
+): Promise<number> {
+  try {
+    const document = await PDFDocument.load(bytes);
+    const pageCount = document.getPageCount();
+    if (pageCount < 1 || pageCount > 200) {
+      throw new BerkasValidationError(`${label} harus memiliki 1–200 halaman`);
+    }
+    return pageCount;
+  } catch (error) {
+    if (error instanceof BerkasValidationError) throw error;
+    throw new BerkasValidationError(
+      `${label} bukan PDF yang valid atau file terenkripsi`,
+    );
+  }
 }
 
 function findValidationAssignment(
@@ -567,7 +689,7 @@ export async function ensureBerkasValidatorUpload(
   id: string,
   role: BerkasValidationRole,
 ): Promise<void> {
-  assertActive(actor);
+  assertValidateAccess(actor);
   const detail = await findBerkasDetailRowById(id);
   if (!detail) {
     throw new BerkasNotFoundError();
@@ -583,22 +705,38 @@ export async function ensureBerkasValidatorUpload(
   assertTtdWindow(detail.status as BerkasStatus, assignment);
 }
 
-export async function listBerkas(
+export async function listBerkasPage(
   actor: BerkasActor,
-): Promise<BerkasListItem[]> {
+  input: { search?: string; page: number; limit: number },
+): Promise<BerkasPage> {
   assertViewAccess(actor);
-  const rows = await listBerkasRows(isProject(actor.role) ? actor.id : undefined);
-  return rows.map(toListItem);
+  const result = await listBerkasPageRows({
+    pemohonId: isProject(actor.role) ? actor.id : undefined,
+    search: input.search,
+    page: input.page,
+    limit: input.limit,
+  });
+  return {
+    data: result.rows.map(toListItem),
+    page: input.page,
+    limit: input.limit,
+    totalData: result.totalData,
+    totalPages:
+      result.totalData === 0 ? 0 : Math.ceil(result.totalData / input.limit),
+  };
 }
 
-/** All active users are eligible as penyusun/validator, as enforced by createBerkas. */
+/** Validators/penyusun may only be users whose role is allowed to validate. */
 export async function listBerkasUserOptions(
   actor: BerkasActor,
 ): Promise<BerkasUserOption[]> {
   assertCreateAccess(actor);
   const rows = await listUserRows();
   return rows
-    .filter((user) => user.status === "active")
+    .filter(
+      (user) =>
+        user.status === "active" && isEligibleValidatorRole(user.role),
+    )
     .map((user) => ({
       id: user.id,
       name: user.name,
@@ -606,12 +744,13 @@ export async function listBerkasUserOptions(
     }));
 }
 
-/** Current viewer's validator assignments, used only to decide UI actions. */
+/** Current viewer's validator assignments, optionally limited to a page. */
 export async function listBerkasAssignments(
   actor: BerkasActor,
+  berkasIds?: string[],
 ): Promise<BerkasAssignment[]> {
   assertViewAccess(actor);
-  const rows = await listBerkasAssignmentsByUser(actor.id);
+  const rows = await listBerkasAssignmentsByUser(actor.id, berkasIds);
   return rows.map((row) => ({
     berkasId: row.berkasId,
     urutan: row.urutan,
@@ -665,6 +804,35 @@ export async function createBerkas(
 ): Promise<BerkasDetail> {
   assertCreateAccess(actor);
 
+  const cleanupPathnames = [
+    ...(isValidBerkasUploadPathname(
+      input.originalPdf.pathname,
+      actor.id,
+      input.uploadId,
+      "original",
+    )
+      ? [input.originalPdf.pathname]
+      : []),
+    ...input.penyusun
+      .filter((item) =>
+        isValidBerkasUploadPathname(
+          item.ttdPathname,
+          actor.id,
+          input.uploadId,
+          "penyusun_ttd",
+          item.urutan,
+        ),
+      )
+      .map((item) => item.ttdPathname),
+  ];
+
+  async function failCreate(error: Error): Promise<never> {
+    if (!isReusedPathnameViolation(error)) {
+      await cleanupBerkasBlobs(cleanupPathnames, { operation: "create" });
+    }
+    throw error;
+  }
+
   const penyusunUsers = await Promise.all(
     input.penyusun.map((item) =>
       requireActiveUser(item.userId, "Penyusun"),
@@ -675,16 +843,25 @@ export async function createBerkas(
       requireActiveUser(item.userId, "Validator"),
     ),
   );
+  if (validatorUsers.some((user) => !isEligibleValidatorRole(user.role))) {
+    return failCreate(
+      new BerkasValidationError(
+        "Validator harus Admin, Head Office, atau Management",
+      ),
+    );
+  }
 
   if (input.penyusun.length !== 1) {
-    throw new BerkasValidationError("Tepat 1 penyusun wajib diisi");
+    return failCreate(new BerkasValidationError("Tepat 1 penyusun wajib diisi"));
   }
   if (input.validasi.length !== 2) {
-    throw new BerkasValidationError("Tepat 2 validator wajib diisi");
+    return failCreate(new BerkasValidationError("Tepat 2 validator wajib diisi"));
   }
   if (input.validasi[0]?.userId === input.validasi[1]?.userId) {
-    throw new BerkasValidationError(
-      "Validator 1 dan Validator 2 harus orang berbeda",
+    return failCreate(
+      new BerkasValidationError(
+        "Validator 1 dan Validator 2 harus orang berbeda",
+      ),
     );
   }
 
@@ -696,7 +873,7 @@ export async function createBerkas(
       "original",
     )
   ) {
-    throw new BerkasValidationError("Path PDF asli tidak valid");
+    return failCreate(new BerkasValidationError("Path PDF asli tidak valid"));
   }
 
   for (const item of input.penyusun) {
@@ -709,7 +886,9 @@ export async function createBerkas(
         item.urutan,
       )
     ) {
-      throw new BerkasValidationError("Path TTD penyusun tidak valid");
+      return failCreate(
+        new BerkasValidationError("Path TTD penyusun tidak valid"),
+      );
     }
   }
 
@@ -718,33 +897,41 @@ export async function createBerkas(
     ...input.penyusun.map((item) => item.ttdPathname),
   ];
   if (new Set(allPathnames).size !== allPathnames.length) {
-    throw new BerkasValidationError("Path file tidak boleh duplikat");
+    return failCreate(
+      new BerkasValidationError("Path file tidak boleh duplikat"),
+    );
   }
 
   const originalPdfName = sanitizeBerkasFileName(input.originalPdf.fileName);
   if (!originalPdfName || !originalPdfName.toLowerCase().endsWith(".pdf")) {
-    throw new BerkasValidationError("Nama file PDF tidak valid");
+    return failCreate(new BerkasValidationError("Nama file PDF tidak valid"));
   }
 
-  const original = await verifyPrivateBlob(
-    input.originalPdf.pathname,
-    new Set([ORIGINAL_PDF_MIME]),
-    ORIGINAL_PDF_MAX_BYTES,
-    "PDF asli",
-  );
-  const ttdFiles = await Promise.all(
-    input.penyusun.map((item) =>
-      verifyPrivateBlob(
-        item.ttdPathname,
-        TTD_MIME_TYPES,
-        TTD_MAX_BYTES,
-        `TTD penyusun ${item.urutan}`,
-      ),
-    ),
-  );
-
+  let createdId: string | null = null;
   try {
-    const id = await insertBerkasWithChildren({
+    const original = await verifyPrivateBlob(
+      input.originalPdf.pathname,
+      new Set([ORIGINAL_PDF_MIME]),
+      ORIGINAL_PDF_MAX_BYTES,
+      "PDF asli",
+    );
+    const originalBytes = await readPrivateBlobBytes(
+      input.originalPdf.pathname,
+      "PDF asli",
+    );
+    const pageCount = await readPdfPageCount(originalBytes, "PDF asli");
+    const ttdFiles = await Promise.all(
+      input.penyusun.map((item) =>
+        verifyPrivateBlob(
+          item.ttdPathname,
+          TTD_MIME_TYPES,
+          TTD_MAX_BYTES,
+          `TTD penyusun ${item.urutan}`,
+        ),
+      ),
+    );
+
+    createdId = await insertBerkasWithChildren({
       judul: input.judul,
       kodeSeri: input.kodeSeri?.trim() || null,
       pemohonId: actor.id,
@@ -752,7 +939,7 @@ export async function createBerkas(
       originalPdfName,
       originalPdfMimeType: original.mimeType,
       originalPdfSizeBytes: original.blob.size,
-      originalPdfPageCount: input.originalPdf.pageCount,
+      originalPdfPageCount: pageCount,
       penyusun: input.penyusun.map((item, index) => ({
         userId: item.userId,
         namaSnapshot: item.nama?.trim() || penyusunUsers[index].name,
@@ -769,89 +956,17 @@ export async function createBerkas(
         jabatanSnapshot: item.jabatan,
       })),
     });
-
-    return getBerkasById(actor, id);
   } catch (error) {
-    mapWriteError(error);
-  }
-}
-
-export async function updateStatus(
-  actor: BerkasActor,
-  id: string,
-  input: UpdateBerkasStatusInput,
-): Promise<BerkasDetail> {
-  assertValidateAccess(actor);
-
-  try {
-    await getPgDb().transaction(async (tx) => {
-      const current = await findBerkasForUpdate(id, tx);
-      if (!current) {
-        throw new BerkasNotFoundError();
-      }
-      if (current.version !== input.expectedVersion) {
-        throw new BerkasConflictError(
-          "Versi Berkas sudah berubah. Muat ulang data terbaru.",
-        );
-      }
-
-      const currentStatus = current.status as BerkasStatus;
-      if (!ALLOWED_TRANSITIONS[currentStatus]?.includes(input.status)) {
-        throw new BerkasConflictError("Transisi status Berkas tidak valid");
-      }
-
-      if (input.status === "SELESAI") {
-        if (
-          !input.generatedPdfPathname ||
-          input.generatedPdfSizeBytes === undefined ||
-          input.generatedPdfSizeBytes === null
-        ) {
-          throw new BerkasValidationError(
-            "Generated PDF wajib tersedia sebelum status SELESAI",
-          );
-        }
-        if (
-          !isValidBerkasGeneratedPdfPathname(
-            input.generatedPdfPathname,
-            id,
-          )
-        ) {
-          throw new BerkasValidationError("Path generated PDF tidak valid");
-        }
-      } else if (
-        input.generatedPdfPathname !== undefined ||
-        input.generatedPdfSizeBytes !== undefined ||
-        input.completedAt !== undefined
-      ) {
-        throw new BerkasValidationError(
-          "Metadata generated PDF hanya boleh diisi saat status SELESAI",
-        );
-      }
-
-      const updated = await updateBerkasStatusRow(
-        id,
-        input.expectedVersion,
-        input.status === "SELESAI"
-          ? {
-              status: input.status,
-              completedAt: input.completedAt ?? new Date(),
-              generatedPdfPathname: input.generatedPdfPathname,
-              generatedPdfSizeBytes: input.generatedPdfSizeBytes,
-            }
-          : { status: input.status },
-        tx,
-      );
-      if (!updated) {
-        throw new BerkasConflictError(
-          "Versi Berkas sudah berubah. Muat ulang data terbaru.",
-        );
-      }
-    });
-  } catch (error) {
+    if (!isReusedPathnameViolation(error)) {
+      await cleanupBerkasBlobs(allPathnames, { operation: "create" });
+    }
     mapWriteError(error);
   }
 
-  return getBerkasById(actor, id);
+  if (!createdId) {
+    throw new BerkasConflictError("Berkas gagal dibuat");
+  }
+  return getBerkasById(actor, createdId);
 }
 
 /**
@@ -865,7 +980,7 @@ export async function submitTtd(
   pathname: string,
   catatan: string | null,
 ): Promise<BerkasDetail> {
-  assertActive(actor);
+  assertValidateAccess(actor);
 
   const detail = await findBerkasDetailRowById(id);
   if (!detail) {
@@ -881,7 +996,10 @@ export async function submitTtd(
     TTD_MIME_TYPES,
     TTD_MAX_BYTES,
     `TTD Validator ${assignment.urutan}`,
-  );
+  ).catch(async (error) => {
+    await cleanupBerkasBlobs([pathname], { operation: "ttd", berkasId: id });
+    return mapWriteError(error);
+  });
   const ttdUploadedAt = new Date();
 
   if (assignment.urutan === 1) {
@@ -897,6 +1015,7 @@ export async function submitTtd(
         if (current.status !== "MENUNGGU_TTD_1") {
           throw new BerkasConflictError("Status Berkas tidak sesuai");
         }
+        assertTransition(current.status as BerkasStatus, "MENUNGGU_TTD_2");
 
         const rows = await findBerkasValidasiRowsForUpdate(id, tx);
         const currentAssignment = rows.find(
@@ -941,20 +1060,23 @@ export async function submitTtd(
         }
       });
     } catch (error) {
+      await cleanupBerkasBlobs([pathname], { operation: "ttd", berkasId: id });
       mapWriteError(error);
     }
   } else {
-    // Build bytes before touching the database so a failed generation leaves
-    // status MENUNGGU_TTD_2 and the TTD slot available for a retry.
-    const generated = await buildGeneratedPdf(
-      detail,
-      pathname,
-      verified.mimeType,
-      ttdUploadedAt,
-    );
-    const completedAt = new Date();
-
+    let generatedPathname: string | null = null;
     try {
+      // Build bytes before touching the database so a failed generation leaves
+      // status MENUNGGU_TTD_2 and the TTD slot available for a retry.
+      const generated = await buildGeneratedPdf(
+        detail,
+        pathname,
+        verified.mimeType,
+        ttdUploadedAt,
+      );
+      generatedPathname = generated.pathname;
+      const completedAt = new Date();
+
       await getPgDb().transaction(async (tx) => {
         const current = await findBerkasForUpdate(id, tx);
         if (!current) throw new BerkasNotFoundError();
@@ -966,6 +1088,7 @@ export async function submitTtd(
         if (current.status !== "MENUNGGU_TTD_2") {
           throw new BerkasConflictError("Status Berkas tidak sesuai");
         }
+        assertTransition(current.status as BerkasStatus, "SELESAI");
 
         const rows = await findBerkasValidasiRowsForUpdate(id, tx);
         const currentAssignment = rows.find(
@@ -1018,8 +1141,14 @@ export async function submitTtd(
         }
       });
     } catch (error) {
-      // The transaction did not commit; do not leave an unreferenced artifact.
-      await deleteBlob(generated.pathname).catch(() => undefined);
+      // The transaction did not commit; do not leave unreferenced artifacts.
+      if (generatedPathname) {
+        await cleanupBerkasBlobs([generatedPathname], {
+          operation: "ttd",
+          berkasId: id,
+        });
+      }
+      await cleanupBerkasBlobs([pathname], { operation: "ttd", berkasId: id });
       mapWriteError(error);
     }
   }
@@ -1062,9 +1191,172 @@ export async function deleteBerkas(
     ...row.penyusunTtdPathnames,
     ...row.validasiTtdPathnames,
   ];
-  await Promise.allSettled(pathnames.map((pathname) => deleteBlob(pathname)));
+  await cleanupBerkasBlobs(pathnames, { operation: "delete", berkasId: id });
 
   return { id };
+}
+
+export async function rejectBerkas(
+  actor: BerkasActor,
+  id: string,
+  input: RejectBerkasInput,
+): Promise<BerkasDetail> {
+  assertActive(actor);
+
+  const detail = await findBerkasDetailRowById(id);
+  if (!detail) {
+    throw new BerkasNotFoundError();
+  }
+
+  const status = detail.status as BerkasStatus;
+  if (status !== "MENUNGGU_TTD_1" && status !== "MENUNGGU_TTD_2") {
+    throw new BerkasConflictError("Berkas tidak berada pada tahap validasi");
+  }
+
+  if (!isAdmin(actor.role)) {
+    assertValidateAccess(actor);
+    const assignment = detail.validasi.find(
+      (item) => item.validatorUserId === actor.id,
+    );
+    const expectedUrutan = status === "MENUNGGU_TTD_1" ? 1 : 2;
+    if (!assignment || assignment.urutan !== expectedUrutan) {
+      throw new BerkasForbiddenError(
+        `Anda bukan Validator ${expectedUrutan} untuk Berkas ini`,
+      );
+    }
+  }
+
+  const reason = input.reason.trim();
+  if (!reason) {
+    throw new BerkasValidationError("Alasan penolakan wajib diisi");
+  }
+
+  try {
+    await getPgDb().transaction(async (tx) => {
+      const current = await findBerkasForUpdate(id, tx);
+      if (!current) throw new BerkasNotFoundError();
+      if (current.version !== detail.version) {
+        throw new BerkasConflictError(
+          "Versi Berkas sudah berubah. Muat ulang data terbaru.",
+        );
+      }
+      assertTransition(current.status as BerkasStatus, "DITOLAK");
+
+      const updated = await updateBerkasRejectionRow(
+        id,
+        current.version,
+        {
+          rejectionReason: reason,
+          rejectedAt: new Date(),
+          rejectedBy: actor.id,
+        },
+        tx,
+      );
+      if (!updated) {
+        throw new BerkasConflictError(
+          "Versi Berkas sudah berubah. Muat ulang data terbaru.",
+        );
+      }
+    });
+  } catch (error) {
+    mapWriteError(error);
+  }
+
+  const updated = await findBerkasDetailRowById(id);
+  if (!updated) throw new BerkasNotFoundError();
+  return toDetail(updated);
+}
+
+export async function revisiBerkas(
+  actor: BerkasActor,
+  id: string,
+  input: RevisiBerkasInput,
+): Promise<BerkasDetail> {
+  assertActive(actor);
+
+  const detail = await findBerkasDetailRowById(id);
+  if (!detail) {
+    throw new BerkasNotFoundError();
+  }
+  if (!isAdmin(actor.role) && detail.pemohonId !== actor.id) {
+    throw new BerkasForbiddenError("Hanya pemohon yang dapat merevisi Berkas");
+  }
+  if (detail.status !== "DITOLAK") {
+    throw new BerkasConflictError("Hanya Berkas ditolak yang dapat direvisi");
+  }
+  if (input.newPdfPathname === detail.originalPdfPathname) {
+    throw new BerkasValidationError("PDF revisi harus berbeda dari PDF lama");
+  }
+
+  const parsed = parseBerkasUploadPathname(input.newPdfPathname);
+  if (!parsed || parsed.actorId !== actor.id || parsed.kind !== "original") {
+    throw new BerkasValidationError("Path PDF revisi tidak valid");
+  }
+  const fileName = sanitizeBerkasFileName(input.fileName ?? parsed.fileName);
+
+  try {
+    if (!fileName || !fileName.toLowerCase().endsWith(".pdf")) {
+      throw new BerkasValidationError("Nama file PDF revisi tidak valid");
+    }
+    const verified = await verifyPrivateBlob(
+      input.newPdfPathname,
+      new Set([ORIGINAL_PDF_MIME]),
+      ORIGINAL_PDF_MAX_BYTES,
+      "PDF revisi",
+    );
+    const bytes = await readPrivateBlobBytes(input.newPdfPathname, "PDF revisi");
+    const pageCount = await readPdfPageCount(bytes, "PDF revisi");
+    const oldTtdPathnames = detail.validasi
+      .map((item) => item.ttdPathname)
+      .filter((pathname): pathname is string => Boolean(pathname));
+
+    await getPgDb().transaction(async (tx) => {
+      const current = await findBerkasForUpdate(id, tx);
+      if (!current) throw new BerkasNotFoundError();
+      if (current.version !== detail.version) {
+        throw new BerkasConflictError(
+          "Versi Berkas sudah berubah. Muat ulang data terbaru.",
+        );
+      }
+      assertTransition(current.status as BerkasStatus, "MENUNGGU_TTD_1");
+
+      const updated = await updateBerkasRevisionRow(
+        id,
+        current.version,
+        {
+          originalPdfPathname: input.newPdfPathname,
+          originalPdfName: fileName,
+          originalPdfMimeType: verified.mimeType,
+          originalPdfSizeBytes: verified.blob.size,
+          originalPdfPageCount: pageCount,
+        },
+        tx,
+      );
+      if (!updated) {
+        throw new BerkasConflictError(
+          "Versi Berkas sudah berubah. Muat ulang data terbaru.",
+        );
+      }
+      await clearBerkasValidasiTtdRows(id, tx);
+    });
+
+    await cleanupBerkasBlobs(
+      [detail.originalPdfPathname, ...oldTtdPathnames],
+      { operation: "revisi", berkasId: id },
+    );
+  } catch (error) {
+    if (!isReusedPathnameViolation(error)) {
+      await cleanupBerkasBlobs([input.newPdfPathname], {
+        operation: "revisi",
+        berkasId: id,
+      });
+    }
+    mapWriteError(error);
+  }
+
+  const updated = await findBerkasDetailRowById(id);
+  if (!updated) throw new BerkasNotFoundError();
+  return toDetail(updated);
 }
 
 export async function downloadBerkas(

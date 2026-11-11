@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
+import { canValidateBerkas } from "@/lib/berkas/access";
 import {
   berkasUploadClientPayloadSchema,
   type BerkasUploadClientPayload,
 } from "@/lib/berkas/schema";
 import {
+  BerkasForbiddenError,
   ensureBerkasCreate,
   ensureBerkasValidatorUpload,
 } from "@/lib/berkas/service";
@@ -84,6 +86,11 @@ export async function POST(request: Request) {
           if (payload.kind === "validator_ttd") {
             if (!payload.berkasId || !payload.role) {
               throw new BerkasUploadPayloadError();
+            }
+            if (!canValidateBerkas(auth.actor.role)) {
+              throw new BerkasForbiddenError(
+                "Anda tidak memiliki akses validasi Berkas",
+              );
             }
             const expectedRole = payload.role === "validasi-1" ? "1" : "2";
             const parsedPath = parseBerkasValidationTtdPathname(pathname);
