@@ -5,6 +5,55 @@ Dokumentasi audit repository ada di `docs/audit/`; dokumen ini mencatat **peruba
 
 ---
 
+## DL-2026-11-12-07 — Dashboard SASAA, Kelola Foto & Security Patch
+
+| Field | Nilai |
+|---|---|
+| Feature ID | `ENT-SASAA` |
+| Tanggal | 12 November 2026 |
+| Status | **IMPLEMENTED BUT NOT FULLY VERIFIED** — backend dan UI selesai; migration `0026_project_photos` **APPLIED**; build PASS 98 routes; visual Vercel belum dicek |
+| Commit | `bb7228f` — `feat(sasaa): implement executive dashboard, photo carousel, and admin photo management`; security patch `package.json`/`package-lock.json` belum di-commit |
+| Branch | `main` |
+| Baseline | `eb77e1c` + Dashboard SASAA/Kelola Foto + security patch |
+| Migration | `0026_project_photos` — **APPLIED** (12 November 2026); journal 27 entry |
+
+### Perubahan
+- **Tabel `project_photos`:** menyimpan tepat empat slot foto per proyek dengan `UNIQUE(project_id, slot)`, unique `blob_pathname`, CHECK slot 1–4, validasi URL HTTPS, MIME JPEG/PNG/WEBP/AVIF, dan ukuran 1–5.242.880 byte. FK `project_id` memakai `ON DELETE CASCADE`; audit `created_by`/`updated_by` mengikuti konvensi enterprise.
+- **Aggregator API:** `GET /api/dashboard/sasaa` untuk dropdown seluruh proyek dan `GET /api/dashboard/sasaa/[projectId]` untuk agregat foto, MSL, Engineering Database, PDOC, dan Knowledge Management. Query agregat dijalankan paralel; MSL hanya mengekspos skor rata-rata, kategori, jumlah bulan, dan bulan terbaru.
+- **API foto Admin:** `POST /api/master-project/photos/upload`, `GET /api/master-project/[id]/photos`, dan `PUT /api/master-project/[id]/photos`. Penggantian foto memakai transaksi database, verifikasi metadata Blob, validasi namespace pathname, dan cleanup Blob lama setelah commit.
+- **UI Carousel:** `SasaaPage` dan `ProjectPhotoCarousel` menampilkan empat foto dengan autoplay 6000 ms, pause saat hover/focus, tombol prev/next, indikator dot, hitungan slide, dukungan `prefers-reduced-motion`, serta empty state bila foto belum lengkap.
+- **Empat widget:** kartu MSL (skor rata-rata/kategori), Engineering Database (total entri dan kategori), PDOC (minggu terisi dan bulan terdokumentasi), serta Knowledge Management (total dan rincian Lesson Learn/Best Practice/VA-VE). Tersedia skeleton, error/retry, dan state kosong.
+- **Kelola Foto Admin:** halaman tabel seluruh Master Project dengan status foto `0/4`–`4/4`; modal empat slot untuk upload, ganti, hapus, preview, progress, dan simpan atomik. Upload browser langsung ke Blob Public; route dan halaman dijaga `MASTER_PROJECT_PHOTOS_MANAGE`.
+- **Navigasi/RBAC:** submenu **Dashboard SASAA** dan **Kelola Foto Proyek** di accordion Master Project; `DASHBOARD_SASAA_VIEW` mencakup Admin, Head Office, Management, dan Project, sedangkan `MASTER_PROJECT_PHOTOS_MANAGE` hanya Admin.
+- **Security patch:** Next.js dinaikkan ke `16.4.6` dan React/React DOM ke `19.3.1` untuk perbaikan CVE. `npm ls` mengonfirmasi versi terpasang; perubahan dependency masih berada di working tree.
+- **Build:** `npx next build` **PASS — 98 routes**.
+
+### File impacted
+- Backend: `src/lib/pg/schema.ts`, `src/lib/auth/permissions.ts`, `src/lib/dashboard/{sasaa-service,project-photo-storage}.ts`, `src/lib/master-project/{repository,service}.ts`, route `src/app/api/dashboard/sasaa/*`, dan route `src/app/api/master-project/**/photos/*`.
+- Frontend: `src/components/dashboard/DashboardSidebar.tsx`, `src/components/dashboard/sasaa/*`, `src/components/dashboard/master-project/{PhotosManagePage,PhotoUploadDialog,photo-types}.tsx|ts`, dan route `src/app/dashboard/master-project/{sasaa,photos}/*`.
+- Data: `drizzle/0026_project_photos.sql`, `drizzle/meta/0026_snapshot.json`, dan `drizzle/meta/_journal.json` (27 entry).
+- Dependency: `package.json`, `package-lock.json`.
+- Pass dokumentasi ini hanya mengubah tiga dokumen development dan tidak mengubah kode, database, atau API.
+
+### Verifikasi
+| Pemeriksaan | Hasil | Sumber |
+|---|---|---|
+| `npx tsc --noEmit` | **PASS** | Freebuff (implementasi) |
+| `npx eslint` (file UI/API SASAA) | **PASS** — 0 error, 2 warning `no-img-element` untuk Blob remote | Freebuff (implementasi) |
+| `npm test` | **256/256 PASS** (61 suite) | Freebuff (implementasi) |
+| `npx next build` | **PASS — 98 routes** | Konteks P8/Owner |
+| `git diff --check` | **PASS** | Freebuff (pass dokumentasi) |
+| Migration `0026_project_photos` | **APPLIED**; journal 27 entry | Owner-confirmed |
+| Runtime visual Vercel | **NOT RUN** | — |
+
+### Batasan
+- Visual Vercel, interaksi carousel, dan alur upload/ganti/hapus empat foto belum diperiksa pada pass ini; status sengaja tetap `IMPLEMENTED BUT NOT FULLY VERIFIED`.
+- Migration `0026_project_photos` tidak dijalankan ulang pada pass dokumentasi ini; status APPLIED mengikuti konfirmasi konteks P8.
+- Security patch `package.json`/`package-lock.json` belum di-commit; pass ini tidak melakukan commit, push, deploy, migration, seed, atau DB write.
+- Dokumentasi ini hanya mengubah `docs/development/{CURRENT_PROJECT_STATE,DEVELOPMENT_MASTER_LOG,FEATURE_REGISTER}.md`.
+
+---
+
 ## DL-2026-11-12-06 — Dashboard Welcoming (Backend & UI)
 
 | Field | Nilai |
