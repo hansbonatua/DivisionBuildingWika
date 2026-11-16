@@ -48,6 +48,9 @@ export const PERMISSIONS = {
   METODE_KERJA_MANAGE: "METODE_KERJA_MANAGE",
   METODE_KERJA_DELETE: "METODE_KERJA_DELETE",
 
+  REGULATION_VIEW: "REGULATION_VIEW",
+  REGULATION_MANAGE: "REGULATION_MANAGE",
+
   CALCULATION_SHEET_VIEW: "CALCULATION_SHEET_VIEW",
   CALCULATION_SHEET_MANAGE: "CALCULATION_SHEET_MANAGE",
 
@@ -113,6 +116,12 @@ const NON_ADMIN_PERMISSION_ROLES: Record<Permission, readonly UserRole[]> = {
   METODE_KERJA_VIEW: [HEAD_OFFICE_ROLE, PROJECT_ROLE, MANAGEMENT_ROLE],
   METODE_KERJA_MANAGE: [HEAD_OFFICE_ROLE],
   METODE_KERJA_DELETE: [],
+
+  // Standard & Regulation: Head Office manages; Management and Project are
+  // read-only. Admin receives both permissions through the super-application
+  // rule. Delete is part of REGULATION_MANAGE (no separate delete permission).
+  REGULATION_VIEW: [HEAD_OFFICE_ROLE, PROJECT_ROLE, MANAGEMENT_ROLE],
+  REGULATION_MANAGE: [HEAD_OFFICE_ROLE],
 
   // Calculation Sheet Template is a FLAT master reference. Head Office has
   // full CRUD (including delete, unlike MKS), Management and Project are

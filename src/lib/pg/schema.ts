@@ -980,6 +980,137 @@ export type PgMetodeKerjaPic = typeof metodeKerjaPic.$inferSelect;
 export type NewPgMetodeKerjaPic = typeof metodeKerjaPic.$inferInsert;
 
 // ---------------------------------------------------------------------------
+// Core Enterprise: Standard & Regulation.
+//
+// Dua tabel terpisah dari MKS. Disiplin adalah konstanta aplikasi dan disimpan
+// sebagai text + CHECK. Dokumen tidak menduplikasi disiplin; nilai itu selalu
+// diturunkan dari sub-kategori induk. File hanya boleh berada di namespace
+// private `regulation/` dan metadata ukuran dibatasi 20 MB.
+//
+// ON DELETE RESTRICT pada dokumen mencegah sub-kategori yang masih berisi file
+// dihapus. Service tetap mengembalikan 409 sebelum FK menjadi backstop.
+export const regulationSubKategori = pgTable(
+  "regulation_sub_kategori",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    disiplin: text("disiplin").notNull(),
+    kode: text("kode").notNull(),
+    nama: text("nama").notNull(),
+    sortOrder: integer("sort_order").notNull().default(0),
+    note: text("note"),
+    createdBy: uuid("created_by")
+      .notNull()
+      .references(() => users.id, { onDelete: "no action" }),
+    updatedBy: uuid("updated_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("regulation_sub_kategori_disiplin_sort_idx").on(
+      table.disiplin,
+      table.sortOrder,
+      table.id,
+    ),
+    uniqueIndex("regulation_sub_kategori_disiplin_kode_unique").on(
+      table.disiplin,
+      sql`lower(btrim(${table.kode}))`,
+    ),
+    index("regulation_sub_kategori_created_by_idx").on(table.createdBy),
+    index("regulation_sub_kategori_updated_by_idx").on(table.updatedBy),
+    check(
+      "regulation_sub_kategori_disiplin_check",
+      sql`${table.disiplin} in ('prosedur_wika', 'sni', 'peraturan_pemerintah', 'standar_internasional', 'lainnya')`,
+    ),
+    check(
+      "regulation_sub_kategori_kode_check",
+      sql`length(btrim(${table.kode})) between 1 and 30`,
+    ),
+    check(
+      "regulation_sub_kategori_nama_check",
+      sql`length(btrim(${table.nama})) between 1 and 200`,
+    ),
+    check("regulation_sub_kategori_sort_check", sql`${table.sortOrder} >= 0`),
+    check(
+      "regulation_sub_kategori_note_check",
+      sql`${table.note} is null or length(${table.note}) <= 2000`,
+    ),
+  ],
+);
+
+export type PgRegulationSubKategori = typeof regulationSubKategori.$inferSelect;
+export type NewPgRegulationSubKategori = typeof regulationSubKategori.$inferInsert;
+
+export const regulationDocument = pgTable(
+  "regulation_document",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    subKategoriId: uuid("sub_kategori_id")
+      .notNull()
+      .references(() => regulationSubKategori.id, { onDelete: "restrict" }),
+    kode: text("kode").notNull(),
+    nama: text("nama").notNull(),
+    sortOrder: integer("sort_order").notNull().default(0),
+    filePathname: text("file_pathname").notNull(),
+    fileName: text("file_name").notNull(),
+    fileMimeType: text("file_mime_type").notNull(),
+    fileSizeBytes: bigint("file_size_bytes", { mode: "number" }).notNull(),
+    note: text("note"),
+    createdBy: uuid("created_by")
+      .notNull()
+      .references(() => users.id, { onDelete: "no action" }),
+    updatedBy: uuid("updated_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("regulation_document_sub_kategori_sort_idx").on(
+      table.subKategoriId,
+      table.sortOrder,
+      table.id,
+    ),
+    uniqueIndex("regulation_document_sub_kategori_kode_unique").on(
+      table.subKategoriId,
+      sql`lower(btrim(${table.kode}))`,
+    ),
+    uniqueIndex("regulation_document_file_pathname_unique").on(table.filePathname),
+    index("regulation_document_created_by_idx").on(table.createdBy),
+    index("regulation_document_updated_by_idx").on(table.updatedBy),
+    check(
+      "regulation_document_kode_check",
+      sql`length(btrim(${table.kode})) between 1 and 30`,
+    ),
+    check(
+      "regulation_document_nama_check",
+      sql`length(btrim(${table.nama})) between 1 and 200`,
+    ),
+    check("regulation_document_sort_check", sql`${table.sortOrder} >= 0`),
+    check(
+      "regulation_document_pathname_check",
+      sql`length(btrim(${table.filePathname})) between 1 and 500 and ${table.filePathname} like 'regulation/%'`,
+    ),
+    check(
+      "regulation_document_filename_check",
+      sql`length(btrim(${table.fileName})) between 1 and 255`,
+    ),
+    check(
+      "regulation_document_mime_check",
+      sql`length(btrim(${table.fileMimeType})) between 1 and 200`,
+    ),
+    check(
+      "regulation_document_size_check",
+      sql`${table.fileSizeBytes} between 1 and 20971520`,
+    ),
+    check(
+      "regulation_document_note_check",
+      sql`${table.note} is null or length(${table.note}) <= 2000`,
+    ),
+  ],
+);
+
+export type PgRegulationDocument = typeof regulationDocument.$inferSelect;
+export type NewPgRegulationDocument = typeof regulationDocument.$inferInsert;
+
+// ---------------------------------------------------------------------------
 // Calculation Sheet Template (CST): FLAT master reference.
 //
 // Deliberately a single table with no child tables and no `sort_order`:

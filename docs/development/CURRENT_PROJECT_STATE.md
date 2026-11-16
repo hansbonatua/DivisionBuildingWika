@@ -1,10 +1,12 @@
 # CURRENT PROJECT STATE — BDWIKA / WIBEX
 
-Terakhir diperbarui: 12 November 2026 (Dashboard SASAA & Kelola Foto `IMPLEMENTED BUT NOT FULLY VERIFIED` — migration `0026_project_photos` APPLIED; security patch Next.js 16.4.6 / React 19.3.1; build PASS 98 routes; Dashboard Welcoming `IMPLEMENTED & VERIFIED` — commit `eb77e1c`, migration `0025_activity_logs` APPLIED; Modul Berkas Sprint 1 & 2 + Audit Readiness + Final Polish `IMPLEMENTED & VERIFIED (Production-Ready)` — Sprint 1 runtime Vercel PASS, Owner-confirmed 10 November 2026; Audit Readiness/Final Polish static checks PASS (256/256, 61 suite); migration `0020`–`0024` **APPLIED**, termasuk `0024_berkas_search_index`; PDOC V1 + Monthly Delta dan CST `IMPLEMENTED & VERIFIED`; runtime browser 4 role PDOC/CST PASS, Owner-confirmed 10 November 2026; WIBEX Governance & Workflow **APPROVED & EFFECTIVE**, Owner Hans, 10 November 2026).
+Terakhir diperbarui: 16 November 2026 (Standard & Regulation `IMPLEMENTED BUT NOT FULLY VERIFIED` — migration `0027_standard_regulation` APPLIED; backend dan UI selesai; static checks PASS (270/270, 65 suite); visual Vercel belum dicek; Dashboard SASAA & Kelola Foto `IMPLEMENTED BUT NOT FULLY VERIFIED` — migration `0026_project_photos` APPLIED; security patch Next.js 16.4.6 / React 19.3.1; build PASS 98 routes; Dashboard Welcoming `IMPLEMENTED & VERIFIED` — commit `eb77e1c`, migration `0025_activity_logs` APPLIED; Modul Berkas Sprint 1 & 2 + Audit Readiness + Final Polish `IMPLEMENTED & VERIFIED (Production-Ready)` — Sprint 1 runtime Vercel PASS, Owner-confirmed 10 November 2026; Audit Readiness/Final Polish static checks PASS (256/256, 61 suite); migration `0020`–`0024` **APPLIED**, termasuk `0024_berkas_search_index`; PDOC V1 + Monthly Delta dan CST `IMPLEMENTED & VERIFIED`; runtime browser 4 role PDOC/CST PASS, Owner-confirmed 10 November 2026; WIBEX Governance & Workflow **APPROVED & EFFECTIVE**, Owner Hans, 10 November 2026).
 
-**Status proyek:** `PARTIALLY VERIFIED` — MKS, KM V2, PDOC, CST, **Berkas** `IMPLEMENTED & VERIFIED (Production-Ready)`, dan **Dashboard Welcoming** `IMPLEMENTED & VERIFIED` (RBAC 4 role, Owner confirmed; Berkas Sprint 1 diuji Owner di Vercel; Audit Readiness & Final Polish PASS dengan 256/256 test). Bukti: `DL-2026-11-09-01`, `DL-2026-11-09-02`, `DL-2026-11-10-03`, `DL-2026-11-10-04`, `DL-2026-11-10-05`, `DL-2026-11-10-06`, `DL-2026-11-10-07`, `DL-2026-11-12-03`, `DL-2026-11-12-05`, `DL-2026-11-12-06`, `DL-2026-11-12-07`.
+**Status proyek:** `PARTIALLY VERIFIED` — MKS, KM V2, PDOC, CST, **Berkas** `IMPLEMENTED & VERIFIED (Production-Ready)`, **Dashboard Welcoming** `IMPLEMENTED & VERIFIED` (RBAC 4 role, Owner confirmed; Berkas Sprint 1 diuji Owner di Vercel; Audit Readiness & Final Polish PASS dengan 256/256 test), dan **Standard & Regulation** `IMPLEMENTED BUT NOT FULLY VERIFIED` (migration `0027_standard_regulation` APPLIED; backend dan UI selesai; 270/270 test PASS; visual Vercel belum dicek). Bukti: `DL-2026-11-09-01`, `DL-2026-11-09-02`, `DL-2026-11-10-03`, `DL-2026-11-10-04`, `DL-2026-11-10-05`, `DL-2026-11-10-06`, `DL-2026-11-10-07`, `DL-2026-11-12-03`, `DL-2026-11-12-05`, `DL-2026-11-12-06`, `DL-2026-11-12-07`, `DL-2026-11-16-01`.
 
 **Dashboard SASAA & Kelola Foto:** `IMPLEMENTED BUT NOT FULLY VERIFIED` — migration `0026_project_photos` **APPLIED**; aggregator API, carousel, empat widget, dan fitur upload Admin selesai; build PASS 98 routes; visual Vercel belum dicek.
+
+**Standard & Regulation:** `IMPLEMENTED BUT NOT FULLY VERIFIED` — migration `0027_standard_regulation` **APPLIED**; backend, API, dan UI lima submenu selesai; tabel berjenjang Sub-Kategori → Dokumen, upload privat PDF/Word/Excel/ZIP maksimal 20 MB, CRUD, download, dan RBAC selesai; static checks PASS (270/270, 65 suite); visual Vercel dan alur upload nyata belum dicek Owner.
 
 **Tata kelola:** WIBEX Development Governance dan WIBEX Engineering Workflow **APPROVED & EFFECTIVE** — disetujui Owner (Hans), 10 November 2026.
 
@@ -19,7 +21,7 @@ Terakhir diperbarui: 12 November 2026 (Dashboard SASAA & Kelola Foto `IMPLEMENTE
 | Stack | Next.js 16.4.6 · React 19.3.1 · TypeScript 5.9.3 · Tailwind 4 · Drizzle ORM · PostgreSQL (Neon) · MongoDB · Vercel Blob |
 | Node / npm | v24 · npm 10 |
 | Dev server | tidak dikelola Freebuff pada E; runtime dilakukan Owner (Owner confirmed) |
-| Database | `neondb` (PostgreSQL 18.6), journal file **27 entry**; `0017_calculation_sheet_templates` **APPLIED** (Owner-confirmed melalui runtime 10 November 2026); `0018_project_documentations` **APPLIED**; **0019 APPLIED** — `0019_project_documentation_period`; **`0020_berkas_pengajuan`, `0021_berkas_catatan`, `0022_berkas_kode_seri`, `0023_berkas_sprint2`, dan `0024_berkas_search_index` APPLIED** (`0020`–`0022` Owner-confirmed melalui runtime Vercel 10 November 2026; `0023` mengikuti konfirmasi database Sprint 2; `0024` index GIN trigram judul/kode_seri, APPLIED 12 November 2026; `0025_activity_logs` **APPLIED** 12 November 2026; **`0026_project_photos` APPLIED** 12 November 2026; journal 27 entry) |
+| Database | `neondb` (PostgreSQL 18.6), journal file **28 entry**; `0017_calculation_sheet_templates` **APPLIED** (Owner-confirmed melalui runtime 10 November 2026); `0018_project_documentations` **APPLIED**; **0019 APPLIED** — `0019_project_documentation_period`; **`0020_berkas_pengajuan`, `0021_berkas_catatan`, `0022_berkas_kode_seri`, `0023_berkas_sprint2`, dan `0024_berkas_search_index` APPLIED** (`0020`–`0022` Owner-confirmed melalui runtime Vercel 10 November 2026; `0023` mengikuti konfirmasi database Sprint 2; `0024` index GIN trigram judul/kode_seri, APPLIED 12 November 2026; `0025_activity_logs` **APPLIED** 12 November 2026; **`0026_project_photos` APPLIED** 12 November 2026; **`0027_standard_regulation` APPLIED** 16 November 2026; journal 28 entry) |
 
 ## 2. Working Tree (HEAD `bb7228f`; security patch belum di-commit)
 
@@ -41,7 +43,7 @@ Baseline verifikasi: `HEAD` = `bb7228f` — `feat(sasaa): implement executive da
 | Range fitur PDOC | `5636113..a7527e1`; 41 file, +15.396 / −29 |
 | Isi commit PDOC | PDOC V1 + Monthly Delta, migration `0018`/`0019`, halaman Rekap Bulanan + Summary, sidebar accordion, dan sinkronisasi dokumen |
 | Status remote | HEAD lokal `bb7228f`; status push dan remote-tracking tidak diperiksa pada pass ini; security patch belum di-commit |
-| Migration | `0017` **APPLIED** (Owner-confirmed melalui runtime); `0018` **APPLIED**; `0019` **APPLIED**; `0020`, `0021`, dan `0022` **APPLIED** (Owner-confirmed melalui runtime Vercel 10 November 2026); `0023_berkas_sprint2` **APPLIED** (konfirmasi database Sprint 2 sudah dimigrasi); `0024_berkas_search_index` **APPLIED** (index GIN trigram judul/kode_seri, 12 November 2026); `0025_activity_logs` **APPLIED** 12 November 2026; `0026_project_photos` **APPLIED** 12 November 2026; journal 27 entry |
+| Migration | `0017` **APPLIED** (Owner-confirmed melalui runtime); `0018` **APPLIED**; `0019` **APPLIED**; `0020`, `0021`, dan `0022` **APPLIED** (Owner-confirmed melalui runtime Vercel 10 November 2026); `0023_berkas_sprint2` **APPLIED** (konfirmasi database Sprint 2 sudah dimigrasi); `0024_berkas_search_index` **APPLIED** (index GIN trigram judul/kode_seri, 12 November 2026); `0025_activity_logs` **APPLIED** 12 November 2026; `0026_project_photos` **APPLIED** 12 November 2026; **`0027_standard_regulation` APPLIED** 16 November 2026; journal 28 entry |
 
 Detail file historis sebelum commit tersedia di Git history; jangan menyalin tabel working tree lama sebagai kondisi saat ini.
 
@@ -51,18 +53,20 @@ Detail file historis sebelum commit tersedia di Git history; jangan menyalin tab
 |---|---|---|---|
 | TypeScript | `npx tsc --noEmit` | 0 | PASS |
 | ESLint (file KM) | `npx eslint src/lib/knowledge-management src/app/api/knowledge-management src/components/dashboard/knowledge-management` | 0 | PASS |
-| Test otomatis | `npm test` | 0 | **256/256 PASS** (61 suite; termasuk test PDOC, test Berkas schema, pdf-engine termasuk cover/garis merah/footer WIKA, types, dan navigasi sidebar; Final Polish 256/256) |
+| Test otomatis | `npm test` | 0 | **270/270 PASS** (65 suite; termasuk test PDOC, Berkas, Regulation storage/schema/access/reorder, pdf-engine termasuk cover/garis merah/footer WIKA, types, dan navigasi sidebar; Final Polish 256/256) |
 | ESLint (CST + sidebar) | `npx eslint src/lib/calculation-sheet-template src/components/dashboard/calculation-sheet-template src/app/dashboard/calculation-sheet-template src/app/api/calculation-sheet-template src/components/dashboard/DashboardSidebar.tsx` | 0 | PASS |
 | ESLint (PDOC + sidebar) | `npx eslint src/lib/project-documentation src/app/api/project-documentation src/components/dashboard/project-documentation src/components/dashboard/DashboardSidebar.tsx src/components/dashboard/projectDocumentationSidebar.test.ts src/app/dashboard/project-documentation` | 0 | PASS |
 | ESLint (Berkas) | `npx eslint src/lib/berkas src/components/dashboard/berkas src/app/api/berkas src/app/dashboard/berkas src/components/dashboard/DashboardSidebar.tsx src/lib/auth/permissions.ts src/lib/storage/blob.ts` | 0 | PASS |
+| ESLint (Regulation) | `npx eslint src/components/dashboard/regulation src/app/dashboard/regulation src/components/dashboard/DashboardSidebar.tsx` | 0 | PASS |
 | Diff hygiene | `git diff --check` | 0 | PASS |
 | Dashboard Welcoming (static) | `npx tsc --noEmit` + ESLint file dashboard | 0 | PASS |
 | Test Dashboard Welcoming | `npm test` | 0 | **256/256 PASS** (61 suite) |
 | Dashboard SASAA & Kelola Foto (static) | `npx tsc --noEmit` + ESLint file UI/API | 0 | PASS |
-| Build Next.js | `npx next build` | 0 | **PASS — 98 routes** |
+| Build Next.js (baseline SASAA) | `npx next build` | 0 | **PASS — 98 routes** (build dengan route Regulation belum dijalankan pada pass ini) |
 | Security patch | `npm ls next react react-dom --depth=0` | 0 | Next.js `16.4.6`; React/React DOM `19.3.1` |
-| Drift Drizzle | `npx drizzle-kit generate` | — | tidak dijalankan pada task dokumentasi; snapshot `0019`–`0026` tersedia |
-| Migration | `npx drizzle-kit migrate` | — | **0017–0026 APPLIED** (Owner-confirmed; `0020`–`0022` melalui runtime Vercel 10 November 2026; `0023` mengikuti konfirmasi database Sprint 2; `0024` APPLIED 12 November 2026; `0025_activity_logs` APPLIED 12 November 2026; **`0026_project_photos` APPLIED** 12 November 2026); tidak dijalankan pada task ini |
+| Drift Drizzle | `npx drizzle-kit generate` | — | tidak dijalankan pada task dokumentasi; snapshot `0019`–`0027` tersedia |
+| Migration | `npx drizzle-kit migrate` | — | **0017–0027 APPLIED** (Owner-confirmed; `0020`–`0022` melalui runtime Vercel 10 November 2026; `0023` mengikuti konfirmasi database Sprint 2; `0024` APPLIED 12 November 2026; `0025_activity_logs` APPLIED 12 November 2026; **`0026_project_photos` APPLIED** 12 November 2026; **`0027_standard_regulation` APPLIED** 16 November 2026); tidak dijalankan pada task ini |
+| Runtime Regulation | Vercel, 4 role | — | **NOT RUN** — visual dan alur upload Vercel belum dicek Owner |
 | Runtime CST | Browser, 4 role | — | **PASS** (Owner-confirmed 10 November 2026) |
 | Runtime PDOC | Browser desktop + mobile, 4 role | — | **PASS** (Owner-confirmed 10 November 2026) |
 | Runtime Berkas | Vercel, 4 role | — | **PASS untuk Sprint 1 V1** — pengajuan, verifikasi berurutan, cover landscape, kode seri, watermark NIP, delete Admin (Owner-confirmed 10 November 2026); Audit Readiness & Final Polish PASS melalui 256/256 test; smoke test browser Sprint 2/final polish belum dijalankan pada pass dokumentasi ini |
@@ -177,7 +181,7 @@ Detail file historis sebelum commit tersedia di Git history; jangan menyalin tab
 
 **Status:** `IMPLEMENTED BUT NOT FULLY VERIFIED` — backend dan UI selesai; migration `0026_project_photos` **APPLIED**; build PASS 98 routes; visual di Vercel **belum dicek**. Detail: `DL-2026-11-12-07`; commit `bb7228f`.
 
-- **Database:** tabel anak `project_photos` dengan tepat empat slot `1–4`, unique `(project_id, slot)`, unique `blob_pathname`, validasi MIME/ukuran/URL, FK cascade ke Master Project, dan audit `created_by`/`updated_by`. Migration `0026_project_photos` **APPLIED**; journal 27 entry.
+- **Database:** tabel anak `project_photos` dengan tepat empat slot `1–4`, unique `(project_id, slot)`, unique `blob_pathname`, validasi MIME/ukuran/URL, FK cascade ke Master Project, dan audit `created_by`/`updated_by`. Migration `0026_project_photos` **APPLIED**; journal 27 entry saat implementasi (kini 28 entry).
 - **Storage:** foto disimpan di Vercel Blob Public dengan namespace `project-photos/{projectId}/{uploadUuid}/{slot}-{safeName}`; token upload dibatasi 10 menit; metadata diverifikasi melalui `headPublicCmsImage` sebelum transaksi database.
 - **API:** `GET /api/dashboard/sasaa`, `GET /api/dashboard/sasaa/[projectId]`, `POST /api/master-project/photos/upload`, `GET /api/master-project/[id]/photos`, dan `PUT /api/master-project/[id]/photos`. Agregator menjalankan query foto, MSL, Engineering Database, PDOC, dan KM secara paralel.
 - **RBAC:** `DASHBOARD_SASAA_VIEW` untuk Admin, Head Office, Management, dan Project; `MASTER_PROJECT_PHOTOS_MANAGE` hanya Admin.
@@ -188,9 +192,23 @@ Detail file historis sebelum commit tersedia di Git history; jangan menyalin tab
 - **Verifikasi:** `npx tsc --noEmit` PASS, ESLint file UI/API PASS (0 error; 2 warning `no-img-element` karena Blob remote memakai `<img>`), `npm test` **256/256 PASS** (61 suite), `git diff --check` PASS.
 - **Batasan:** visual Vercel, alur upload nyata, dan interaksi carousel belum diperiksa pada pass ini; karena itu status belum dinaikkan menjadi `IMPLEMENTED & VERIFIED`.
 
-## 12. Langkah Berikutnya
+## 12. Standard & Regulation (16 November 2026)
+
+**Status:** `IMPLEMENTED BUT NOT FULLY VERIFIED` — backend dan UI selesai; migration `0027_standard_regulation` **APPLIED**; static checks PASS (270/270, 65 suite); visual Vercel dan alur upload nyata belum dicek Owner. Detail: `DL-2026-11-16-01`; desain `docs/design/REGULATION_P3_DESIGN.md`.
+
+- **Database:** dua tabel baru, `regulation_sub_kategori` dan `regulation_document`, dengan FK `ON DELETE RESTRICT`, CHECK panjang/urutan/nilai disiplin, unique kode per disiplin/sub-kategori, unique `file_pathname`, dan index sort. Migration `0027_standard_regulation` **APPLIED**; journal 28 entry.
+- **Kebijakan file:** Private Blob, maksimal 20 MB, PDF, DOC/DOCX, XLS/XLSX, dan ZIP; ZIP memakai fallback `application/octet-stream`; token upload berlaku 10 menit, tanpa overwrite/suffix; metadata diverifikasi dengan `headBlob()` sebelum row disimpan; blob lama dihapus best-effort setelah commit; orphan cleanup tersedia.
+- **API:** `GET /api/regulation/[disiplin]`, CRUD sub-kategori dan dokumen, `POST /api/regulation/upload`, `POST /api/regulation/upload/cleanup`, `GET /api/regulation/document/[id]/file`, dan `POST /api/regulation/reorder`. Respons privat memakai `Cache-Control: no-store`.
+- **RBAC:** `REGULATION_VIEW` untuk Admin, Head Office, Management, dan Project; `REGULATION_MANAGE` untuk Admin dan Head Office, termasuk delete. Layout guard dan API sama-sama menegakkan permission.
+- **UI:** accordion **Standard & Regulation** di Core Enterprise dengan lima submenu; root `/dashboard/regulation` redirect ke Prosedur WIKA; tabel berjenjang dengan `rowSpan` Sub-Kategori, kolom No/Kode/Judul/File/Catatan/Aksi; dialog tambah/edit/hapus; unduh per dokumen; empty state; mode baca untuk Management/Project.
+- **Upload UI:** form dokumen memilih file, menampilkan nama/ukuran, progress, lalu memakai token upload, menyimpan metadata, dan membersihkan blob baru bila penyimpanan metadata gagal. File lama tidak berubah bila penyimpanan gagal.
+- **Verifikasi:** `npx tsc --noEmit` PASS, ESLint file Regulation + sidebar PASS, `npm test` **270/270 PASS** (65 suite), `git diff --check` PASS. Build dengan route Regulation dan runtime visual Vercel belum dijalankan pada pass ini.
+- **Batasan:** status belum dinaikkan menjadi `IMPLEMENTED & VERIFIED` sampai Owner memeriksa visual Vercel, interaksi tabel/dialog, download, dan upload nyata.
+
+## 13. Langkah Berikutnya
 
 1. Modul Berkas sudah `IMPLEMENTED & VERIFIED (Production-Ready)`; final acceptance tercatat pada `DL-2026-11-12-05`.
-2. Verifikasi visual Vercel untuk Dashboard SASAA & Kelola Foto: carousel, empat widget, status foto, upload/ganti/hapus empat slot, dan RBAC Admin vs non-Admin.
-3. Smoke test browser opsional untuk Dashboard Welcoming, Revisi, Tolak, preview watermark, badge Sidebar, dan cover PDF jika akan deploy ulang.
-4. Pemeliharaan: pantau drift schema (snapshot `0026` tersedia), commit security patch, dan perilaku PDF pada perubahan berikutnya.
+2. Verifikasi visual Vercel untuk **Standard & Regulation**: lima submenu, header, tabel berjenjang, CRUD, download, upload PDF/Word/Excel/ZIP maksimal 20 MB, dan RBAC Admin/Head Office vs Management/Project.
+3. Verifikasi visual Vercel untuk Dashboard SASAA & Kelola Foto: carousel, empat widget, status foto, upload/ganti/hapus empat slot, dan RBAC Admin vs non-Admin.
+4. Smoke test browser opsional untuk Dashboard Welcoming, Revisi, Tolak, preview watermark, badge Sidebar, dan cover PDF jika akan deploy ulang.
+5. Pemeliharaan: pantau drift schema (snapshot `0027` tersedia), commit security patch/Regulation, dan perilaku PDF pada perubahan berikutnya.

@@ -5,6 +5,52 @@ Dokumentasi audit repository ada di `docs/audit/`; dokumen ini mencatat **peruba
 
 ---
 
+## DL-2026-11-16-01 — Standard & Regulation
+
+| Field | Nilai |
+|---|---|
+| Feature ID | `ENT-REGULATION` |
+| Tanggal | 16 November 2026 |
+| Status | **IMPLEMENTED BUT NOT FULLY VERIFIED** — backend, database, dan UI selesai; migration `0027_standard_regulation` **APPLIED**; static checks PASS (270/270, 65 suite); visual Vercel dan alur upload nyata belum dicek Owner |
+| Commit | Belum di-commit; pass dokumentasi ini tidak melakukan commit/push |
+| Branch | `main` |
+| Baseline | `bb7228f` + implementasi Standard & Regulation (backend, database, UI) |
+| Migration | `0027_standard_regulation` — **APPLIED** (16 November 2026); journal 28 entry |
+
+### Perubahan
+- **Tabel baru:** `regulation_sub_kategori` dan `regulation_document` dengan relasi satu sub-kategori ke banyak dokumen, FK `ON DELETE RESTRICT`, CHECK disiplin/kode/nama/urutan/catatan, unique kode per disiplin dan per sub-kategori, unique `file_pathname`, serta index sort. Migration `0027_standard_regulation` sudah **APPLIED**.
+- **Kebijakan file:** Private Blob, maksimal 20 MB; format PDF, DOC/DOCX, XLS/XLSX, dan ZIP. ZIP menerima `application/zip`, `application/x-zip-compressed`, dan fallback `application/octet-stream`; token upload berlaku 10 menit, tanpa overwrite/suffix; metadata diverifikasi melalui `headBlob()` sebelum row disimpan; blob lama dihapus best-effort setelah commit.
+- **API:** `GET /api/regulation/[disiplin]`, CRUD sub-kategori, CRUD dokumen, `POST /api/regulation/upload`, `POST /api/regulation/upload/cleanup`, `GET /api/regulation/document/[id]/file`, dan `POST /api/regulation/reorder`. Response privat memakai `Cache-Control: no-store`; pathname file tidak diekspos ke browser.
+- **RBAC:** `REGULATION_VIEW` untuk Admin, Head Office, Management, dan Project; `REGULATION_MANAGE` untuk Admin dan Head Office, termasuk delete. Layout guard dan API sama-sama menegakkan permission.
+- **Tabel berjenjang:** kolom No, Sub-Kategori dengan `rowSpan`, Kode Dokumen, Judul Dokumen, File (nama & ukuran), Catatan, dan Aksi. Sub-kategori tanpa dokumen menampilkan empty state; dokumen memiliki tombol download; tombol mutasi hanya tampil untuk `REGULATION_MANAGE`.
+- **Form upload:** dialog tambah/edit dokumen memilih file, menampilkan nama/ukuran dan progress, meminta token upload, mengunggah langsung ke Private Blob, lalu menyimpan metadata. Jika metadata gagal disimpan, blob baru dibersihkan melalui endpoint cleanup; file lama tidak berubah saat edit gagal.
+- **UI:** accordion **Standard & Regulation** di Core Enterprise dengan lima submenu (Prosedur dan Instruksi Kerja WIKA, SNI, Peraturan Pemerintah, Standard/Code Internasional, Lainnya); root `/dashboard/regulation` redirect ke Prosedur WIKA; halaman disiplin, dialog sub-kategori/dokumen, dialog hapus dengan penanganan 409, download per dokumen, mode baca, dan layout guard.
+- **Dokumentasi:** status fitur dicatat di tiga dokumen development; pass ini tidak mengubah kode sumber, database, atau API.
+
+### File impacted
+- Backend/data: `src/lib/pg/schema.ts`, `src/lib/auth/permissions.ts`, `src/lib/regulation/{access,constants,repository,schema,service,storage}.ts`, `src/app/api/regulation/**`, `drizzle/0027_standard_regulation.sql`, `drizzle/meta/0027_snapshot.json`, `drizzle/meta/_journal.json`.
+- Frontend: `src/components/dashboard/DashboardSidebar.tsx`, `src/app/dashboard/regulation/{layout,page}.tsx`, `src/app/dashboard/regulation/[disiplin]/page.tsx`, `src/components/dashboard/regulation/{RegulationDisiplinPage,RegulationTable,RegulationSubKategoriDialog,RegulationDocumentDialog,RegulationDeleteDialog,RegulationFileField,RegulationDialogShell}.tsx`, dan `src/components/dashboard/regulation/regulation-ui.ts`.
+- Test: `src/lib/regulation/{access,schema,service,storage}.test.ts`.
+- Pass dokumentasi ini hanya mengubah `docs/development/{CURRENT_PROJECT_STATE,DEVELOPMENT_MASTER_LOG,FEATURE_REGISTER}.md`.
+
+### Verifikasi
+| Pemeriksaan | Hasil | Sumber |
+|---|---|---|
+| `npx tsc --noEmit` | **PASS** | Freebuff (implementasi) |
+| `npx eslint` (Regulation + Sidebar) | **PASS**, 0 error / 0 warning | Freebuff (implementasi) |
+| `npm test` | **270/270 PASS** (65 suite; termasuk Regulation storage/schema/access/reorder) | Freebuff (implementasi) |
+| `git diff --check` | **PASS** | Freebuff (pass dokumentasi) |
+| Migration `0027_standard_regulation` | **APPLIED**; journal 28 entry | Owner-confirmed melalui konteks P8 |
+| Runtime visual Vercel | **NOT RUN** — visual, interaksi CRUD, download, dan upload nyata belum dicek Owner | — |
+
+### Batasan
+- Status sengaja tetap `IMPLEMENTED BUT NOT FULLY VERIFIED` sampai Owner memeriksa visual Vercel, tabel berjenjang, dialog, download, dan upload file nyata.
+- Build Next.js dengan route Regulation belum dijalankan pada pass ini; hasil build terakhir yang tercatat adalah baseline SASAA 98 routes.
+- Migration `0027` tidak dijalankan ulang pada pass dokumentasi ini; status APPLIED mengikuti konteks P8.
+- Tidak ada commit, push, deploy, migration, seed, DB write, atau perubahan kode pada pass ini.
+
+---
+
 ## DL-2026-11-12-07 — Dashboard SASAA, Kelola Foto & Security Patch
 
 | Field | Nilai |

@@ -20,6 +20,8 @@ import { DISIPLIN_LIST } from "@/lib/metode-kerja-standar/constants";
 import { canViewOrganizationStructure } from "@/lib/organization-structure/access";
 import { canViewMsl } from "@/lib/msl/access";
 import { canViewProgramKerja } from "@/lib/program-kerja/access";
+import { canViewRegulation } from "@/lib/regulation/access";
+import { REGULATION_DISCIPLINES } from "@/lib/regulation/constants";
 import { canViewTemplateForm } from "@/lib/template-form/access";
 import { canManageUsers } from "@/lib/users/access";
 
@@ -341,6 +343,40 @@ export function isMetodeKerjaPath(pathname: string): boolean {
   );
 }
 
+// Standard & Regulation is a Core Enterprise module between Metode Kerja
+// Standar and Calculation Sheet Template. Labels are product copy; hrefs are
+// derived from the same canonical constants used by the API and pages.
+const REGULATION_ROOT = "/dashboard/regulation";
+const REGULATION_MENU_LABELS: Record<string, string> = {
+  "prosedur-wika": "Prosedur dan Instruksi Kerja WIKA",
+  sni: "SNI",
+  "peraturan-pemerintah": "Peraturan Pemerintah",
+  "standar-internasional": "Standard/Code Internasional",
+  lainnya: "Lainnya",
+};
+const regulationIcon = (
+  <MenuIcon>
+    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+    <path d="m9 11 2 2 4-4" />
+  </MenuIcon>
+);
+
+export const regulationMenu: SidebarItem[] = REGULATION_DISCIPLINES.map(
+  (disiplin) => ({
+    label: REGULATION_MENU_LABELS[disiplin.slug] ?? disiplin.name,
+    href: `${REGULATION_ROOT}/${disiplin.slug}`,
+    icon: regulationIcon,
+  }),
+);
+
+export function isRegulationPath(pathname: string): boolean {
+  return (
+    pathname === REGULATION_ROOT ||
+    pathname.startsWith(`${REGULATION_ROOT}/`)
+  );
+}
+
 const CALCULATION_SHEET_ROOT = "/dashboard/calculation-sheet-template";
 
 export function isCalculationSheetPath(pathname: string): boolean {
@@ -537,6 +573,7 @@ export type SidebarVisibility = {
   showKnowledgeManagement: boolean;
   showBerkas: boolean;
   showMetodeKerja: boolean;
+  showRegulation: boolean;
   showCalculationSheet: boolean;
   showProjectDocumentation: boolean;
   showTemplateForm: boolean;
@@ -562,6 +599,7 @@ export function getSidebarVisibility(
   const showKnowledgeManagement = canViewKnowledgeManagement(role);
   const showBerkas = canViewBerkas(role);
   const showMetodeKerja = canViewMetodeKerja(role);
+  const showRegulation = canViewRegulation(role);
   // CST has no module access helper; it reads the central permission table.
   const showCalculationSheet = hasPermission(
     role,
@@ -592,6 +630,7 @@ export function getSidebarVisibility(
     showKnowledgeManagement,
     showBerkas,
     showMetodeKerja,
+    showRegulation,
     showCalculationSheet,
     showProjectDocumentation,
     showTemplateForm,
@@ -609,6 +648,7 @@ export function getSidebarVisibility(
       showKnowledgeManagement ||
       showBerkas ||
       showMetodeKerja ||
+      showRegulation ||
       showCalculationSheet ||
       showProjectDocumentation ||
       showTemplateForm ||
@@ -626,6 +666,7 @@ export type SidebarAccordionState = {
   knowledgeOpen: boolean;
   berkasOpen: boolean;
   metodeKerjaOpen: boolean;
+  regulationOpen: boolean;
   calculationSheetOpen: boolean;
   projectDocumentationOpen: boolean;
   masterProjectOpen: boolean;
@@ -656,6 +697,7 @@ export function getInitialSidebarAccordionState(
     knowledgeOpen: isKnowledgeManagementPath(pathname),
     berkasOpen: isBerkasPath(pathname),
     metodeKerjaOpen: isMetodeKerjaPath(pathname),
+    regulationOpen: isRegulationPath(pathname),
     calculationSheetOpen: isCalculationSheetPath(pathname),
     projectDocumentationOpen: isProjectDocumentationPath(pathname),
     masterProjectOpen: pathname.startsWith("/dashboard/master-project"),
@@ -678,6 +720,7 @@ export default function DashboardSidebar({
     showKnowledgeManagement,
     showBerkas,
     showMetodeKerja,
+    showRegulation,
     showCalculationSheet,
     showProjectDocumentation,
     showTemplateForm,
@@ -703,6 +746,7 @@ export default function DashboardSidebar({
   const isKnowledgeManagementRoute = isKnowledgeManagementPath(pathname);
   const isBerkasRoute = isBerkasPath(pathname);
   const isMetodeKerjaRoute = isMetodeKerjaPath(pathname);
+  const isRegulationRoute = isRegulationPath(pathname);
   const isCalculationSheetRoute = isCalculationSheetPath(pathname);
   const isProjectDocumentationRoute = isProjectDocumentationPath(pathname);
   const isMasterProjectRoute = pathname.startsWith("/dashboard/master-project");
@@ -718,6 +762,9 @@ export default function DashboardSidebar({
   const [berkasOpen, setBerkasOpen] = useState(initialAccordions.berkasOpen);
   const [metodeKerjaOpen, setMetodeKerjaOpen] = useState(
     initialAccordions.metodeKerjaOpen,
+  );
+  const [regulationOpen, setRegulationOpen] = useState(
+    initialAccordions.regulationOpen,
   );
   const [calculationSheetOpen, setCalculationSheetOpen] = useState(
     initialAccordions.calculationSheetOpen,
@@ -788,6 +835,9 @@ export default function DashboardSidebar({
     }
     if (isMetodeKerjaRoute) {
       setMetodeKerjaOpen(true);
+    }
+    if (isRegulationRoute) {
+      setRegulationOpen(true);
     }
     if (isCalculationSheetRoute) {
       setCalculationSheetOpen(true);
@@ -1050,6 +1100,50 @@ export default function DashboardSidebar({
                         aria-label="Metode Kerja Standar"
                       >
                         {metodeKerjaMenu.map((item) => renderItem(item))}
+                      </nav>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+              {showRegulation ? (
+                <div className="mt-1">
+                  <div className="px-1">
+                    <button
+                      type="button"
+                      aria-expanded={regulationOpen}
+                      aria-controls="standard-regulation-menu"
+                      onClick={() => setRegulationOpen((prev) => !prev)}
+                      className="flex w-full items-center justify-between rounded-lg border border-transparent px-2.5 py-2 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+                    >
+                      <span className="flex min-w-0 flex-1 items-center gap-2.5 text-left">
+                        <span className="shrink-0 text-secondary">
+                          {regulationIcon}
+                        </span>
+                        <span>Standard &amp; Regulation</span>
+                      </span>
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                        className={`shrink-0 text-slate-400 transition-transform duration-200 ${regulationOpen ? "rotate-180" : "rotate-0"}`}
+                      >
+                        <path d="m6 9 6 6 6-6" />
+                      </svg>
+                    </button>
+                  </div>
+                  {regulationOpen ? (
+                    <div id="standard-regulation-menu">
+                      <nav
+                        className="ml-4 space-y-1 border-l-2 border-slate-100 pl-3"
+                        aria-label="Standard & Regulation"
+                      >
+                        {regulationMenu.map((item) => renderItem(item))}
                       </nav>
                     </div>
                   ) : null}
