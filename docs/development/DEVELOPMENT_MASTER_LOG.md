@@ -5,6 +5,44 @@ Dokumentasi audit repository ada di `docs/audit/`; dokumen ini mencatat **peruba
 
 ---
 
+## DL-2026-11-18-03 — Reorder Menu Sidebar Core Enterprise
+
+| Field | Nilai |
+|---|---|
+| Feature ID | `ENT-SIDEBAR-NAV` |
+| Tanggal | 18 November 2026 |
+| Status | **IMPLEMENTED & VERIFIED (static)** — reorder tampilan murni; `npx tsc --noEmit`, ESLint `DashboardSidebar.tsx`, `npm test` 286/286, dan `git diff --check` PASS; visual browser belum dicek Owner |
+| Commit | `4ab2ef7` — `style(sidebar): reorder core enterprise menu items` |
+| Branch | `main` |
+| Baseline | `05898d5` — `docs: confirm esg migration 0029 applied in database` |
+| Migration | tidak ada |
+
+### Perubahan
+- **Urutan menu Core Enterprise** di `src/components/dashboard/DashboardSidebar.tsx` diubah menjadi: Struktur Organisasi → Program Kerja → Metode Kerja Standar → Calculation Sheet Template → Standard & Regulation → Master Project → Engineering Databases → Database Green Building & ESG → Knowledge Management → Project Documentation → Berkas → Template & Form.
+- **Murni pemindahan blok JSX:** 180 baris ditambah dan 180 baris dihapus dengan hash himpunan baris identik, sehingga tidak ada teks, ikon, kelas Tailwind, `href`, permission (`hasPermission`/`canView*`), maupun state accordion yang berubah.
+- **Di luar Core Enterprise tidak berubah:** Dashboard, Landing Page Manager, dan Administrasi tetap pada urutan lama.
+- **Dokumentasi:** urutan grup pada `docs/audit/07_MODULE_AND_FEATURE_INVENTORY.md` disinkronkan dan menunjuk ke entri ini. Pass dokumentasi ini tidak mengubah kode.
+
+### File impacted
+- `src/components/dashboard/DashboardSidebar.tsx` — hanya urutan blok menu (commit `4ab2ef7`).
+- `docs/audit/07_MODULE_AND_FEATURE_INVENTORY.md` dan `docs/development/DEVELOPMENT_MASTER_LOG.md` — pass dokumentasi ini.
+
+### Verifikasi
+| Pemeriksaan | Hasil | Sumber |
+|---|---|---|
+| `npx tsc --noEmit` | **PASS** | Freebuff (implementasi reorder) |
+| `npx eslint src/components/dashboard/DashboardSidebar.tsx` | **PASS**, 0 error / 0 warning | Freebuff (implementasi reorder) |
+| `npm test` | **286/286 PASS** (70 suite) | Freebuff (implementasi reorder) |
+| `git diff --check` | **PASS** | Freebuff (implementasi + pass dokumentasi) |
+| Runtime visual browser | **NOT RUN** — urutan akhir pada sidebar belum dilihat Owner | — |
+
+### Batasan
+- Tidak ada test yang memvalidasi urutan menu; test sidebar hanya memeriksa isi menu Green Building & ESG, route helper, visibilitas role, dan state accordion — semuanya tetap lulus tanpa perubahan.
+- Belum ada pemeriksaan visual di browser/Vercel setelah reorder.
+- Tidak ada commit/push pada pass dokumentasi ini.
+
+---
+
 ## DL-2026-11-18-02 — Penilaian ESG
 
 | Field | Nilai |
