@@ -5,6 +5,53 @@ Dokumentasi audit repository ada di `docs/audit/`; dokumen ini mencatat **peruba
 
 ---
 
+## DL-2026-11-18-02 — Penilaian ESG
+
+| Field | Nilai |
+|---|---|
+| Feature ID | `ENT-GREEN-ESG-ASSESS` |
+| Tanggal | 18 November 2026 |
+| Status | **IMPLEMENTED BUT NOT FULLY VERIFIED** — backend, database, dan UI selesai; migration `0029_project_esg_assessments` **dibuat** (penerapan belum terverifikasi); static checks PASS (286/286, 70 suite); visual Vercel belum dicek Owner |
+| Commit | `a6cbe60` — `feat(green-building): implement certification and ESG assessment modules with full backend, UI, and database migrations` |
+| Branch | `main` |
+| Baseline | `bb7228f` + implementasi Sertifikasi Green Building dan Penilaian ESG |
+| Migration | `0029_project_esg_assessments` — **dibuat** (`drizzle/0029_project_esg_assessments.sql`, snapshot `0029`, journal `idx: 29`; total 30 entry); penerapan di database belum terverifikasi |
+
+### Perubahan
+- **Tabel `project_esg_assessments`:** satu baris = satu proyek pada satu tahun, dengan 12 kolom status bulan nullable (`month_1_status`–`month_12_status`) alih-alih tabel pivot, karena grid selalu 12 bulan dan hanya ada tiga nilai: `NULL`, `Complete`, `Half`. `UNIQUE(project_id, year)` (`pea_project_year_unique`) menjamin satu penilaian per proyek per tahun sekaligus melayani lookup per proyek; FK `project_id` `ON DELETE RESTRICT`; CHECK per bulan `Complete`/`Half`/`NULL`; CHECK `documentation_url` http(s) maksimal 2.048 karakter; index `pea_year_idx`. `year` adalah **snapshot** `master_projects.year` yang diisi server, sehingga perubahan Master Project tidak menulis ulang riwayat.
+- **Migration:** `0029_project_esg_assessments` dibuat lewat `drizzle-kit generate` (bukan tulis tangan) — DDL, snapshot `0029`, dan journal `idx: 29` konsisten; journal kini **30 entry**. Migration **belum dijalankan** pada pass ini dan penerapannya belum terverifikasi, sehingga tabel bisa saja belum ada di database.
+- **Modul domain baru:** `src/lib/esg-assessment/{constants,schema,repository,service}.ts`. Body Create/Update memakai `.strict()` sehingga `id`, `year`, field audit, dan nama proyek dari client ditolak; status bulan divalidasi sebagai `Complete`/`Half`/`null`. Guard memakai ulang `src/lib/green-building-esg/access.ts` dan tipe error domain Green Building & ESG, jadi `_helpers.ts` tidak berubah.
+- **RBAC:** `GREEN_BUILDING_ESG_VIEW` untuk Admin, Head Office, Management, dan Project (list + layout guard); `GREEN_BUILDING_ESG_MANAGE` untuk Admin dan Head Office (create/update/delete/PATCH). Tidak ada permission baru di `src/lib/auth/permissions.ts`.
+- **API:** `GET /api/green-building-esg/esg-assessments?year=...&search=...` (`meta.total`, `meta.available_years`; `q` alias `search`), `POST`, `PUT`/`DELETE /api/green-building-esg/esg-assessments/[id]`, dan `PATCH /api/green-building-esg/esg-assessments/[id]/months/[month]` yang menerima satu status, idempoten, dan mengembalikan DTO lengkap (`months`, `completed_months`, `half_months`). Ganti proyek saat update me-reset `year` dan mempertahankan 12 status bulan; bentrok unik → 409. Response privat `Cache-Control: private, no-store`.
+- **UI:** submenu **Penilaian ESG** di accordion **Database Green Building & ESG**; halaman `/dashboard/green-building-esg/esg` dengan tabel `table-fixed` + `overflow-x-auto` 12 kolom bulan, `<select>` native per sel (kosong putih tanpa border, `Complete` hijau, `Half` kuning), filter tahun dari `available_years`, search nama proyek (debounce 300 ms), dialog tambah/edit (combobox Master Project, tahun read-only dari proyek, link dokumentasi), dan dialog hapus.
+- **Perilaku edit sel:** optimistic update langsung pada UI, `PATCH` per bulan, state `savingCells` menandai sel yang menyimpan (spinner, `aria-busy`, sel lain pada baris yang sama di-`disabled` agar `updated_at` tidak saling menimpa). Sukses mengganti baris dengan DTO response tanpa refetch; gagal mengembalikan sel ke nilai semula dan menampilkan `role="alert"` dengan tombol ulang.
+- **Catatan proses:** saat P4 dimulai, backend Sub-fase 1 Penilaian ESG belum ada di repository (tidak ada `src/lib/esg-assessment/`, tabel schema, route API, maupun migration `0029`). Backend + migration dikerjakan lebih dulu atas persetujuan Owner, lalu UI.
+- **Dokumentasi:** status kedua submenu dicatat di tiga dokumen development; pass dokumentasi ini tidak mengubah kode sumber, database, atau API.
+
+### File impacted
+- Backend/data: `src/lib/pg/schema.ts`, `src/lib/esg-assessment/{constants,schema,repository,service}.ts`, `src/app/api/green-building-esg/esg-assessments/**`, `drizzle/0029_project_esg_assessments.sql`, `drizzle/meta/0029_snapshot.json`, `drizzle/meta/_journal.json`.
+- Frontend: `src/components/dashboard/DashboardSidebar.tsx`, `src/app/dashboard/green-building-esg/esg/{layout,page}.tsx`, `src/components/dashboard/green-building-esg/{EsgPage,EsgTable,EsgFormDialog,EsgDeleteDialog}.tsx`, serta `types.ts` dan `api-error.ts`.
+- Test: `src/components/dashboard/greenBuildingSidebar.test.ts` (dua submenu + file route `esg`).
+- Pass dokumentasi ini hanya mengubah `docs/development/{CURRENT_PROJECT_STATE,DEVELOPMENT_MASTER_LOG,FEATURE_REGISTER}.md`.
+
+### Verifikasi
+| Pemeriksaan | Hasil | Sumber |
+|---|---|---|
+| `npx tsc --noEmit` | **PASS** | Freebuff (implementasi backend & UI) |
+| `npx eslint` (ESG + sidebar) | **PASS**, 0 error / 0 warning | Freebuff (implementasi backend & UI) |
+| `npm test` | **286/286 PASS** (70 suite) | Freebuff (implementasi backend & UI) |
+| `git diff --check` | **PASS** | Freebuff (pass dokumentasi) |
+| Migration `0029_project_esg_assessments` | **DIBUAT**; belum dijalankan dan belum terverifikasi APPLIED | Freebuff (generate) |
+| Runtime visual Vercel | **NOT RUN** — grid 12 bulan, optimistic update/rollback, dialog, filter, search, dan RBAC 4 role belum dicek Owner | — |
+
+### Batasan
+- Status sengaja tetap `IMPLEMENTED BUT NOT FULLY VERIFIED` sampai Owner memeriksa visual Vercel, interaksi 12 sel bulan (termasuk jalur gagal/rollback), dialog tambah/edit/hapus, filter tahun, search proyek, dan RBAC Admin/Head Office vs Management/Project.
+- Migration `0029` belum dijalankan; tabel `project_esg_assessments` belum terbukti ada di database, sehingga modul Penilaian ESG belum bisa dipakai sampai migration APPLIED.
+- Tidak ada test khusus `esg-assessment`; verifikasi otomatis yang ada adalah TypeScript, ESLint, dan test sidebar.
+- Tidak ada commit, push, deploy, migration, seed, atau DB write pada pass dokumentasi ini.
+
+---
+
 ## DL-2026-11-18-01 — Sertifikasi Green Building
 
 | Field | Nilai |
@@ -12,10 +59,10 @@ Dokumentasi audit repository ada di `docs/audit/`; dokumen ini mencatat **peruba
 | Feature ID | `ENT-GREEN-ESG` |
 | Tanggal | 18 November 2026 |
 | Status | **IMPLEMENTED BUT NOT FULLY VERIFIED** — backend, database, dan UI selesai; migration `0028_project_green_certificates` **APPLIED**; static checks PASS (286/286, 70 suite); visual Vercel belum dicek Owner |
-| Commit | Belum di-commit; pass dokumentasi ini tidak melakukan commit/push |
+| Commit | `a6cbe60` — `feat(green-building): implement certification and ESG assessment modules with full backend, UI, and database migrations` |
 | Branch | `main` |
-| Baseline | `bb7228f` + implementasi Standard & Regulation dan Database Green Building & ESG di working tree |
-| Migration | `0028_project_green_certificates` — **APPLIED** (18 November 2026); journal 29 entry |
+| Baseline | `bb7228f` + implementasi Standard & Regulation dan Database Green Building & ESG |
+| Migration | `0028_project_green_certificates` — **APPLIED** (18 November 2026); journal kini 30 entry setelah `0029_project_esg_assessments` dibuat |
 
 ### Perubahan
 - **Tabel `project_green_certificates`:** menyimpan sertifikat per Master Project dengan FK `project_id` `ON DELETE RESTRICT`, `project_value`, snapshot `location`, `certificate_year` 2000–2100, `lembaga`, `level`, `status`, `documentation_url`, serta audit `created_by`/`updated_by`. CHECK komposit memastikan `level` cocok dengan `lembaga`; CHECK dokumentasi membatasi URL http(s) maksimal 2.048 karakter tanpa whitespace. Index `pgc_project_id_idx` dan `pgc_certificate_year_idx` ditambahkan; nama proyek selalu di-JOIN dari `master_projects`.
