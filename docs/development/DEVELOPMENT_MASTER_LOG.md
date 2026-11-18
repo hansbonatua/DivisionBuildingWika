@@ -5,6 +5,51 @@ Dokumentasi audit repository ada di `docs/audit/`; dokumen ini mencatat **peruba
 
 ---
 
+## DL-2026-11-18-01 — Sertifikasi Green Building
+
+| Field | Nilai |
+|---|---|
+| Feature ID | `ENT-GREEN-ESG` |
+| Tanggal | 18 November 2026 |
+| Status | **IMPLEMENTED BUT NOT FULLY VERIFIED** — backend, database, dan UI selesai; migration `0028_project_green_certificates` **APPLIED**; static checks PASS (286/286, 70 suite); visual Vercel belum dicek Owner |
+| Commit | Belum di-commit; pass dokumentasi ini tidak melakukan commit/push |
+| Branch | `main` |
+| Baseline | `bb7228f` + implementasi Standard & Regulation dan Database Green Building & ESG di working tree |
+| Migration | `0028_project_green_certificates` — **APPLIED** (18 November 2026); journal 29 entry |
+
+### Perubahan
+- **Tabel `project_green_certificates`:** menyimpan sertifikat per Master Project dengan FK `project_id` `ON DELETE RESTRICT`, `project_value`, snapshot `location`, `certificate_year` 2000–2100, `lembaga`, `level`, `status`, `documentation_url`, serta audit `created_by`/`updated_by`. CHECK komposit memastikan `level` cocok dengan `lembaga`; CHECK dokumentasi membatasi URL http(s) maksimal 2.048 karakter tanpa whitespace. Index `pgc_project_id_idx` dan `pgc_certificate_year_idx` ditambahkan; nama proyek selalu di-JOIN dari `master_projects`.
+- **Migration:** `0028_project_green_certificates` sudah **APPLIED**; journal 29 entry; snapshot `0028` tersedia. Tidak ada upload file/Blob — dokumentasi hanya URL.
+- **RBAC:** `GREEN_BUILDING_ESG_VIEW` untuk Admin, Head Office, Management, dan Project; `GREEN_BUILDING_ESG_MANAGE` untuk Admin dan Head Office. Admin memperoleh keduanya melalui super-application rule. Layout guard, service, dan API sama-sama menegakkan permission; `project-options` hanya untuk MANAGE.
+- **API:** `GET /api/green-building-esg/certificates?year=...&search=...` (filter tahun + search nama proyek, `q` tetap diterima sebagai alias), `POST /api/green-building-esg/certificates`, `PUT`/`DELETE /api/green-building-esg/certificates/[id]`, dan `GET /api/green-building-esg/project-options?q=...`. List mengembalikan `data` + `meta.total` + `meta.available_years`; response privat `Cache-Control: private, no-store`.
+- **UI:** accordion **Database Green Building & ESG** di Core Enterprise, submenu **Sertifikasi Green Building**; halaman `/dashboard/green-building-esg/sertifikasi` dengan tabel 9 kolom, filter tahun, search proyek, skeleton, empty state, dialog tambah/edit, dan dialog hapus. Form memakai combobox Master Project baru; pilihan level dihitung dari lembaga dan di-reset saat lembaga berubah. Read-only role melihat tabel tanpa tombol mutasi.
+- **Pemisahan modul:** namespace `/dashboard/green-building-esg` dan `/api/green-building-esg` terpisah dari CMS lama `/dashboard/green-building` dan `/api/green-buildings`; komponen KM tidak diubah.
+- **Test:** test access/schema Green Building dan navigasi sidebar ditambahkan; total suite menjadi 286/286 PASS (70 suite).
+- **Dokumentasi:** status fitur dicatat di tiga dokumen development; pass ini tidak mengubah kode sumber, database, atau API.
+
+### File impacted
+- Backend/data: `src/lib/pg/schema.ts`, `src/lib/auth/permissions.ts`, `src/lib/green-building-esg/{access,constants,repository,schema,service}.ts`, `src/app/api/green-building-esg/**`, `drizzle/0028_project_green_certificates.sql`, `drizzle/meta/0028_snapshot.json`, `drizzle/meta/_journal.json`.
+- Frontend: `src/components/dashboard/DashboardSidebar.tsx`, `src/app/dashboard/green-building-esg/{layout,page}.tsx`, `src/app/dashboard/green-building-esg/sertifikasi/{layout,page}.tsx`, `src/components/dashboard/green-building-esg/{SertifikasiPage,CertificateTable,CertificateFormDialog,CertificateDeleteDialog,GreenBuildingProjectCombobox,GreenBuildingEsgDialogShell}.tsx`, serta `types.ts` dan `api-error.ts`.
+- Test: `src/lib/green-building-esg/{access,schema}.test.ts`, `src/components/dashboard/greenBuildingSidebar.test.ts`.
+- Pass dokumentasi ini hanya mengubah `docs/development/{CURRENT_PROJECT_STATE,DEVELOPMENT_MASTER_LOG,FEATURE_REGISTER}.md`.
+
+### Verifikasi
+| Pemeriksaan | Hasil | Sumber |
+|---|---|---|
+| `npx tsc --noEmit` | **PASS** | Freebuff (implementasi Sub-fase 1 & 2) |
+| `npx eslint` (Green Building + Sidebar) | **PASS**, 0 error / 0 warning | Freebuff (implementasi Sub-fase 2) |
+| `npm test` | **286/286 PASS** (70 suite; termasuk Green Building access/schema dan navigasi sidebar) | Freebuff (implementasi Sub-fase 2) |
+| `git diff --check` | **PASS** | Freebuff (pass dokumentasi) |
+| Migration `0028_project_green_certificates` | **APPLIED**; journal 29 entry | Owner-confirmed melalui konteks P8 |
+| Runtime visual Vercel | **NOT RUN** — visual tabel/dialog/form, filter, search, dan RBAC 4 role belum dicek Owner | — |
+
+### Batasan
+- Status sengaja tetap `IMPLEMENTED BUT NOT FULLY VERIFIED` sampai Owner memeriksa visual Vercel, interaksi tabel/dialog, form dinamis Lembaga/Level, filter tahun, search proyek, dan RBAC Admin/Head Office vs Management/Project.
+- Migration `0028` tidak dijalankan ulang pada pass dokumentasi ini; status APPLIED mengikuti konteks P8.
+- Tidak ada commit, push, deploy, migration, seed, DB write, atau perubahan kode pada pass ini.
+
+---
+
 ## DL-2026-11-16-01 — Standard & Regulation
 
 | Field | Nilai |

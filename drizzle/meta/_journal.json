@@ -197,6 +197,20 @@
       "when": 1794816454033,
       "tag": "0027_standard_regulation",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1794970341641,
+      "tag": "0028_project_green_certificates",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1794973617585,
+      "tag": "0029_project_esg_assessments",
+      "breakpoints": true
     }
   ]
 }

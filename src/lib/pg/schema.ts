@@ -1596,3 +1596,180 @@ export const activityLogs = pgTable(
 
 export type PgActivityLog = typeof activityLogs.$inferSelect;
 export type NewPgActivityLog = typeof activityLogs.$inferInsert;
+
+// ---------------------------------------------------------------------------
+// Core Enterprise: Database Green Building & ESG — Sertifikasi Green Building.
+//
+// project_id references the canonical Master Project directory. The project
+// name is never duplicated here; list responses join master_projects.name.
+// certificate_year is the certificate year and may differ from the project
+// year. location is a snapshot of the certificate location, prefilled by the
+// form but editable. RESTRICT prevents deleting a Master Project that still
+// owns a certificate. No upload columns exist: documentation is a URL only.
+//
+// lembaga and level use text + CHECK, not a PostgreSQL enum. The composite
+// level CHECK makes an invalid pair (for example BGH + Platinum) impossible.
+export const projectGreenCertificates = pgTable(
+  "project_green_certificates",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => masterProjects.id, { onDelete: "restrict" }),
+    projectValue: text("project_value").notNull(),
+    location: text("location").notNull(),
+    certificateYear: integer("certificate_year").notNull(),
+    lembaga: text("lembaga").notNull(),
+    level: text("level").notNull(),
+    status: text("status").notNull(),
+    documentationUrl: text("documentation_url"),
+    createdBy: uuid("created_by")
+      .notNull()
+      .references(() => users.id, { onDelete: "no action" }),
+    updatedBy: uuid("updated_by").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("pgc_project_id_idx").on(table.projectId),
+    index("pgc_certificate_year_idx").on(table.certificateYear),
+    check(
+      "pgc_value_check",
+      sql`length(btrim(${table.projectValue})) between 1 and 100`,
+    ),
+    check(
+      "pgc_location_check",
+      sql`length(btrim(${table.location})) between 1 and 200`,
+    ),
+    check(
+      "pgc_year_check",
+      sql`${table.certificateYear} between 2000 and 2100`,
+    ),
+    check(
+      "pgc_lembaga_check",
+      sql`${table.lembaga} in ('BGH','Greenship')`,
+    ),
+    check(
+      "pgc_level_check",
+      sql`(${table.lembaga} = 'BGH' and ${table.level} in ('Utama','Madya','Pratama')) or (${table.lembaga} = 'Greenship' and ${table.level} in ('Certified/Bronze','Silver','Gold','Platinum'))`,
+    ),
+    check(
+      "pgc_status_check",
+      sql`${table.status} in ('Certified','Non-Certified','Under Construction')`,
+    ),
+    check(
+      "pgc_documentation_check",
+      sql`${table.documentationUrl} is null or (length(btrim(${table.documentationUrl})) between 1 and 2048 and ${table.documentationUrl} ~ '^https?://[^[:space:]]+$')`,
+    ),
+  ],
+);
+
+export type PgProjectGreenCertificate = typeof projectGreenCertificates.$inferSelect;
+export type NewPgProjectGreenCertificate = typeof projectGreenCertificates.$inferInsert;
+
+// ---------------------------------------------------------------------------
+// Core Enterprise: Database Green Building & ESG — Penilaian ESG.
+//
+// One row is one project's ESG assessment for one year. The twelve monthly
+// statuses are fixed columns instead of a pivot table because the grid is
+// always twelve months and only three values exist: NULL, 'Complete', 'Half'.
+//
+// `year` is a SNAPSHOT of master_projects.year taken by the service on create
+// (and re-snapshotted when the project changes), so a later Master Project
+// edit cannot rewrite assessment history. UNIQUE (project_id, year) enforces
+// one assessment per project per year and also serves the per-project lookup.
+// RESTRICT prevents deleting a Master Project that still owns an assessment.
+// No upload columns exist: documentation is a URL only.
+export const projectEsgAssessments = pgTable(
+  "project_esg_assessments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => masterProjects.id, { onDelete: "restrict" }),
+    year: integer("year").notNull(),
+    documentationUrl: text("documentation_url"),
+    month1Status: text("month_1_status"),
+    month2Status: text("month_2_status"),
+    month3Status: text("month_3_status"),
+    month4Status: text("month_4_status"),
+    month5Status: text("month_5_status"),
+    month6Status: text("month_6_status"),
+    month7Status: text("month_7_status"),
+    month8Status: text("month_8_status"),
+    month9Status: text("month_9_status"),
+    month10Status: text("month_10_status"),
+    month11Status: text("month_11_status"),
+    month12Status: text("month_12_status"),
+    createdBy: uuid("created_by")
+      .notNull()
+      .references(() => users.id, { onDelete: "no action" }),
+    updatedBy: uuid("updated_by").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    unique("pea_project_year_unique").on(table.projectId, table.year),
+    index("pea_year_idx").on(table.year),
+    check("pea_year_check", sql`${table.year} between 2000 and 2100`),
+    check(
+      "pea_month_1_status_check",
+      sql`${table.month1Status} is null or ${table.month1Status} in ('Complete','Half')`,
+    ),
+    check(
+      "pea_month_2_status_check",
+      sql`${table.month2Status} is null or ${table.month2Status} in ('Complete','Half')`,
+    ),
+    check(
+      "pea_month_3_status_check",
+      sql`${table.month3Status} is null or ${table.month3Status} in ('Complete','Half')`,
+    ),
+    check(
+      "pea_month_4_status_check",
+      sql`${table.month4Status} is null or ${table.month4Status} in ('Complete','Half')`,
+    ),
+    check(
+      "pea_month_5_status_check",
+      sql`${table.month5Status} is null or ${table.month5Status} in ('Complete','Half')`,
+    ),
+    check(
+      "pea_month_6_status_check",
+      sql`${table.month6Status} is null or ${table.month6Status} in ('Complete','Half')`,
+    ),
+    check(
+      "pea_month_7_status_check",
+      sql`${table.month7Status} is null or ${table.month7Status} in ('Complete','Half')`,
+    ),
+    check(
+      "pea_month_8_status_check",
+      sql`${table.month8Status} is null or ${table.month8Status} in ('Complete','Half')`,
+    ),
+    check(
+      "pea_month_9_status_check",
+      sql`${table.month9Status} is null or ${table.month9Status} in ('Complete','Half')`,
+    ),
+    check(
+      "pea_month_10_status_check",
+      sql`${table.month10Status} is null or ${table.month10Status} in ('Complete','Half')`,
+    ),
+    check(
+      "pea_month_11_status_check",
+      sql`${table.month11Status} is null or ${table.month11Status} in ('Complete','Half')`,
+    ),
+    check(
+      "pea_month_12_status_check",
+      sql`${table.month12Status} is null or ${table.month12Status} in ('Complete','Half')`,
+    ),
+    check(
+      "pea_documentation_check",
+      sql`${table.documentationUrl} is null or (length(btrim(${table.documentationUrl})) between 1 and 2048 and ${table.documentationUrl} ~ '^https?://[^[:space:]]+$')`,
+    ),
+  ],
+);
+
+export type PgProjectEsgAssessment = typeof projectEsgAssessments.$inferSelect;
+export type NewPgProjectEsgAssessment = typeof projectEsgAssessments.$inferInsert;

@@ -11,6 +11,7 @@ import {
   ENGINEERING_DATABASE_CATEGORY_SLUGS,
   canViewEngineeringDatabase,
 } from "@/lib/engineering-database/access";
+import { canViewGreenBuildingEsg } from "@/lib/green-building-esg/access";
 import { canValidateBerkas, canViewBerkas } from "@/lib/berkas/access";
 import { canManageCms } from "@/lib/cms/access";
 import { canViewKnowledgeManagement } from "@/lib/knowledge-management/access";
@@ -559,6 +560,40 @@ const engineeringDatabaseMenu: SidebarItem[] = [
   })),
 ];
 
+const GREEN_BUILDING_ESG_ROOT = "/dashboard/green-building-esg";
+
+export function isGreenBuildingEsgPath(pathname: string): boolean {
+  return (
+    pathname === GREEN_BUILDING_ESG_ROOT ||
+    pathname.startsWith(`${GREEN_BUILDING_ESG_ROOT}/`)
+  );
+}
+
+// Database Green Building & ESG is a separate Core Enterprise accordion. Its
+// submenus are intentionally not mixed with the legacy CMS namespace
+// /dashboard/green-building. Visibility stays GREEN_BUILDING_ESG_VIEW for the
+// whole accordion; the permission only decides which mutation controls render.
+export const greenBuildingEsgMenu: SidebarItem[] = [
+  {
+    label: "Sertifikasi Green Building",
+    href: `${GREEN_BUILDING_ESG_ROOT}/sertifikasi`,
+    icon: (
+      <span aria-hidden="true" className="text-sm leading-none">
+        🌱
+      </span>
+    ),
+  },
+  {
+    label: "Penilaian ESG",
+    href: `${GREEN_BUILDING_ESG_ROOT}/esg`,
+    icon: (
+      <span aria-hidden="true" className="text-sm leading-none">
+        📊
+      </span>
+    ),
+  },
+];
+
 const KNOWLEDGE_MANAGEMENT_ROOT = "/dashboard/knowledge-management";
 
 export function isKnowledgeManagementPath(pathname: string): boolean {
@@ -581,6 +616,7 @@ export type SidebarVisibility = {
   showSasaa: boolean;
   showMasterProjectPhotos: boolean;
   showEngineeringDatabase: boolean;
+  showGreenBuildingEsg: boolean;
   showMsl: boolean;
   showOrganizationStructure: boolean;
   showCms: boolean;
@@ -617,6 +653,7 @@ export function getSidebarVisibility(
     PERMISSIONS.MASTER_PROJECT_PHOTOS_MANAGE,
   );
   const showEngineeringDatabase = canViewEngineeringDatabase(role);
+  const showGreenBuildingEsg = canViewGreenBuildingEsg(role);
   const showMsl = canViewMsl({ role, mslAccess: mslAccess === true });
   const showOrganizationStructure = canViewOrganizationStructure(role);
   // Landing Page Manager and User Directory are Admin-only, resolved through the
@@ -638,6 +675,7 @@ export function getSidebarVisibility(
     showSasaa,
     showMasterProjectPhotos,
     showEngineeringDatabase,
+    showGreenBuildingEsg,
     showMsl,
     showOrganizationStructure,
     showCms,
@@ -656,6 +694,7 @@ export function getSidebarVisibility(
       showSasaa ||
       showMasterProjectPhotos ||
       showEngineeringDatabase ||
+      showGreenBuildingEsg ||
       showMsl,
   };
 }
@@ -671,6 +710,7 @@ export type SidebarAccordionState = {
   projectDocumentationOpen: boolean;
   masterProjectOpen: boolean;
   engineeringDatabaseOpen: boolean;
+  greenBuildingEsgOpen: boolean;
 };
 
 // Initial accordion state: every accordion starts collapsed unless its own
@@ -702,6 +742,7 @@ export function getInitialSidebarAccordionState(
     projectDocumentationOpen: isProjectDocumentationPath(pathname),
     masterProjectOpen: pathname.startsWith("/dashboard/master-project"),
     engineeringDatabaseOpen: pathname.startsWith("/dashboard/engineering-database"),
+    greenBuildingEsgOpen: isGreenBuildingEsgPath(pathname),
   };
 }
 
@@ -728,6 +769,7 @@ export default function DashboardSidebar({
     showSasaa,
     showMasterProjectPhotos,
     showEngineeringDatabase,
+    showGreenBuildingEsg,
     showMsl,
     showOrganizationStructure,
     showCms,
@@ -753,6 +795,7 @@ export default function DashboardSidebar({
   const isEngineeringDatabaseRoute = pathname.startsWith(
     "/dashboard/engineering-database",
   );
+  const isGreenBuildingEsgRoute = isGreenBuildingEsgPath(pathname);
   const initialAccordions = getInitialSidebarAccordionState(pathname);
   const [landingOpen, setLandingOpen] = useState(initialAccordions.landingOpen);
   const [programKerjaOpen, setProgramKerjaOpen] = useState(
@@ -777,6 +820,9 @@ export default function DashboardSidebar({
   );
   const [engineeringDatabaseOpen, setEngineeringDatabaseOpen] = useState(
     initialAccordions.engineeringDatabaseOpen,
+  );
+  const [greenBuildingEsgOpen, setGreenBuildingEsgOpen] = useState(
+    initialAccordions.greenBuildingEsgOpen,
   );
   const [previousPathname, setPreviousPathname] = useState(pathname);
 
@@ -850,6 +896,9 @@ export default function DashboardSidebar({
     }
     if (isEngineeringDatabaseRoute) {
       setEngineeringDatabaseOpen(true);
+    }
+    if (isGreenBuildingEsgRoute) {
+      setGreenBuildingEsgOpen(true);
     }
   }
 
@@ -1417,6 +1466,54 @@ export default function DashboardSidebar({
                         {(showMsl ? [mslMenuItem] : [])
                           .concat(showEngineeringDatabase ? engineeringDatabaseMenu : [])
                           .map((item) => renderItem(item))}
+                      </nav>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+              {showGreenBuildingEsg ? (
+                <div className="mt-1">
+                  <div className="px-1">
+                    <button
+                      type="button"
+                      aria-expanded={greenBuildingEsgOpen}
+                      aria-controls="green-building-esg-menu"
+                      onClick={() => setGreenBuildingEsgOpen((prev) => !prev)}
+                      className="flex w-full items-center justify-between rounded-lg border border-transparent px-2.5 py-2 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+                    >
+                      <span className="flex min-w-0 flex-1 items-center gap-2.5 text-left">
+                        <span className="shrink-0 text-secondary">
+                          <MenuIcon>
+                            <path d="M12 22V12" />
+                            <path d="M12 12C12 7 8 3 3 3c0 5 4 9 9 9Z" />
+                            <path d="M12 16c0-4 3-7 7-7 0 4-3 7-7 7Z" />
+                          </MenuIcon>
+                        </span>
+                        <span>Database Green Building &amp; ESG</span>
+                      </span>
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                        className={`shrink-0 text-slate-400 transition-transform duration-200 ${greenBuildingEsgOpen ? "rotate-180" : "rotate-0"}`}
+                      >
+                        <path d="m6 9 6 6 6-6" />
+                      </svg>
+                    </button>
+                  </div>
+                  {greenBuildingEsgOpen ? (
+                    <div id="green-building-esg-menu">
+                      <nav
+                        className="ml-4 space-y-1 border-l-2 border-slate-100 pl-3"
+                        aria-label="Database Green Building & ESG"
+                      >
+                        {greenBuildingEsgMenu.map((item) => renderItem(item))}
                       </nav>
                     </div>
                   ) : null}

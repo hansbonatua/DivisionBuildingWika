@@ -41,6 +41,9 @@ export const PERMISSIONS = {
   ENGINEERING_DATABASE_VIEW: "ENGINEERING_DATABASE_VIEW",
   ENGINEERING_DATABASE_MANAGE: "ENGINEERING_DATABASE_MANAGE",
 
+  GREEN_BUILDING_ESG_VIEW: "GREEN_BUILDING_ESG_VIEW",
+  GREEN_BUILDING_ESG_MANAGE: "GREEN_BUILDING_ESG_MANAGE",
+
   KNOWLEDGE_MANAGEMENT_VIEW: "KNOWLEDGE_MANAGEMENT_VIEW",
   KNOWLEDGE_MANAGEMENT_MANAGE: "KNOWLEDGE_MANAGEMENT_MANAGE",
 
@@ -102,6 +105,13 @@ const NON_ADMIN_PERMISSION_ROLES: Record<Permission, readonly UserRole[]> = {
 
   ENGINEERING_DATABASE_VIEW: [HEAD_OFFICE_ROLE, PROJECT_ROLE, MANAGEMENT_ROLE],
   ENGINEERING_DATABASE_MANAGE: [HEAD_OFFICE_ROLE, PROJECT_ROLE],
+
+  // Database Green Building & ESG — Sertifikasi Green Building. Head Office
+  // manages; Management and Project are read-only. Admin receives both through
+  // the super-application rule. This is separate from the legacy CMS
+  // Green Building module (`CMS_MANAGE`, Admin-only).
+  GREEN_BUILDING_ESG_VIEW: [HEAD_OFFICE_ROLE, PROJECT_ROLE, MANAGEMENT_ROLE],
+  GREEN_BUILDING_ESG_MANAGE: [HEAD_OFFICE_ROLE],
 
   // Knowledge Management is its own top-level sidebar module (a sibling of
   // Program Kerja) with a SEPARATE permission namespace: Admin and Head Office
