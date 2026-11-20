@@ -62,6 +62,14 @@ const COLUMN_X = [
   MARGIN_X + COLUMN_WIDTH * 2,
 ] as const;
 
+// Document code box: a thin-bordered, unfilled rectangle anchored to the top
+// right corner of the page, level with the centered logo band.
+const KODE_BOX_SIZE = 9;
+const KODE_BOX_PADDING_X = 8;
+const KODE_BOX_PADDING_Y = 5;
+const KODE_BOX_MAX_WIDTH = 200;
+const KODE_BOX_BORDER_WIDTH = 0.5;
+
 const BLACK = rgb(0, 0, 0);
 const WHITE = rgb(1, 1, 1);
 const GRID_LINE = rgb(0.8, 0.8, 0.8);
@@ -345,22 +353,41 @@ function drawKodeSeri(
   page: PDFPage,
   fonts: CoverFonts,
   kodeSeri: string | null | undefined,
-  tableTop: number,
+  logoTop: number,
+  logoBottom: number,
 ): void {
-  const value = pdfSafeText(kodeSeri ?? "");
+  const value = pdfSafeText(kodeSeri ?? "").toUpperCase();
   if (!value) return;
 
-  // Right-aligned above the table's top rule, outside the grid area, so it
-  // never sits inside the "Validasi 2" header cell.
-  const size = 9;
+  // Anchored to the page's top right corner, vertically centered on the logo
+  // band so the box never collides with the centered logo or the title below.
+  const size = KODE_BOX_SIZE;
+  const maxTextWidth = KODE_BOX_MAX_WIDTH - KODE_BOX_PADDING_X * 2;
+  const text = fitLine(value, fonts.regular, size, maxTextWidth);
+  const textWidth = fonts.regular.widthOfTextAtSize(text, size);
+  const boxWidth = textWidth + KODE_BOX_PADDING_X * 2;
+  const boxHeight = size + KODE_BOX_PADDING_Y * 2;
   const rightEdge = MARGIN_X + CONTENT_WIDTH;
-  page.drawText(value, {
-    x: rightEdge - fonts.bold.widthOfTextAtSize(value, size),
-    y: tableTop + 12,
-    size,
-    font: fonts.bold,
-    color: BLACK,
+  const boxX = rightEdge - boxWidth;
+  const boxY = (logoTop + logoBottom) / 2 - boxHeight / 2;
+
+  page.drawRectangle({
+    x: boxX,
+    y: boxY,
+    width: boxWidth,
+    height: boxHeight,
+    borderColor: BLACK,
+    borderWidth: KODE_BOX_BORDER_WIDTH,
   });
+
+  drawCenteredText(
+    page,
+    text,
+    boxX + boxWidth / 2,
+    boxY + boxHeight / 2 - size * 0.35,
+    fonts.regular,
+    size,
+  );
 }
 
 function drawGrid(
@@ -489,10 +516,10 @@ export async function generateCoverPdf(
   const tableBottom = cursor;
 
   drawGrid(page, tableTop, tableBottom, rowTops);
-  drawKodeSeri(page, fonts, data.kodeSeri, tableTop);
+  drawKodeSeri(page, fonts, data.kodeSeri, LOGO_TOP, logoY);
 
   const columns: CoverColumn[] = [
-    { header: "Tim Penyusun", signatures: data.penyusun },
+    { header: "Penyusun", signatures: data.penyusun },
     { header: "Validasi 1", signatures: [data.validasi[0]] },
     { header: "Validasi 2", signatures: [data.validasi[1]] },
   ];

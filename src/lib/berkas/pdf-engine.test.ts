@@ -49,16 +49,17 @@ test("generateCoverPdf creates one A4 portrait page with signatures", async () =
   assert.ok(bytes.byteLength > 1000);
 });
 
-test("generateCoverPdf places the kode seri above the table, right-aligned", async () => {
+test("generateCoverPdf draws the kode seri in a top-right uppercase box", async () => {
   const bytes = await generateCoverPdf({
     ...coverData(),
-    kodeSeri: "WIKA/BA/2026/001",
+    kodeSeri: "wika/ba/2026/001",
   });
   const doc = await pdfjs.getDocument({
     data: bytes.slice(),
     standardFontDataUrl: STANDARD_FONT_DATA_URL,
   }).promise;
-  const content = await doc.getPage(1).then((page) => page.getTextContent());
+  const pdfPage = await doc.getPage(1);
+  const content = await pdfPage.getTextContent();
   const items = content.items.flatMap((item) =>
     "str" in item
       ? [
@@ -75,7 +76,7 @@ test("generateCoverPdf places the kode seri above the table, right-aligned", asy
 
   const kodeSeri = items.find((item) => item.text === "WIKA/BA/2026/001");
   const header = items.find((item) => item.text === "Validasi 2");
-  assert.ok(kodeSeri, "kode seri should be drawn");
+  assert.ok(kodeSeri, "kode seri should be drawn in uppercase");
   assert.ok(header, "Validasi 2 header should be drawn");
 
   assert.equal(kodeSeri.height, 9);
@@ -84,9 +85,39 @@ test("generateCoverPdf places the kode seri above the table, right-aligned", asy
     "kode seri should sit above the table header row",
   );
   assert.ok(
-    Math.abs(kodeSeri.x + kodeSeri.width - (40 + 762)) <= 1,
-    "kode seri should end on the table's right border",
+    kodeSeri.y > 480,
+    "kode seri should sit in the top margin, level with the logo",
   );
+  assert.ok(
+    kodeSeri.x + kodeSeri.width <= 40 + 762 - 4,
+    "kode seri text should be padded inside the box",
+  );
+  assert.ok(
+    kodeSeri.x + kodeSeri.width > 40 + 762 - 220,
+    "kode seri box should hug the top right corner",
+  );
+
+  const operators = await pdfPage.getOperatorList();
+  const indices = (fn: number) =>
+    operators.fnArray.flatMap((value, index) => (value === fn ? [index] : []));
+  const thinStrokeIndex = indices(pdfjs.OPS.setLineWidth).find((index) => {
+    const args = operators.argsArray[index] as ArrayLike<number> | undefined;
+    return Math.abs(Number(args?.[0]) - 0.5) < 0.01;
+  });
+  const strokeColors = indices(pdfjs.OPS.setStrokeRGBColor).map((index) => {
+    const args = operators.argsArray[index] as ArrayLike<unknown> | undefined;
+    return args?.[0];
+  });
+
+  assert.ok(strokeColors.includes("#000000"), "box border should be black");
+  assert.ok(thinStrokeIndex !== undefined, "box border should be 0.5pt thin");
+
+  // pdfjs encodes drawRectangle() as a stroked path, so the box is the only
+  // filled-free path drawn while the 0.5pt black stroke is active.
+  const boxPathIndex = indices(pdfjs.OPS.constructPath).find(
+    (index) => index > thinStrokeIndex,
+  );
+  assert.ok(boxPathIndex !== undefined, "the kode seri box should be drawn");
 });
 
 test("generateCoverPdf adds a red title rule and WIKA footer on the cover", async () => {
@@ -141,6 +172,15 @@ test("generateCoverPdf adds a red title rule and WIKA footer on the cover", asyn
   assert.ok(hasRedRule, "the title rule should be red");
   assert.ok(hasThickRule, "the title rule should be 2pt thick");
   assert.ok(hasDarkBlueFooter, "the footer band should be dark blue");
+
+  assert.ok(
+    items.some((item) => item.text.includes("Penyusun")),
+    "the first column header should read Penyusun",
+  );
+  assert.ok(
+    items.every((item) => !item.text.includes("Tim Penyusun")),
+    "the old Tim Penyusun header should be gone",
+  );
 });
 
 test("generateCoverPdf keeps two penyusun and a long title on one landscape page", async () => {
