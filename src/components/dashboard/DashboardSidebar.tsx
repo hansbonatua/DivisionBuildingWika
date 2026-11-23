@@ -15,6 +15,7 @@ import { canViewGreenBuildingEsg } from "@/lib/green-building-esg/access";
 import { canValidateBerkas, canViewBerkas } from "@/lib/berkas/access";
 import { canManageCms } from "@/lib/cms/access";
 import { canViewKnowledgeManagement } from "@/lib/knowledge-management/access";
+import { canManageLearning, canViewLearning } from "@/lib/learning/access";
 import { canViewMasterProject } from "@/lib/master-project/access";
 import { canViewMetodeKerja } from "@/lib/metode-kerja-standar/access";
 import { DISIPLIN_LIST } from "@/lib/metode-kerja-standar/constants";
@@ -603,6 +604,56 @@ export function isKnowledgeManagementPath(pathname: string): boolean {
   );
 }
 
+// Building Learning Center is a Core Enterprise module with four submenus.
+// Admin Control is the only conditional entry: it needs LEARNING_MANAGE, while
+// the three catalogue pages only need LEARNING_VIEW.
+const LEARNING_ROOT = "/dashboard/learning";
+
+export function isLearningPath(pathname: string): boolean {
+  return (
+    pathname === LEARNING_ROOT || pathname.startsWith(`${LEARNING_ROOT}/`)
+  );
+}
+
+export const learningMenu: SidebarItem[] = [
+  {
+    label: "Sharing Session",
+    href: `${LEARNING_ROOT}/sharing`,
+    icon: (
+      <span aria-hidden="true" className="text-sm leading-none">
+        💡
+      </span>
+    ),
+  },
+  {
+    label: "Training",
+    href: `${LEARNING_ROOT}/training`,
+    icon: (
+      <span aria-hidden="true" className="text-sm leading-none">
+        📚
+      </span>
+    ),
+  },
+  {
+    label: "Certificate",
+    href: `${LEARNING_ROOT}/certificate`,
+    icon: (
+      <span aria-hidden="true" className="text-sm leading-none">
+        📜
+      </span>
+    ),
+  },
+  {
+    label: "Admin Control",
+    href: `${LEARNING_ROOT}/admin`,
+    icon: (
+      <span aria-hidden="true" className="text-sm leading-none">
+        ⚙️
+      </span>
+    ),
+  },
+];
+
 export type SidebarVisibility = {
   showProgramKerja: boolean;
   showKnowledgeManagement: boolean;
@@ -617,6 +668,7 @@ export type SidebarVisibility = {
   showMasterProjectPhotos: boolean;
   showEngineeringDatabase: boolean;
   showGreenBuildingEsg: boolean;
+  showLearning: boolean;
   showMsl: boolean;
   showOrganizationStructure: boolean;
   showCms: boolean;
@@ -654,6 +706,7 @@ export function getSidebarVisibility(
   );
   const showEngineeringDatabase = canViewEngineeringDatabase(role);
   const showGreenBuildingEsg = canViewGreenBuildingEsg(role);
+  const showLearning = canViewLearning(role);
   const showMsl = canViewMsl({ role, mslAccess: mslAccess === true });
   const showOrganizationStructure = canViewOrganizationStructure(role);
   // Landing Page Manager and User Directory are Admin-only, resolved through the
@@ -676,6 +729,7 @@ export function getSidebarVisibility(
     showMasterProjectPhotos,
     showEngineeringDatabase,
     showGreenBuildingEsg,
+    showLearning,
     showMsl,
     showOrganizationStructure,
     showCms,
@@ -695,6 +749,7 @@ export function getSidebarVisibility(
       showMasterProjectPhotos ||
       showEngineeringDatabase ||
       showGreenBuildingEsg ||
+      showLearning ||
       showMsl,
   };
 }
@@ -711,6 +766,7 @@ export type SidebarAccordionState = {
   masterProjectOpen: boolean;
   engineeringDatabaseOpen: boolean;
   greenBuildingEsgOpen: boolean;
+  learningOpen: boolean;
 };
 
 // Initial accordion state: every accordion starts collapsed unless its own
@@ -743,6 +799,7 @@ export function getInitialSidebarAccordionState(
     masterProjectOpen: pathname.startsWith("/dashboard/master-project"),
     engineeringDatabaseOpen: pathname.startsWith("/dashboard/engineering-database"),
     greenBuildingEsgOpen: isGreenBuildingEsgPath(pathname),
+    learningOpen: isLearningPath(pathname),
   };
 }
 
@@ -770,6 +827,7 @@ export default function DashboardSidebar({
     showMasterProjectPhotos,
     showEngineeringDatabase,
     showGreenBuildingEsg,
+    showLearning,
     showMsl,
     showOrganizationStructure,
     showCms,
@@ -777,6 +835,7 @@ export default function DashboardSidebar({
     showCoreEnterprise,
   } = getSidebarVisibility(userRole, mslAccess);
   const showBerkasVerifikasi = canValidateBerkas(userRole ?? "");
+  const showLearningAdmin = canManageLearning(userRole ?? "");
   const landingRoutes = landingSubMenu.map((item) => item.href);
   const isLandingRoute = landingRoutes.some(
     (route) => pathname === route || pathname.startsWith(`${route}/`),
@@ -796,6 +855,7 @@ export default function DashboardSidebar({
     "/dashboard/engineering-database",
   );
   const isGreenBuildingEsgRoute = isGreenBuildingEsgPath(pathname);
+  const isLearningRoute = isLearningPath(pathname);
   const initialAccordions = getInitialSidebarAccordionState(pathname);
   const [landingOpen, setLandingOpen] = useState(initialAccordions.landingOpen);
   const [programKerjaOpen, setProgramKerjaOpen] = useState(
@@ -823,6 +883,9 @@ export default function DashboardSidebar({
   );
   const [greenBuildingEsgOpen, setGreenBuildingEsgOpen] = useState(
     initialAccordions.greenBuildingEsgOpen,
+  );
+  const [learningOpen, setLearningOpen] = useState(
+    initialAccordions.learningOpen,
   );
   const [previousPathname, setPreviousPathname] = useState(pathname);
 
@@ -899,6 +962,9 @@ export default function DashboardSidebar({
     }
     if (isGreenBuildingEsgRoute) {
       setGreenBuildingEsgOpen(true);
+    }
+    if (isLearningRoute) {
+      setLearningOpen(true);
     }
   }
 
@@ -1394,6 +1460,59 @@ export default function DashboardSidebar({
                         aria-label="Knowledge Management"
                       >
                         {knowledgeMenu.map((item) => renderItem(item))}
+                      </nav>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+              {showLearning ? (
+                <div className="mt-1">
+                  <div className="px-1">
+                    <button
+                      type="button"
+                      aria-expanded={learningOpen}
+                      aria-controls="learning-menu"
+                      onClick={() => setLearningOpen((prev) => !prev)}
+                      className="flex w-full items-center justify-between rounded-lg border border-transparent px-2.5 py-2 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+                    >
+                      <span className="flex min-w-0 flex-1 items-center gap-2.5 text-left">
+                        <span className="shrink-0 text-secondary">
+                          <MenuIcon>
+                            <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
+                            <path d="M6 12v5c3 3 9 3 12 0v-5" />
+                          </MenuIcon>
+                        </span>
+                        <span>Building Learning Center</span>
+                      </span>
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                        className={`shrink-0 text-slate-400 transition-transform duration-200 ${learningOpen ? "rotate-180" : "rotate-0"}`}
+                      >
+                        <path d="m6 9 6 6 6-6" />
+                      </svg>
+                    </button>
+                  </div>
+                  {learningOpen ? (
+                    <div id="learning-menu">
+                      <nav
+                        className="ml-4 space-y-1 border-l-2 border-slate-100 pl-3"
+                        aria-label="Building Learning Center"
+                      >
+                        {learningMenu
+                          .filter(
+                            (item) =>
+                              item.href !== `${LEARNING_ROOT}/admin` ||
+                              showLearningAdmin,
+                          )
+                          .map((item) => renderItem(item))}
                       </nav>
                     </div>
                   ) : null}

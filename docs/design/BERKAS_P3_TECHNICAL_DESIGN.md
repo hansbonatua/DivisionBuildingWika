@@ -519,22 +519,31 @@ tengah tiap kolom: `125,833`, `297,5`, `469,167`.
 
 1. Latar putih penuh halaman.
 2. Logo di tengah atas: `drawImage(logo, { x: 217.5, y: 752, width: 160, height: 50 })`.
-3. Judul di `centerX = 297.5`, baseline `706`, font bold 16. Wrap maksimal 3 baris
+3. **Kode Dokumen** (bila ada): huruf **KAPITAL**, `Helvetica` 9 pt normal (tidak
+   bold), berada di **pojok kanan atas (di dalam kotak border)**. Kotak digambar
+   dengan `drawRectangle()`: border hitam `rgb(0, 0, 0)` 0,5 pt, tanpa fill
+   (background transparan/putih halaman). Tepi kanan kotak mengikuti border kanan
+   tabel (40 pt dari tepi kanan halaman); lebar kotak = lebar teks + 8 pt padding
+   kiri/kanan (maksimum 200 pt, teks lebih panjang dipotong elipsis); tinggi kotak
+   = 9 pt + 5 pt padding atas/bawah. Kotak dipusatkan vertikal pada band logo WIKA,
+   dan teks di dalamnya rata tengah horizontal maupun vertikal. Posisi lama (teks
+   rata kanan di atas baris header tabel) tidak dipakai lagi.
+4. Judul di `centerX = 297.5`, baseline `706`, font bold 16. Wrap maksimal 3 baris
    dengan lebar maksimum 515 dan line height 20; baris berikutnya turun 20 pt. Jika
    lebih dari 3 baris, potong dengan elipsis.
-4. Tabel: gambar rectangle luar 1 pt, dua garis vertikal 0,75 pt, lalu header rule
+5. Tabel: gambar rectangle luar 1 pt, dua garis vertikal 0,75 pt, lalu header rule
    per sel dari `columnX + 12` sampai `columnX + 171,667 - 12` pada `y=580`.
-5. Header kolom bold 11, center, baseline 592:
-   - Kolom 1: `Tim Penyusun`
+6. Header kolom bold 11, center, baseline 592:
+   - Kolom 1: `Penyusun`
    - Kolom 2: `Validasi 1`
    - Kolom 3: `Validasi 2`
-6. Isi sel dimulai baseline 560. Nama bold 10, jabatan 9, tanggal 8.
-7. Area TTD: kotak transparan (tanpa border) di dalam sel; gambar TTD di-fit dengan
+7. Isi sel dimulai baseline 560. Nama bold 10, jabatan 9, tanggal 8.
+8. Area TTD: kotak transparan (tanpa border) di dalam sel; gambar TTD di-fit dengan
    padding 6 pt, mempertahankan aspect ratio, tidak diregangkan. Area ini berada di
    atas teks tanggal.
-8. Tanggal: `Tanggal: <dd MMMM yyyy>` dengan locale `id-ID`, timezone
+9. Tanggal: `Tanggal: <dd MMMM yyyy>` dengan locale `id-ID`, timezone
    `Asia/Jakarta`, di bawah area TTD.
-9. Semua teks di dalam sel rata tengah.
+10. Semua teks di dalam sel rata tengah.
 
 ### H.4 Sel Tim Penyusun (1–4 orang)
 

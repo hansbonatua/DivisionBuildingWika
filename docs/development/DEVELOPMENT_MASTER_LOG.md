@@ -5,6 +5,46 @@ Dokumentasi audit repository ada di `docs/audit/`; dokumen ini mencatat **peruba
 
 ---
 
+## DL-2026-11-20-01 — Penyesuaian Layout PDF Berkas
+
+| Field | Nilai |
+|---|---|
+| Feature ID | `ENT-BERKAS` |
+| Tanggal | 20 November 2026 |
+| Status | **IMPLEMENTED & VERIFIED (static)** — `npx tsc --noEmit`, `npm test` 286/286 (70 suite), dan `git diff --check` PASS; hasil render PDF belum diperiksa secara visual |
+| Commit | `d11577f` — `style(berkas): adjust document code box position and rename table header` |
+| Branch | `main` |
+| Baseline | `1825357` — `chore: enable standalone output` |
+| Migration | tidak ada |
+
+### Perubahan
+- **Kode Dokumen dipindah ke pojok kanan atas dalam kotak** (`drawKodeSeri` di `src/lib/berkas/pdf-engine.ts`). Sebelumnya teks digambar rata kanan, bold 9 pt, di atas baris header tabel. Sekarang nilai diubah ke huruf KAPITAL lalu digambar `drawRectangle()` dengan border hitam `rgb(0, 0, 0)` 0,5 pt tanpa fill, lebar mengikuti teks + padding 8 pt kiri/kanan (maksimum 200 pt, teks berlebih dipotong `fitLine`), tinggi 9 pt + padding 5 pt atas/bawah.
+- **Penempatan:** tepi kanan kotak sejajar border kanan tabel (`MARGIN_X + CONTENT_WIDTH` = 802 pt, jadi 40 pt dari tepi kanan halaman) dan kotak dipusatkan vertikal pada band logo WIKA (`LOGO_TOP` sampai `logoY`), sehingga tidak menabrak logo di tengah maupun judul di bawahnya.
+- **Tipografi kotak:** `Helvetica` regular 9 pt (tidak bold), teks rata tengah horizontal dan vertikal di dalam kotak.
+- **Header kolom pertama tabel:** `"Tim Penyusun"` → `"Penyusun"`. Nama, jabatan, gambar TTD, tanggal, serta header `Validasi 1`/`Validasi 2` tidak berubah.
+- **Test:** `src/lib/berkas/pdf-engine.test.ts` disesuaikan karena test lama memvalidasi perilaku lama (teks rata kanan tepat di border tabel, ukuran 9 pt bold). Test kini memakai kode seri huruf kecil sebagai input, lalu memastikan output `WIKA/BA/2026/001` (kapitalisasi), posisi di margin atas, inset padding dari tepi kanan, keberadaan stroke `#000000` 0,5 pt beserta path kotaknya, serta header `Penyusun` ada dan `Tim Penyusun` tidak lagi muncul.
+- **Dokumentasi:** bagian H.3 `docs/design/BERKAS_P3_TECHNICAL_DESIGN.md` kini mencantumkan langkah Kode Dokumen dengan posisi **pojok kanan atas (di dalam kotak border)** dan header kolom 1 menjadi `Penyusun`. Pass dokumentasi ini tidak mengubah kode sumber, database, atau API.
+
+### File impacted
+- `src/lib/berkas/pdf-engine.ts` — `drawKodeSeri` (konstanta kotak baru) dan label header kolom 1.
+- `src/lib/berkas/pdf-engine.test.ts` — penyesuaian assert kode dokumen + header.
+- `docs/design/BERKAS_P3_TECHNICAL_DESIGN.md` dan `docs/development/DEVELOPMENT_MASTER_LOG.md` — pass dokumentasi ini.
+
+### Verifikasi
+| Pemeriksaan | Hasil | Sumber |
+|---|---|---|
+| `npx tsc --noEmit` | **PASS** | Freebuff (implementasi) |
+| `npm test` | **286/286 PASS** (70 suite), termasuk test `pdf-engine` | Freebuff (implementasi) |
+| `git diff --check` | **PASS** | Freebuff (implementasi + pass dokumentasi) |
+| Render visual PDF | **NOT RUN** — PDF hasil belum dibuka/diperiksa Owner | — |
+
+### Batasan
+- Geometri kotak diverifikasi lewat operator list PDF.js (transform kotak: x 708,456; y 499,5; 93,544 × 19 pt → tepi kanan 802 pt, atas 518,5 pt terhadap `LOGO_TOP` 531 pt), bukan lewat pemeriksaan Visual.
+- Bagian H lainnya pada dokumen desain (kanvas 595 × 842 portrait, margin/koordinat logo, dan detail grid sel) masih menggambarkan desain awal dan **belum disinkronkan** dengan implementasi landscape 842 × 595 yang berlaku; pass ini hanya memperbaiki butir Kode Dokumen dan header kolom 1 sesuai permintaan.
+- Tidak ada commit/push pada pass dokumentasi ini.
+
+---
+
 ## DL-2026-11-18-03 — Reorder Menu Sidebar Core Enterprise
 
 | Field | Nilai |

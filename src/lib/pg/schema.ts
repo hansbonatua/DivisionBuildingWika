@@ -2,6 +2,7 @@ import {
   bigint,
   boolean,
   check,
+  foreignKey,
   index,
   integer,
   numeric,
@@ -1773,3 +1774,205 @@ export const projectEsgAssessments = pgTable(
 
 export type PgProjectEsgAssessment = typeof projectEsgAssessments.$inferSelect;
 export type NewPgProjectEsgAssessment = typeof projectEsgAssessments.$inferInsert;
+
+// ---------------------------------------------------------------------------
+// Building Learning Center (BLC): one catalogue row per content card.
+//
+// A SINGLE contents table is intentional: sharing/training/certificate share
+// almost every column, and only the media column differs. The per-type payload
+// is enforced by `learning_contents_payload_check`, so a sharing row must carry
+// a canonical video embed URL while training/certificate must carry an external
+// link. `type` is immutable after creation (service rule).
+//
+// `learning_attachments` is coupled to its parent by the COMPOSITE foreign key
+// (content_id, content_type) -> learning_contents (id, type), together with
+// `content_type = 'sharing'`. That makes an attachment on a training/certificate
+// row impossible at the database level, not merely in the service layer.
+// `learning_contents_id_type_unique` exists solely as the target of that key.
+//
+// Blob pathnames are stored but never exposed: the API returns the public
+// thumbnail URL and attachment ids only.
+// ---------------------------------------------------------------------------
+
+export const learningCategories = pgTable(
+  "learning_categories",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    nama: text("nama").notNull(),
+    sortOrder: integer("sort_order").notNull().default(0),
+    createdBy: uuid("created_by")
+      .notNull()
+      .references(() => users.id, { onDelete: "no action" }),
+    updatedBy: uuid("updated_by").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("learning_categories_nama_unique").on(
+      sql`lower(btrim(${table.nama}))`,
+    ),
+    index("learning_categories_sort_idx").on(table.sortOrder, table.id),
+    check(
+      "learning_categories_nama_check",
+      sql`length(btrim(${table.nama})) between 1 and 80`,
+    ),
+    check("learning_categories_sort_check", sql`${table.sortOrder} >= 0`),
+  ],
+);
+
+export type PgLearningCategory = typeof learningCategories.$inferSelect;
+export type NewPgLearningCategory = typeof learningCategories.$inferInsert;
+
+export const learningContents = pgTable(
+  "learning_contents",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    type: text("type").notNull(),
+    judul: text("judul").notNull(),
+    deskripsi: text("deskripsi"),
+    kategoriId: uuid("kategori_id")
+      .notNull()
+      .references(() => learningCategories.id, { onDelete: "restrict" }),
+    thumbnailUrl: text("thumbnail_url").notNull(),
+    thumbnailPathname: text("thumbnail_pathname").notNull(),
+    videoUrl: text("video_url"),
+    externalUrl: text("external_url"),
+    sortOrder: integer("sort_order").notNull().default(0),
+    createdBy: uuid("created_by")
+      .notNull()
+      .references(() => users.id, { onDelete: "no action" }),
+    updatedBy: uuid("updated_by").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("learning_contents_thumbnail_pathname_unique").on(
+      table.thumbnailPathname,
+    ),
+    unique("learning_contents_id_type_unique").on(table.id, table.type),
+    index("learning_contents_type_sort_idx").on(
+      table.type,
+      table.sortOrder,
+      table.id,
+    ),
+    index("learning_contents_kategori_idx").on(table.kategoriId),
+    // Search uses ILIKE '%...%' on the title; pg_trgm is enabled in 0004.
+    index("learning_contents_judul_trgm_idx").using(
+      "gin",
+      sql`${table.judul} gin_trgm_ops`,
+    ),
+    check(
+      "learning_contents_type_check",
+      sql`${table.type} in ('sharing', 'training', 'certificate')`,
+    ),
+    check(
+      "learning_contents_judul_check",
+      sql`length(btrim(${table.judul})) between 1 and 200`,
+    ),
+    check(
+      "learning_contents_deskripsi_check",
+      sql`${table.deskripsi} is null or length(${table.deskripsi}) <= 2000`,
+    ),
+    check("learning_contents_sort_check", sql`${table.sortOrder} >= 0`),
+    check(
+      "learning_contents_payload_check",
+      sql`(
+        (${table.type} = 'sharing'
+          and ${table.videoUrl} is not null
+          and ${table.externalUrl} is null)
+        or
+        (${table.type} in ('training', 'certificate')
+          and ${table.externalUrl} is not null
+          and ${table.videoUrl} is null)
+      )`,
+    ),
+    check(
+      "learning_contents_video_check",
+      sql`${table.videoUrl} is null or (
+        length(${table.videoUrl}) <= 2048
+        and ${table.videoUrl} ~ '^https://(www[.])?(youtube[.]com/embed/|player[.]vimeo[.]com/video/)[A-Za-z0-9_-]+$'
+      )`,
+    ),
+    check(
+      "learning_contents_external_check",
+      sql`${table.externalUrl} is null or (
+        length(${table.externalUrl}) <= 2048
+        and ${table.externalUrl} ~ '^https?://[^[:space:]]+$'
+      )`,
+    ),
+    check(
+      "learning_contents_thumbnail_check",
+      sql`length(${table.thumbnailUrl}) <= 2048 and ${table.thumbnailUrl} ~ '^https://[^[:space:]]+$'`,
+    ),
+  ],
+);
+
+export type PgLearningContent = typeof learningContents.$inferSelect;
+export type NewPgLearningContent = typeof learningContents.$inferInsert;
+
+export const learningAttachments = pgTable(
+  "learning_attachments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    contentId: uuid("content_id").notNull(),
+    // Always 'sharing'. The composite FK below uses it to guarantee that the
+    // parent row really is a sharing content, and the CHECK pins the value.
+    contentType: text("content_type").notNull().default("sharing"),
+    nama: text("nama").notNull(),
+    filePathname: text("file_pathname").notNull(),
+    fileName: text("file_name").notNull(),
+    fileMimeType: text("file_mime_type").notNull(),
+    fileSizeBytes: bigint("file_size_bytes", { mode: "number" }).notNull(),
+    sortOrder: integer("sort_order").notNull().default(0),
+    createdBy: uuid("created_by")
+      .notNull()
+      .references(() => users.id, { onDelete: "no action" }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("learning_attachments_pathname_unique").on(table.filePathname),
+    index("learning_attachments_content_sort_idx").on(
+      table.contentId,
+      table.sortOrder,
+      table.id,
+    ),
+    check(
+      "learning_attachments_sharing_check",
+      sql`${table.contentType} = 'sharing'`,
+    ),
+    check(
+      "learning_attachments_nama_check",
+      sql`length(btrim(${table.nama})) between 1 and 255`,
+    ),
+    check(
+      "learning_attachments_path_check",
+      sql`length(${table.filePathname}) between 1 and 500 and ${table.filePathname} like 'learning/%'`,
+    ),
+    check(
+      "learning_attachments_size_check",
+      sql`${table.fileSizeBytes} between 1 and 20971520`,
+    ),
+    foreignKey({
+      columns: [table.contentId, table.contentType],
+      foreignColumns: [learningContents.id, learningContents.type],
+      name: "learning_attachments_parent_fk",
+    }).onDelete("cascade"),
+  ],
+);
+
+export type PgLearningAttachment = typeof learningAttachments.$inferSelect;
+export type NewPgLearningAttachment = typeof learningAttachments.$inferInsert;

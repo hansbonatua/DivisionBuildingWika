@@ -35,6 +35,12 @@ export const CMS_SOCIAL_PREFIX = "cms/social/";
 // landing route reads this namespace — only the authenticated dashboard does.
 export const CMS_ORGANIZATION_PREFIX = "cms/organization/";
 
+// Building Learning Center thumbnails. They live in the PUBLIC store because
+// the card grid renders them directly, and they keep their own namespace so a
+// learning object is recognised as CMS-owned (cleanup/ownership) even though
+// the module has its own upload-token route.
+export const CMS_LEARNING_PREFIX = "cms/learning/";
+
 // Modules that may create uploads today.
 export const CMS_UPLOAD_MODULES = [
   "hero",
@@ -43,6 +49,7 @@ export const CMS_UPLOAD_MODULES = [
   "clients",
   "social",
   "organization",
+  "learning",
 ] as const;
 
 export type CmsUploadModule = (typeof CMS_UPLOAD_MODULES)[number];
@@ -54,6 +61,7 @@ export const CMS_UPLOAD_PREFIX_BY_MODULE: Record<CmsUploadModule, string> = {
   clients: CMS_CLIENTS_PREFIX,
   social: CMS_SOCIAL_PREFIX,
   organization: CMS_ORGANIZATION_PREFIX,
+  learning: CMS_LEARNING_PREFIX,
 };
 
 const UUID_SEGMENT_RE =
@@ -144,6 +152,11 @@ export function isCmsOrganizationBlobPathname(pathname: string): boolean {
   return splitSegments(pathname, CMS_ORGANIZATION_PREFIX) !== null;
 }
 
+/** True only for a well-formed pathname inside the Learning namespace. */
+export function isCmsLearningBlobPathname(pathname: string): boolean {
+  return splitSegments(pathname, CMS_LEARNING_PREFIX) !== null;
+}
+
 /**
  * True only for a pathname the upload route may mint a token for.
  *
@@ -159,7 +172,8 @@ export function isCmsUploadPathname(pathname: string): boolean {
     isCmsGreenBuildingBlobPathname(pathname) ||
     isCmsClientsBlobPathname(pathname) ||
     isCmsSocialBlobPathname(pathname) ||
-    isCmsOrganizationBlobPathname(pathname)
+    isCmsOrganizationBlobPathname(pathname) ||
+    isCmsLearningBlobPathname(pathname)
   );
 }
 
@@ -178,7 +192,8 @@ export function isCmsBlobPathname(pathname: string): boolean {
     splitSegments(pathname, CMS_GREEN_BUILDING_PREFIX) !== null ||
     splitSegments(pathname, CMS_CLIENTS_PREFIX) !== null ||
     isCmsSocialBlobPathname(pathname) ||
-    isCmsOrganizationBlobPathname(pathname)
+    isCmsOrganizationBlobPathname(pathname) ||
+    isCmsLearningBlobPathname(pathname)
   );
 }
 

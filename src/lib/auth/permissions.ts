@@ -57,6 +57,9 @@ export const PERMISSIONS = {
   CALCULATION_SHEET_VIEW: "CALCULATION_SHEET_VIEW",
   CALCULATION_SHEET_MANAGE: "CALCULATION_SHEET_MANAGE",
 
+  LEARNING_VIEW: "LEARNING_VIEW",
+  LEARNING_MANAGE: "LEARNING_MANAGE",
+
   DOCUMENTATION_VIEW: "DOCUMENTATION_VIEW",
   DOCUMENTATION_MANAGE: "DOCUMENTATION_MANAGE",
 
@@ -138,6 +141,12 @@ const NON_ADMIN_PERMISSION_ROLES: Record<Permission, readonly UserRole[]> = {
   // read-only, and Admin receives both through the super-application rule.
   CALCULATION_SHEET_VIEW: [HEAD_OFFICE_ROLE, PROJECT_ROLE, MANAGEMENT_ROLE],
   CALCULATION_SHEET_MANAGE: [HEAD_OFFICE_ROLE],
+
+  // Building Learning Center: every canonical role may read the catalogue
+  // (sharing sessions, training, certificates). Only Admin (super-application)
+  // and Head Office manage it, which is what makes Admin Control Admin/HO-only.
+  LEARNING_VIEW: [HEAD_OFFICE_ROLE, PROJECT_ROLE, MANAGEMENT_ROLE],
+  LEARNING_MANAGE: [HEAD_OFFICE_ROLE],
 
   // Project Documentation is driven by Master Project rows. Admin receives
   // both permissions through the super-application rule. Head Office and
