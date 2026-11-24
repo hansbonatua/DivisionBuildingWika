@@ -299,26 +299,16 @@ export default function SasaaPage({
         <div className="space-y-6">
           {/* Baris 0 — identitas proyek terpilih. */}
           <section className="rounded-2xl border border-outline bg-white p-5 shadow-sm">
-            <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-              <div>
-                <p className="text-[11px] font-bold uppercase tracking-wider text-secondary">
-                  Proyek Terpilih
-                </p>
-                <h2 className="mt-1 text-xl font-bold tracking-tight text-primary">
-                  {data.project.name}
-                </h2>
-                <p className="mt-1 text-sm text-primary/60">
-                  {data.project.location} • {data.project.year}
-                </p>
-              </div>
-              <div className="rounded-xl border border-outline/70 bg-background px-4 py-3 sm:min-w-52">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-primary/45">
-                  PIC Proyek
-                </p>
-                <p className="mt-1 text-sm font-semibold text-primary">
-                  {data.project.pic.name}
-                </p>
-              </div>
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-wider text-secondary">
+                Proyek Terpilih
+              </p>
+              <h2 className="mt-1 text-xl font-bold tracking-tight text-primary">
+                {data.project.name}
+              </h2>
+              <p className="mt-1 text-sm text-primary/60">
+                {data.project.location} • {data.project.year}
+              </p>
             </div>
           </section>
 

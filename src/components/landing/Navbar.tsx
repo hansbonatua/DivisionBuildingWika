@@ -79,6 +79,28 @@ export default function Navbar() {
               <path d="M7 7h10v10" />
             </svg>
           </a>
+          <a
+            href="https://im.dewika.id"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1 pb-1 text-sm font-medium tracking-wide text-primary/70 transition-colors duration-200 hover:text-secondary"
+          >
+            INNOVATION
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M7 17 17 7" />
+              <path d="M7 7h10v10" />
+            </svg>
+          </a>
         </nav>
 
         <div className="flex items-center space-x-3">
@@ -170,9 +192,46 @@ export default function Navbar() {
               target="_blank"
               rel="noopener noreferrer"
               onClick={closeMenu}
-              className="block rounded-lg px-2 py-3 text-sm font-medium tracking-wide text-primary/70 hover:text-secondary"
+              className="flex items-center gap-1 rounded-lg border-b border-outline/20 px-2 py-3 text-sm font-medium tracking-wide text-primary/70 hover:text-secondary"
             >
               SUSTAINABILITY
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M7 17 17 7" />
+                <path d="M7 7h10v10" />
+              </svg>
+            </a>
+            <a
+              href="https://im.dewika.id"
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={closeMenu}
+              className="flex items-center gap-1 rounded-lg px-2 py-3 text-sm font-medium tracking-wide text-primary/70 hover:text-secondary"
+            >
+              INNOVATION
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M7 17 17 7" />
+                <path d="M7 7h10v10" />
+              </svg>
             </a>
           </nav>
         </div>
