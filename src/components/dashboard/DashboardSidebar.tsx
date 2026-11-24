@@ -60,18 +60,14 @@ export function SidebarMenuItem({
   badgeCount = 0,
   isActive,
   onClose,
-  onPrimary = false,
   outlined = false,
 }: {
   item: SidebarItem;
   badgeCount?: number;
   isActive: boolean;
   onClose: () => void;
-  // Renders the item on the filled blue Master Project panel: white text and
-  // icons, with a darker blue background for the current page.
-  onPrimary?: boolean;
-  // Single item inside an outlined box: same padding as the accordion headers,
-  // no own hover background (the box handles it).
+  // Bordered box on the white sidebar (Master Project submenu): blue text and
+  // icons, solid border plus a light blue tint for the current page.
   outlined?: boolean;
 }) {
   const badge =
@@ -91,24 +87,18 @@ export function SidebarMenuItem({
         onClick={onClose}
         aria-current="page"
         className={
-          onPrimary
-            ? "flex items-center justify-between rounded-lg bg-black/20 px-3 py-2 text-xs font-bold text-white transition-colors"
-            : outlined
-              ? "flex items-center justify-between rounded-lg px-2.5 py-2 text-xs font-bold text-secondary"
-              : "flex items-center justify-between rounded-lg bg-blue-50 px-3 py-2 text-xs font-bold text-secondary transition-colors"
+          outlined
+            ? "flex items-center justify-between gap-2 rounded-lg border-[1.5px] border-secondary bg-secondary/[0.08] px-2.5 py-2 text-xs font-bold text-secondary transition-colors"
+            : "flex items-center justify-between rounded-lg bg-blue-50 px-3 py-2 text-xs font-bold text-secondary transition-colors"
         }
       >
         <span className="flex min-w-0 items-center gap-2">
-          <span className={onPrimary ? "text-white" : "text-secondary"}>
-            {item.icon}
-          </span>
+          <span className="text-secondary">{item.icon}</span>
           <span className="truncate">{item.label}</span>
         </span>
         <span className="flex shrink-0 items-center gap-2">
           {badge}
-          <span
-            className={`h-1.5 w-1.5 rounded-full ${onPrimary ? "bg-white" : "bg-secondary"}`}
-          />
+          <span className="h-1.5 w-1.5 rounded-full bg-secondary" />
         </span>
       </Link>
     );
@@ -119,15 +109,13 @@ export function SidebarMenuItem({
       href={item.href}
       onClick={onClose}
       className={
-        onPrimary
-          ? "flex items-center justify-between rounded-lg px-3 py-2 text-xs font-medium text-white/90 transition-colors hover:bg-black/10 hover:text-white"
-          : outlined
-            ? "flex items-center justify-between rounded-lg px-2.5 py-2 text-xs font-medium text-slate-600"
-            : "flex items-center justify-between rounded-lg px-3 py-2 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900"
+        outlined
+          ? "flex items-center justify-between gap-2 rounded-lg border-[1.5px] border-secondary/40 px-2.5 py-2 text-xs font-medium text-secondary transition-colors hover:border-secondary/70 hover:bg-secondary/5"
+          : "flex items-center justify-between rounded-lg px-3 py-2 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900"
       }
     >
       <span className="flex min-w-0 items-center gap-2">
-        <span className={onPrimary ? "text-white/80" : "text-slate-400"}>
+        <span className={outlined ? "text-secondary" : "text-slate-400"}>
           {item.icon}
         </span>
         <span className="truncate">{item.label}</span>
@@ -1032,7 +1020,6 @@ export default function DashboardSidebar({
   function renderItem(
     item: SidebarItem,
     badgeCount = 0,
-    onPrimary = false,
     outlined = false,
   ) {
     return (
@@ -1042,7 +1029,6 @@ export default function DashboardSidebar({
         badgeCount={badgeCount}
         isActive={isActivePath(item.href)}
         onClose={onClose}
-        onPrimary={onPrimary}
         outlined={outlined}
       />
     );
@@ -1358,13 +1344,13 @@ export default function DashboardSidebar({
                 </div>
               ) : null}
               {showMasterProject || showSasaa || showMasterProjectPhotos ? (
-                <div className="mt-1 rounded-lg bg-secondary p-1">
+                <div className="mt-1">
                   <button
                     type="button"
                     aria-expanded={masterProjectOpen}
                     aria-controls="master-project-menu"
                     onClick={() => setMasterProjectOpen((prev) => !prev)}
-                    className="flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-xs font-semibold text-white transition-colors hover:bg-black/10"
+                    className="flex w-full items-center justify-between gap-2 rounded-lg bg-secondary px-2.5 py-2 text-xs font-semibold text-white transition-colors hover:bg-secondary/90"
                   >
                     <span className="flex min-w-0 flex-1 items-center gap-2.5 text-left">
                       <span className="shrink-0 text-white">
@@ -1398,7 +1384,7 @@ export default function DashboardSidebar({
                   {masterProjectOpen ? (
                     <div id="master-project-menu">
                       <nav
-                        className="ml-3 space-y-1 border-l-2 border-white/25 pl-3"
+                        className="mt-1.5 space-y-1.5 pl-1"
                         aria-label="Master Project"
                       >
                         {masterProjectMenu
@@ -1608,14 +1594,14 @@ export default function DashboardSidebar({
                 </div>
               ) : null}
               {showBerkas ? (
-                <div className="mt-1.5">
+                <div className="mt-1">
                   <div className="px-1">
                     <button
                       type="button"
                       aria-expanded={berkasOpen}
                       aria-controls="berkas-menu"
                       onClick={() => setBerkasOpen((prev) => !prev)}
-                      className={outlinedMenuClass(isBerkasRoute)}
+                      className="flex w-full items-center justify-between rounded-lg border border-transparent px-2.5 py-2 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50"
                     >
                       <span className="flex items-center gap-2.5">
                         <span className="text-secondary">
@@ -1675,18 +1661,10 @@ export default function DashboardSidebar({
                 </div>
               ) : null}
               {showTemplateForm ? (
-                <div className="mt-1.5 px-1">
-                  <div
-                    className={`rounded-lg border-[1.5px] transition-colors ${
-                      isActivePath(templateFormMenu.href)
-                        ? "border-secondary"
-                        : "border-secondary/40 hover:border-secondary/70 hover:bg-secondary/5"
-                    }`}
-                  >
-                    <nav className="space-y-1" aria-label="Template & Form">
-                      {renderItem(templateFormMenu, 0, false, true)}
-                    </nav>
-                  </div>
+                <div className="mt-1">
+                  <nav className="space-y-1 px-1" aria-label="Template & Form">
+                    {renderItem(templateFormMenu)}
+                  </nav>
                 </div>
               ) : null}
             </div>
