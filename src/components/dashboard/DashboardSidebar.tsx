@@ -42,6 +42,18 @@ type DashboardSidebarProps = {
   mslAccess?: boolean;
 };
 
+// Outlined box for the accordion menus below Master Project. The blue matches
+// the "+ Ajukan Berkas" button (bg-secondary) at 40% opacity and turns solid
+// for the section whose page is currently open. Master Project keeps its own
+// filled blue panel.
+export function outlinedMenuClass(active: boolean): string {
+  return `flex w-full items-center justify-between gap-2 rounded-lg border-[1.5px] px-2.5 py-2 text-xs font-semibold transition-colors ${
+    active
+      ? "border-secondary text-secondary"
+      : "border-secondary/40 text-slate-700 hover:border-secondary/70 hover:bg-secondary/5"
+  }`;
+}
+
 /** Presentational link used by every sidebar menu. Badge count is opt-in. */
 export function SidebarMenuItem({
   item,
@@ -49,6 +61,7 @@ export function SidebarMenuItem({
   isActive,
   onClose,
   onPrimary = false,
+  outlined = false,
 }: {
   item: SidebarItem;
   badgeCount?: number;
@@ -57,6 +70,9 @@ export function SidebarMenuItem({
   // Renders the item on the filled blue Master Project panel: white text and
   // icons, with a darker blue background for the current page.
   onPrimary?: boolean;
+  // Single item inside an outlined box: same padding as the accordion headers,
+  // no own hover background (the box handles it).
+  outlined?: boolean;
 }) {
   const badge =
     badgeCount > 0 ? (
@@ -77,7 +93,9 @@ export function SidebarMenuItem({
         className={
           onPrimary
             ? "flex items-center justify-between rounded-lg bg-black/20 px-3 py-2 text-xs font-bold text-white transition-colors"
-            : "flex items-center justify-between rounded-lg bg-blue-50 px-3 py-2 text-xs font-bold text-secondary transition-colors"
+            : outlined
+              ? "flex items-center justify-between rounded-lg px-2.5 py-2 text-xs font-bold text-secondary"
+              : "flex items-center justify-between rounded-lg bg-blue-50 px-3 py-2 text-xs font-bold text-secondary transition-colors"
         }
       >
         <span className="flex min-w-0 items-center gap-2">
@@ -103,7 +121,9 @@ export function SidebarMenuItem({
       className={
         onPrimary
           ? "flex items-center justify-between rounded-lg px-3 py-2 text-xs font-medium text-white/90 transition-colors hover:bg-black/10 hover:text-white"
-          : "flex items-center justify-between rounded-lg px-3 py-2 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900"
+          : outlined
+            ? "flex items-center justify-between rounded-lg px-2.5 py-2 text-xs font-medium text-slate-600"
+            : "flex items-center justify-between rounded-lg px-3 py-2 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900"
       }
     >
       <span className="flex min-w-0 items-center gap-2">
@@ -1013,6 +1033,7 @@ export default function DashboardSidebar({
     item: SidebarItem,
     badgeCount = 0,
     onPrimary = false,
+    outlined = false,
   ) {
     return (
       <SidebarMenuItem
@@ -1022,6 +1043,7 @@ export default function DashboardSidebar({
         isActive={isActivePath(item.href)}
         onClose={onClose}
         onPrimary={onPrimary}
+        outlined={outlined}
       />
     );
   }
@@ -1396,14 +1418,14 @@ export default function DashboardSidebar({
                 </div>
               ) : null}
               {showEngineeringDatabase || showMsl ? (
-                <div className="mt-1">
+                <div className="mt-1.5">
                   <div className="px-1">
                     <button
                       type="button"
                       aria-expanded={engineeringDatabaseOpen}
                       aria-controls="engineering-database-menu"
                       onClick={() => setEngineeringDatabaseOpen((prev) => !prev)}
-                      className="flex w-full items-center justify-between rounded-lg border border-transparent px-2.5 py-2 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+                      className={outlinedMenuClass(isEngineeringDatabaseRoute)}
                     >
                       <span className="flex min-w-0 flex-1 items-center gap-2.5 text-left">
                         <span className="shrink-0 text-secondary">
@@ -1445,14 +1467,14 @@ export default function DashboardSidebar({
                 </div>
               ) : null}
               {showGreenBuildingEsg ? (
-                <div className="mt-1">
+                <div className="mt-1.5">
                   <div className="px-1">
                     <button
                       type="button"
                       aria-expanded={greenBuildingEsgOpen}
                       aria-controls="green-building-esg-menu"
                       onClick={() => setGreenBuildingEsgOpen((prev) => !prev)}
-                      className="flex w-full items-center justify-between rounded-lg border border-transparent px-2.5 py-2 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+                      className={outlinedMenuClass(isGreenBuildingEsgRoute)}
                     >
                       <span className="flex min-w-0 flex-1 items-center gap-2.5 text-left">
                         <span className="shrink-0 text-secondary">
@@ -1493,14 +1515,14 @@ export default function DashboardSidebar({
                 </div>
               ) : null}
               {showKnowledgeManagement ? (
-                <div className="mt-1">
+                <div className="mt-1.5">
                   <div className="px-1">
                     <button
                       type="button"
                       aria-expanded={knowledgeOpen}
                       aria-controls="knowledge-management-menu"
                       onClick={() => setKnowledgeOpen((prev) => !prev)}
-                      className="flex w-full items-center justify-between rounded-lg border border-transparent px-2.5 py-2 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+                      className={outlinedMenuClass(isKnowledgeManagementRoute)}
                     >
                       <span className="flex min-w-0 flex-1 items-center gap-2.5 text-left">
                         <span className="text-secondary">
@@ -1540,7 +1562,7 @@ export default function DashboardSidebar({
                 </div>
               ) : null}
               {showProjectDocumentation ? (
-                <div className="mt-1">
+                <div className="mt-1.5">
                   <div className="px-1">
                     <button
                       type="button"
@@ -1549,7 +1571,7 @@ export default function DashboardSidebar({
                       onClick={() =>
                         setProjectDocumentationOpen((prev) => !prev)
                       }
-                      className="flex w-full items-center justify-between rounded-lg border border-transparent px-2.5 py-2 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+                      className={outlinedMenuClass(isProjectDocumentationRoute)}
                     >
                       <span className="flex min-w-0 flex-1 items-center gap-2.5 text-left">
                         <span className="shrink-0 text-secondary">
@@ -1586,14 +1608,14 @@ export default function DashboardSidebar({
                 </div>
               ) : null}
               {showBerkas ? (
-                <div className="mt-1">
+                <div className="mt-1.5">
                   <div className="px-1">
                     <button
                       type="button"
                       aria-expanded={berkasOpen}
                       aria-controls="berkas-menu"
                       onClick={() => setBerkasOpen((prev) => !prev)}
-                      className="flex w-full items-center justify-between rounded-lg border border-transparent px-2.5 py-2 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+                      className={outlinedMenuClass(isBerkasRoute)}
                     >
                       <span className="flex items-center gap-2.5">
                         <span className="text-secondary">
@@ -1653,10 +1675,18 @@ export default function DashboardSidebar({
                 </div>
               ) : null}
               {showTemplateForm ? (
-                <div className="mt-1">
-                  <nav className="space-y-1 px-1" aria-label="Template & Form">
-                    {renderItem(templateFormMenu)}
-                  </nav>
+                <div className="mt-1.5 px-1">
+                  <div
+                    className={`rounded-lg border-[1.5px] transition-colors ${
+                      isActivePath(templateFormMenu.href)
+                        ? "border-secondary"
+                        : "border-secondary/40 hover:border-secondary/70 hover:bg-secondary/5"
+                    }`}
+                  >
+                    <nav className="space-y-1" aria-label="Template & Form">
+                      {renderItem(templateFormMenu, 0, false, true)}
+                    </nav>
+                  </div>
                 </div>
               ) : null}
             </div>
