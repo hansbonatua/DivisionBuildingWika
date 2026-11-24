@@ -48,11 +48,15 @@ export function SidebarMenuItem({
   badgeCount = 0,
   isActive,
   onClose,
+  onPrimary = false,
 }: {
   item: SidebarItem;
   badgeCount?: number;
   isActive: boolean;
   onClose: () => void;
+  // Renders the item on the filled blue Master Project panel: white text and
+  // icons, with a darker blue background for the current page.
+  onPrimary?: boolean;
 }) {
   const badge =
     badgeCount > 0 ? (
@@ -70,15 +74,23 @@ export function SidebarMenuItem({
         href={item.href}
         onClick={onClose}
         aria-current="page"
-        className="flex items-center justify-between rounded-lg bg-blue-50 px-3 py-2 text-xs font-bold text-secondary transition-colors"
+        className={
+          onPrimary
+            ? "flex items-center justify-between rounded-lg bg-black/20 px-3 py-2 text-xs font-bold text-white transition-colors"
+            : "flex items-center justify-between rounded-lg bg-blue-50 px-3 py-2 text-xs font-bold text-secondary transition-colors"
+        }
       >
         <span className="flex min-w-0 items-center gap-2">
-          <span className="text-secondary">{item.icon}</span>
+          <span className={onPrimary ? "text-white" : "text-secondary"}>
+            {item.icon}
+          </span>
           <span className="truncate">{item.label}</span>
         </span>
         <span className="flex shrink-0 items-center gap-2">
           {badge}
-          <span className="h-1.5 w-1.5 rounded-full bg-secondary" />
+          <span
+            className={`h-1.5 w-1.5 rounded-full ${onPrimary ? "bg-white" : "bg-secondary"}`}
+          />
         </span>
       </Link>
     );
@@ -88,10 +100,16 @@ export function SidebarMenuItem({
     <Link
       href={item.href}
       onClick={onClose}
-      className="flex items-center justify-between rounded-lg px-3 py-2 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900"
+      className={
+        onPrimary
+          ? "flex items-center justify-between rounded-lg px-3 py-2 text-xs font-medium text-white/90 transition-colors hover:bg-black/10 hover:text-white"
+          : "flex items-center justify-between rounded-lg px-3 py-2 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900"
+      }
     >
       <span className="flex min-w-0 items-center gap-2">
-        <span className="text-slate-400">{item.icon}</span>
+        <span className={onPrimary ? "text-white/80" : "text-slate-400"}>
+          {item.icon}
+        </span>
         <span className="truncate">{item.label}</span>
       </span>
       {badge}
@@ -991,7 +1009,11 @@ export default function DashboardSidebar({
     router.refresh();
   }
 
-  function renderItem(item: SidebarItem, badgeCount = 0) {
+  function renderItem(
+    item: SidebarItem,
+    badgeCount = 0,
+    onPrimary = false,
+  ) {
     return (
       <SidebarMenuItem
         key={item.label}
@@ -999,6 +1021,7 @@ export default function DashboardSidebar({
         badgeCount={badgeCount}
         isActive={isActivePath(item.href)}
         onClose={onClose}
+        onPrimary={onPrimary}
       />
     );
   }
@@ -1259,29 +1282,24 @@ export default function DashboardSidebar({
                   ) : null}
                 </div>
               ) : null}
-              {showMasterProject || showSasaa || showMasterProjectPhotos ? (
+              {showLearning ? (
                 <div className="mt-1">
                   <div className="px-1">
                     <button
                       type="button"
-                      aria-expanded={masterProjectOpen}
-                      aria-controls="master-project-menu"
-                      onClick={() => setMasterProjectOpen((prev) => !prev)}
+                      aria-expanded={learningOpen}
+                      aria-controls="learning-menu"
+                      onClick={() => setLearningOpen((prev) => !prev)}
                       className="flex w-full items-center justify-between rounded-lg border border-transparent px-2.5 py-2 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50"
                     >
-                      <span className="flex items-center gap-2.5">
-                        <span className="text-secondary">
+                      <span className="flex min-w-0 flex-1 items-center gap-2.5 text-left">
+                        <span className="shrink-0 text-secondary">
                           <MenuIcon>
-                            <path d="M3 21h18" />
-                            <path d="M5 21V7l8-4v18" />
-                            <path d="M19 21V11l-6-4" />
-                            <path d="M9 9v.01" />
-                            <path d="M9 12v.01" />
-                            <path d="M9 15v.01" />
-                            <path d="M9 18v.01" />
+                            <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
+                            <path d="M6 12v5c3 3 9 3 12 0v-5" />
                           </MenuIcon>
                         </span>
-                        <span>Master Project</span>
+                        <span>Building Learning Center</span>
                       </span>
                       <svg
                         width="14"
@@ -1293,16 +1311,72 @@ export default function DashboardSidebar({
                         strokeLinecap="round"
                         strokeLinejoin="round"
                         aria-hidden="true"
-                        className={`text-slate-400 transition-transform duration-200 ${masterProjectOpen ? "rotate-180" : "rotate-0"}`}
+                        className={`shrink-0 text-slate-400 transition-transform duration-200 ${learningOpen ? "rotate-180" : "rotate-0"}`}
                       >
                         <path d="m6 9 6 6 6-6" />
                       </svg>
                     </button>
                   </div>
+                  {learningOpen ? (
+                    <div id="learning-menu">
+                      <nav
+                        className="ml-4 space-y-1 border-l-2 border-slate-100 pl-3"
+                        aria-label="Building Learning Center"
+                      >
+                        {learningMenu
+                          .filter(
+                            (item) =>
+                              item.href !== `${LEARNING_ROOT}/admin` ||
+                              showLearningAdmin,
+                          )
+                          .map((item) => renderItem(item))}
+                      </nav>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+              {showMasterProject || showSasaa || showMasterProjectPhotos ? (
+                <div className="mt-1 rounded-lg bg-secondary p-1">
+                  <button
+                    type="button"
+                    aria-expanded={masterProjectOpen}
+                    aria-controls="master-project-menu"
+                    onClick={() => setMasterProjectOpen((prev) => !prev)}
+                    className="flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-xs font-semibold text-white transition-colors hover:bg-black/10"
+                  >
+                    <span className="flex min-w-0 flex-1 items-center gap-2.5 text-left">
+                      <span className="shrink-0 text-white">
+                        <MenuIcon>
+                          <path d="M3 21h18" />
+                          <path d="M5 21V7l8-4v18" />
+                          <path d="M19 21V11l-6-4" />
+                          <path d="M9 9v.01" />
+                          <path d="M9 12v.01" />
+                          <path d="M9 15v.01" />
+                          <path d="M9 18v.01" />
+                        </MenuIcon>
+                      </span>
+                      <span>Master Project</span>
+                    </span>
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                      className={`shrink-0 text-white/70 transition-transform duration-200 ${masterProjectOpen ? "rotate-180" : "rotate-0"}`}
+                    >
+                      <path d="m6 9 6 6 6-6" />
+                    </svg>
+                  </button>
                   {masterProjectOpen ? (
                     <div id="master-project-menu">
                       <nav
-                        className="ml-4 space-y-1 border-l-2 border-slate-100 pl-3"
+                        className="ml-3 space-y-1 border-l-2 border-white/25 pl-3"
                         aria-label="Master Project"
                       >
                         {masterProjectMenu
@@ -1315,7 +1389,7 @@ export default function DashboardSidebar({
                             }
                             return showMasterProject;
                           })
-                          .map((item) => renderItem(item))}
+                          .map((item) => renderItem(item, 0, true))}
                       </nav>
                     </div>
                   ) : null}
@@ -1331,8 +1405,8 @@ export default function DashboardSidebar({
                       onClick={() => setEngineeringDatabaseOpen((prev) => !prev)}
                       className="flex w-full items-center justify-between rounded-lg border border-transparent px-2.5 py-2 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50"
                     >
-                      <span className="flex items-center gap-2.5">
-                        <span className="text-secondary">
+                      <span className="flex min-w-0 flex-1 items-center gap-2.5 text-left">
+                        <span className="shrink-0 text-secondary">
                           <MenuIcon>
                             <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
                             <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
@@ -1350,7 +1424,7 @@ export default function DashboardSidebar({
                         strokeLinecap="round"
                         strokeLinejoin="round"
                         aria-hidden="true"
-                        className={`text-slate-400 transition-transform duration-200 ${engineeringDatabaseOpen ? "rotate-180" : "rotate-0"}`}
+                        className={`shrink-0 text-slate-400 transition-transform duration-200 ${engineeringDatabaseOpen ? "rotate-180" : "rotate-0"}`}
                       >
                         <path d="m6 9 6 6 6-6" />
                       </svg>
@@ -1465,59 +1539,6 @@ export default function DashboardSidebar({
                   ) : null}
                 </div>
               ) : null}
-              {showLearning ? (
-                <div className="mt-1">
-                  <div className="px-1">
-                    <button
-                      type="button"
-                      aria-expanded={learningOpen}
-                      aria-controls="learning-menu"
-                      onClick={() => setLearningOpen((prev) => !prev)}
-                      className="flex w-full items-center justify-between rounded-lg border border-transparent px-2.5 py-2 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50"
-                    >
-                      <span className="flex min-w-0 flex-1 items-center gap-2.5 text-left">
-                        <span className="shrink-0 text-secondary">
-                          <MenuIcon>
-                            <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
-                            <path d="M6 12v5c3 3 9 3 12 0v-5" />
-                          </MenuIcon>
-                        </span>
-                        <span>Building Learning Center</span>
-                      </span>
-                      <svg
-                        width="14"
-                        height="14"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        aria-hidden="true"
-                        className={`shrink-0 text-slate-400 transition-transform duration-200 ${learningOpen ? "rotate-180" : "rotate-0"}`}
-                      >
-                        <path d="m6 9 6 6 6-6" />
-                      </svg>
-                    </button>
-                  </div>
-                  {learningOpen ? (
-                    <div id="learning-menu">
-                      <nav
-                        className="ml-4 space-y-1 border-l-2 border-slate-100 pl-3"
-                        aria-label="Building Learning Center"
-                      >
-                        {learningMenu
-                          .filter(
-                            (item) =>
-                              item.href !== `${LEARNING_ROOT}/admin` ||
-                              showLearningAdmin,
-                          )
-                          .map((item) => renderItem(item))}
-                      </nav>
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
               {showProjectDocumentation ? (
                 <div className="mt-1">
                   <div className="px-1">
@@ -1530,8 +1551,8 @@ export default function DashboardSidebar({
                       }
                       className="flex w-full items-center justify-between rounded-lg border border-transparent px-2.5 py-2 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50"
                     >
-                      <span className="flex items-center gap-2.5">
-                        <span className="text-secondary">
+                      <span className="flex min-w-0 flex-1 items-center gap-2.5 text-left">
+                        <span className="shrink-0 text-secondary">
                           {projectDocumentationMenu.icon}
                         </span>
                         <span>Project Documentation</span>
@@ -1546,7 +1567,7 @@ export default function DashboardSidebar({
                         strokeLinecap="round"
                         strokeLinejoin="round"
                         aria-hidden="true"
-                        className={`text-slate-400 transition-transform duration-200 ${projectDocumentationOpen ? "rotate-180" : "rotate-0"}`}
+                        className={`shrink-0 text-slate-400 transition-transform duration-200 ${projectDocumentationOpen ? "rotate-180" : "rotate-0"}`}
                       >
                         <path d="m6 9 6 6 6-6" />
                       </svg>
