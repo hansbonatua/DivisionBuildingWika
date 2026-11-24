@@ -218,6 +218,13 @@
       "when": 1795399959168,
       "tag": "0030_building_learning_center",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1795506607081,
+      "tag": "0031_user_activity_logs",
+      "breakpoints": true
     }
   ]
 }

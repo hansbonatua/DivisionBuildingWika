@@ -11,7 +11,8 @@ type ActivityDb = PgDatabase | PgTransaction;
 /**
  * Appends one dashboard activity row. Callers pass the mutation transaction
  * when one exists so the activity and the business change commit or roll back
- * together. Keep this helper limited to Berkas, Master Project, and PDOC.
+ * together. Keep this helper limited to Berkas, Master Project, PDOC, and
+ * User Control (USER).
  */
 export async function logActivity(
   actorId: string,

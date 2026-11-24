@@ -20,6 +20,8 @@ import type {
   ProfileUpdateInput,
   UpdateUserInput,
 } from "@/lib/users/schema";
+import { logActivity } from "@/lib/activity-log/service";
+import type { ActivityAction } from "@/lib/pg/schema";
 
 // Server-only: user lookups (auth + User Control read-path) with a safe projection.
 // password_hash is available internally for login verification but is never
@@ -37,6 +39,21 @@ export type SafeUser = Omit<PgUser, "passwordHash">;
 export function toSafeUser(user: PgUser): SafeUser {
   const { passwordHash: _passwordHash, ...safe } = user;
   return safe;
+}
+
+// Dashboard activity feed entry for User Control. Best-effort by design: the
+// user mutation has already committed, so an audit insert failure must not be
+// reported to the Admin as a failed operation — it is logged server-side.
+async function logUserActivity(
+  actorUserId: string,
+  action: ActivityAction,
+  title: string,
+): Promise<void> {
+  try {
+    await logActivity(actorUserId, action, "USER", title);
+  } catch (error) {
+    console.error("Failed to record USER activity log", error);
+  }
 }
 
 export async function getUserForLoginByNip(nip: string): Promise<PgUser | null> {
@@ -113,6 +130,17 @@ export class CannotDeleteLastAdminError extends Error {
   }
 }
 
+// Raised when a role change would leave the application without any active
+// Admin. Demoting the only active Admin locks every remaining role out of User
+// Control, so the invariant is enforced before the write — the same way
+// suspend and delete are already protected.
+export class CannotChangeLastAdminRoleError extends Error {
+  constructor() {
+    super("Admin aktif terakhir tidak dapat diubah rolenya");
+    this.name = "CannotChangeLastAdminRoleError";
+  }
+}
+
 // Raised when a user still has dependent rows, so referential integrity blocks
 // the delete. References include user administration itself plus Program Kerja
 // (created_by / PIC assignment), Master Project, Template & Form and
@@ -140,6 +168,7 @@ function isUniqueViolation(error: unknown, constraint: string): boolean {
 
 export async function createSafeUser(
   input: CreateUserInput,
+  actorUserId: string,
   actorRole: string,
 ): Promise<SafeUser> {
   assertCanManageUsers(actorRole);
@@ -150,8 +179,9 @@ export async function createSafeUser(
     throw new DuplicateEmailError();
   }
   const passwordHash = await hashPassword(input.password);
+  let created: PgUser;
   try {
-    const created = await insertUserRow({
+    created = await insertUserRow({
       name: input.name,
       nip: input.nip,
       email: input.email,
@@ -166,7 +196,6 @@ export async function createSafeUser(
       passwordHash,
       photoUrl: input.photoUrl ?? null,
     });
-    return toSafeUser(created);
   } catch (error) {
     // Unique-constraint backstop for check-then-insert races.
     if (isUniqueViolation(error, "users_nip_unique")) {
@@ -177,6 +206,8 @@ export async function createSafeUser(
     }
     throw error;
   }
+  await logUserActivity(actorUserId, "CREATE", created.name);
+  return toSafeUser(created);
 }
 
 export async function setUserStatus(
@@ -208,12 +239,14 @@ export async function setUserStatus(
       throw new UserNotFoundError();
     }
     await deleteUserSessions(targetUserId);
+    await logUserActivity(actorUserId, "UPDATE", `${target.name} — dinonaktifkan`);
     return toSafeUser(updated);
   }
   const updated = await updateUserRow(targetUserId, { status: "active" });
   if (!updated) {
     throw new UserNotFoundError();
   }
+  await logUserActivity(actorUserId, "UPDATE", `${target.name} — diaktifkan`);
   return toSafeUser(updated);
 }
 
@@ -254,6 +287,19 @@ export async function updateSafeUser(
   //   Management -> anything else               => forced false (no stale flag)
   //   non-Management + mslAccess: true          => ignored (stays false)
   const resultingRole = input.role ?? existing.role;
+  // Last-active-Admin protection for role changes. Only a demotion of an
+  // ACTIVE Admin counts: a suspended Admin holds no active privilege, and
+  // re-sending the same role is not a change at all.
+  if (
+    existing.role === ADMIN_ROLE &&
+    resultingRole !== ADMIN_ROLE &&
+    existing.status === "active"
+  ) {
+    const activeAdmins = await countActiveAdminRows();
+    if (activeAdmins <= 1) {
+      throw new CannotChangeLastAdminRoleError();
+    }
+  }
   if (resultingRole === MANAGEMENT_ROLE) {
     if (input.mslAccess !== undefined) {
       patch.mslAccess = input.mslAccess;
@@ -266,6 +312,30 @@ export async function updateSafeUser(
     patch.passwordHash = await hashPassword(newPassword);
   }
   const statusChanged = input.status !== undefined && input.status !== existing.status;
+  // Human-readable change notes for the dashboard activity feed. Only fields
+  // that actually change are listed, so an idempotent PATCH stays silent.
+  const changeNotes: string[] = [];
+  if (input.role !== undefined && input.role !== existing.role) {
+    changeNotes.push(`role ${existing.role} → ${input.role}`);
+  }
+  if (newPassword !== undefined) {
+    changeNotes.push("password diubah");
+  }
+  const otherFieldsChanged =
+    (input.name !== undefined && input.name !== existing.name) ||
+    (input.nip !== undefined && input.nip !== existing.nip) ||
+    (input.email !== undefined && input.email !== existing.email) ||
+    (input.phone !== undefined && input.phone !== existing.phone) ||
+    (input.position !== undefined && input.position !== existing.position) ||
+    (input.photoUrl !== undefined && input.photoUrl !== existing.photoUrl) ||
+    (input.mslAccess !== undefined && patch.mslAccess !== undefined);
+  if (otherFieldsChanged) {
+    changeNotes.push("data diperbarui");
+  }
+  const changeTitle =
+    changeNotes.length > 0
+      ? `${existing.name} — ${changeNotes.join(", ")}`
+      : existing.name;
   try {
     let current = existing;
     if (Object.keys(patch).length > 0) {
@@ -282,7 +352,11 @@ export async function updateSafeUser(
     // generic PATCH can never bypass self/last-admin protection or
     // session revocation — including mixed field+status payloads.
     if (statusChanged && input.status !== undefined) {
-      return setUserStatus(id, input.status, actorUserId, actorRole);
+      const statusUpdated = await setUserStatus(id, input.status, actorUserId, actorRole);
+      if (changeNotes.length > 0) {
+        await logUserActivity(actorUserId, "UPDATE", changeTitle);
+      }
+      return statusUpdated;
     }
     if (Object.keys(patch).length === 0) {
       // No effective changes (e.g. body contained only an empty password,
@@ -290,6 +364,7 @@ export async function updateSafeUser(
       // updated_at or issuing an empty UPDATE.
       return toSafeUser(current);
     }
+    await logUserActivity(actorUserId, "UPDATE", changeTitle);
     return toSafeUser(current);
   } catch (error) {
     if (
@@ -349,6 +424,7 @@ export async function deleteUserSafely(
     throw new UserNotFoundError();
   }
   await deleteUserSessions(targetUserId);
+  await logUserActivity(actorUserId, "DELETE", target.name);
   return { deleted: true, id: targetUserId };
 }
 

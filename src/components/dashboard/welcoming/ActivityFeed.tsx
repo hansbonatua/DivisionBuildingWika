@@ -13,6 +13,7 @@ const entityLabels: Record<ActivityFeedItem["entityType"], string> = {
   BERKAS: "Berkas",
   MASTER_PROJECT: "Master Project",
   PDOC: "Project Documentation",
+  USER: "User",
 };
 
 function initials(name: string): string {
@@ -58,7 +59,7 @@ export default function ActivityFeed({ activities }: { activities: ActivityFeedI
           </span>
           <p className="mt-3 text-sm font-semibold text-primary">Belum ada aktivitas tercatat</p>
           <p className="mx-auto mt-1 max-w-md text-xs text-primary/50">
-            Aktivitas akan muncul setelah ada perubahan pada Berkas, Master Project, atau PDOC.
+            Aktivitas akan muncul setelah ada perubahan pada Berkas, Master Project, PDOC, atau User.
           </p>
         </div>
       ) : (

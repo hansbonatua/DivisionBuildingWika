@@ -6,6 +6,7 @@ export const POSITION_OPTIONS = [
   "Expert 1",
   "Expert 2",
   "Senior Expert",
+  "Manager",
   "Site Manager Engineering",
 ] as const;
 

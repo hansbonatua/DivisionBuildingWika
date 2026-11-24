@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { getPermittedActor, mapPermissionError } from "@/lib/auth/require-permission";
 import {
+  CannotChangeLastAdminRoleError,
   CannotDeleteLastAdminError,
   CannotDeleteSelfError,
   CannotSuspendLastAdminError,
@@ -105,6 +106,12 @@ export async function PATCH(request: Request, context: RouteContext) {
       if (error instanceof CannotSuspendLastAdminError) {
         return NextResponse.json(
           { error: { message: "Admin aktif terakhir tidak dapat dinonaktifkan" } },
+          { status: 403 },
+        );
+      }
+      if (error instanceof CannotChangeLastAdminRoleError) {
+        return NextResponse.json(
+          { error: { message: "Admin aktif terakhir tidak dapat diubah rolenya" } },
           { status: 403 },
         );
       }

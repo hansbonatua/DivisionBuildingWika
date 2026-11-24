@@ -54,7 +54,7 @@ export async function POST(request: Request) {
       );
     }
     try {
-      const created = await createSafeUser(parsed.data, auth.actor.role);
+      const created = await createSafeUser(parsed.data, auth.actor.id, auth.actor.role);
       return NextResponse.json({ data: created }, { status: 201 });
     } catch (error) {
       if (error instanceof DuplicateNipError) {

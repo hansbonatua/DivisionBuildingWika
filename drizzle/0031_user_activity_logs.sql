@@ -1,0 +1,2 @@
+ALTER TABLE "activity_logs" DROP CONSTRAINT "activity_logs_entity_type_check";--> statement-breakpoint
+ALTER TABLE "activity_logs" ADD CONSTRAINT "activity_logs_entity_type_check" CHECK ("activity_logs"."entity_type" in ('BERKAS', 'MASTER_PROJECT', 'PDOC', 'USER'));

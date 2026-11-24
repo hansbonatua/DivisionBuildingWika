@@ -28,7 +28,12 @@ export const ACTIVITY_ACTIONS = [
 
 export type ActivityAction = (typeof ACTIVITY_ACTIONS)[number];
 
-export const ACTIVITY_ENTITY_TYPES = ["BERKAS", "MASTER_PROJECT", "PDOC"] as const;
+export const ACTIVITY_ENTITY_TYPES = [
+  "BERKAS",
+  "MASTER_PROJECT",
+  "PDOC",
+  "USER",
+] as const;
 
 export type ActivityEntityType = (typeof ACTIVITY_ENTITY_TYPES)[number];
 
@@ -1586,7 +1591,7 @@ export const activityLogs = pgTable(
     ),
     check(
       "activity_logs_entity_type_check",
-      sql`${table.entityType} in ('BERKAS', 'MASTER_PROJECT', 'PDOC')`,
+      sql`${table.entityType} in ('BERKAS', 'MASTER_PROJECT', 'PDOC', 'USER')`,
     ),
     check(
       "activity_logs_title_check",
