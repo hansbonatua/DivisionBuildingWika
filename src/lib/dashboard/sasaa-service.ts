@@ -9,18 +9,29 @@ import { getPgDb } from "@/lib/pg/client";
 import { isUniqueViolation } from "@/lib/pg/errors";
 import {
   engineeringDatabaseEntries,
-  knowledgeEntries,
   masterProjects,
   mslAssessments,
   projectDocumentations,
   projectPhotos,
   users,
 } from "@/lib/pg/schema";
+import { categorizeMslScore, computeMslScore } from "@/lib/msl/score";
 import {
-  categorizeMslScore,
-  computeMslScore,
-  type MslCategory,
-} from "@/lib/msl/score";
+  getEngDbStatus,
+  getEsgMonths,
+  getGreenBuilding,
+  getKnowledgeSummary,
+  getMslMonths,
+  getPdocMonths,
+} from "@/lib/sasaa/repository";
+import type {
+  ProjectPhotosData,
+  SasaaActor,
+  SasaaData,
+  SasaaKnowledgePage,
+  SasaaPhoto,
+  SasaaProjectRef,
+} from "@/lib/sasaa/types";
 import {
   deletePublicCmsBlob,
   headPublicCmsImage,
@@ -30,60 +41,27 @@ import {
   type ProjectPhotoSlot,
 } from "@/lib/dashboard/project-photo-storage";
 
-export type SasaaActor = {
-  id: string;
-  role: string;
-  status: string;
-};
-
-export type SasaaProjectRef = {
-  id: string;
-  name: string;
-  location: string;
-  year: number;
-  pic: { id: string; name: string };
-};
-
-export type SasaaPhoto = {
-  slot: ProjectPhotoSlot;
-  url: string;
-  alt: string;
-};
-
-export type ProjectPhotosData = {
-  project: { id: string; name: string };
-  photos: SasaaPhoto[];
-  photosComplete: boolean;
-};
-
-export type SasaaData = ProjectPhotosData & {
-  project: SasaaProjectRef;
-  metrics: {
-    msl: {
-      averageScore: number | null;
-      category: MslCategory | null;
-      assessedMonths: number;
-      latestMonth: number | null;
-    };
-    engineeringDatabase: {
-      totalEntries: number;
-      categoriesCovered: number;
-      totalCategories: number;
-    };
-    pdoc: {
-      year: number | null;
-      completedWeeks: number;
-      totalWeeks: number;
-      documentedMonths: number;
-    };
-    knowledge: {
-      total: number;
-      lessonLearn: number;
-      bestPractice: number;
-      vaVe: number;
-    };
-  };
-};
+// The payload types live in @/lib/sasaa/types so the repository, the
+// aggregator and the route handlers share one shape. Re-exported here because
+// this module is the SASAA service entry point used by the API routes.
+export type {
+  ProjectPhotosData,
+  SasaaActor,
+  SasaaChartPoint,
+  SasaaCharts,
+  SasaaData,
+  SasaaEngDbCategoryStatus,
+  SasaaEngDbStatus,
+  SasaaGreenBuilding,
+  SasaaKnowledgeCounts,
+  SasaaKnowledgeItem,
+  SasaaKnowledgePage,
+  SasaaMetrics,
+  SasaaMslMonths,
+  SasaaPhoto,
+  SasaaProjectDto,
+  SasaaProjectRef,
+} from "@/lib/sasaa/types";
 
 export const projectPhotoInputSchema = z
   .object({
@@ -133,7 +111,6 @@ export class SasaaConflictError extends Error {
 const TOTAL_ENGINEERING_CATEGORIES = 6;
 const TOTAL_PDOC_WEEKS = 60;
 const SLOT_VALUES = [1, 2, 3, 4] as const;
-const KM_TYPES = ["lesson_learn", "best_practice", "va_ve"] as const;
 
 const projectRefColumns = {
   id: masterProjects.id,
@@ -222,8 +199,18 @@ export async function getSasaaData(projectId: string): Promise<SasaaData | null>
   }
 
   const db = getPgDb();
-  const [photoRows, mslRows, engineeringRows, pdocRows, kmRows] =
-    await Promise.all([
+  const [
+    photoRows,
+    mslRows,
+    engineeringRows,
+    pdocRows,
+    pdocMonths,
+    mslMonths,
+    esgMonths,
+    greenBuilding,
+    knowledgePage,
+    engDb,
+  ] = await Promise.all([
       db
         .select({
           slot: projectPhotos.slot,
@@ -265,14 +252,12 @@ export async function getSasaaData(projectId: string): Promise<SasaaData | null>
         .where(eq(projectDocumentations.projectId, projectId))
         .orderBy(sql`${projectDocumentations.year} desc`, projectDocumentations.month)
         .limit(12),
-      db
-        .select({
-          knowledgeType: knowledgeEntries.knowledgeType,
-          total: sql<number>`count(*)::int`,
-        })
-        .from(knowledgeEntries)
-        .where(eq(knowledgeEntries.projectId, projectId))
-        .groupBy(knowledgeEntries.knowledgeType),
+      getPdocMonths(projectId, project.year),
+      getMslMonths(projectId, project.year),
+      getEsgMonths(projectId, project.year),
+      getGreenBuilding(projectId),
+      getKnowledgeSummary(projectId, 1),
+      getEngDbStatus(projectId),
     ]);
 
   const photos = photoRows.map((row) => toSasaaPhoto(project.name, row));
@@ -314,19 +299,6 @@ export async function getSasaaData(projectId: string): Promise<SasaaData | null>
     0,
   );
 
-  const knowledge = {
-    total: 0,
-    lessonLearn: 0,
-    bestPractice: 0,
-    vaVe: 0,
-  };
-  for (const row of kmRows) {
-    knowledge.total += Number(row.total);
-    if (row.knowledgeType === KM_TYPES[0]) knowledge.lessonLearn = Number(row.total);
-    if (row.knowledgeType === KM_TYPES[1]) knowledge.bestPractice = Number(row.total);
-    if (row.knowledgeType === KM_TYPES[2]) knowledge.vaVe = Number(row.total);
-  }
-
   return {
     project,
     photos,
@@ -349,9 +321,33 @@ export async function getSasaaData(projectId: string): Promise<SasaaData | null>
         totalWeeks: TOTAL_PDOC_WEEKS,
         documentedMonths: latestPdocRows.length,
       },
-      knowledge,
+      knowledge: knowledgePage.counts,
+    },
+    greenBuilding,
+    knowledge: knowledgePage,
+    charts: {
+      pdoc: pdocMonths,
+      msl: mslMonths,
+      esg: esgMonths,
+      engDb,
     },
   };
+}
+
+/**
+ * Paginated Knowledge Management section. The project lookup keeps the 404
+ * contract of the parent route; the page itself never needs the photo or
+ * metric aggregates.
+ */
+export async function getSasaaKnowledgePage(
+  projectId: string,
+  page: number,
+): Promise<SasaaKnowledgePage | null> {
+  const project = await findProjectRef(projectId);
+  if (!project) {
+    return null;
+  }
+  return getKnowledgeSummary(projectId, page);
 }
 
 export async function getProjectPhotos(

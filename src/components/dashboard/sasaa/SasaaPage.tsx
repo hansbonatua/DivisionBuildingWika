@@ -2,15 +2,28 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import EsgChart from "./EsgChart";
+import GreenBuildingBanner from "./GreenBuildingBanner";
+import KnowledgeTable from "./KnowledgeTable";
+import MonthlyBarChart from "./MonthlyBarChart";
+import MslSection from "./MslSection";
 import ProjectPhotoCarousel from "./ProjectPhotoCarousel";
-import SasaaStatsGrid from "./SasaaStatsGrid";
 import {
   readApiErrorMessage,
   type SasaaData,
+  type SasaaMslMonths,
   type SasaaProjectOption,
 } from "./types";
 
 const PROJECTS_ENDPOINT = "/api/dashboard/sasaa";
+
+/** Project one MSL component (or the canonical total) onto 12 chart months. */
+function mslSeries(
+  msl: SasaaMslMonths[],
+  key: keyof SasaaMslMonths,
+): Array<{ month: number; value: number }> {
+  return msl.map((month, index) => ({ month: index + 1, value: month[key] }));
+}
 
 function PageHeader({
   selectedId,
@@ -37,8 +50,8 @@ function PageHeader({
           Dashboard SASAA
         </h1>
         <p className="max-w-3xl text-base text-primary/70">
-          Ringkasan eksekutif proyek: foto, MSL, Engineering Database, PDOC, dan
-          Knowledge Management.
+          Ringkasan eksekutif proyek: foto, Green Building, MSL, Engineering
+          Database, PDOC, ESG, dan Knowledge Management.
         </p>
       </div>
 
@@ -291,7 +304,8 @@ export default function SasaaPage({
           </button>
         </div>
       ) : data ? (
-        <>
+        <div className="space-y-6">
+          {/* Baris 0 — identitas proyek terpilih. */}
           <section className="rounded-2xl border border-outline bg-white p-5 shadow-sm">
             <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
               <div>
@@ -316,47 +330,87 @@ export default function SasaaPage({
             </div>
           </section>
 
-          <section aria-labelledby="sasaa-photo-title" className="space-y-3">
-            <div className="flex flex-wrap items-end justify-between gap-2">
-              <div>
-                <h2 id="sasaa-photo-title" className="text-base font-bold text-primary">
-                  Foto Proyek
-                </h2>
-                <p className="text-xs text-primary/50">
-                  Empat dokumentasi visual utama proyek.
-                </p>
+          {/* Baris 1 — carousel foto + banner Green Building. */}
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <section aria-labelledby="sasaa-photo-title" className="space-y-3">
+              <div className="flex flex-wrap items-end justify-between gap-2">
+                <div>
+                  <h2
+                    id="sasaa-photo-title"
+                    className="text-base font-bold text-primary"
+                  >
+                    Foto Proyek
+                  </h2>
+                  <p className="text-xs text-primary/50">
+                    Empat dokumentasi visual utama proyek.
+                  </p>
+                </div>
+                {data.photosComplete ? (
+                  <span className="rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-bold text-emerald-700">
+                    Lengkap 4/4
+                  </span>
+                ) : null}
               </div>
               {data.photosComplete ? (
-                <span className="rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-bold text-emerald-700">
-                  Lengkap 4/4
-                </span>
-              ) : null}
-            </div>
-            {data.photosComplete ? (
-              <ProjectPhotoCarousel
-                photos={data.photos}
-                projectName={data.project.name}
-              />
-            ) : (
-              <PhotoEmptyState
-                count={data.photos.length}
-                canManagePhotos={canManagePhotos}
-              />
-            )}
-          </section>
+                <ProjectPhotoCarousel
+                  photos={data.photos}
+                  projectName={data.project.name}
+                />
+              ) : (
+                <PhotoEmptyState
+                  count={data.photos.length}
+                  canManagePhotos={canManagePhotos}
+                />
+              )}
+            </section>
 
-          <section aria-labelledby="sasaa-stats-title" className="space-y-3">
-            <div>
-              <h2 id="sasaa-stats-title" className="text-base font-bold text-primary">
-                Ringkasan Kinerja
-              </h2>
-              <p className="text-xs text-primary/50">
-                Agregat data proyek tanpa membuka record mentah MSL.
-              </p>
-            </div>
-            <SasaaStatsGrid metrics={data.metrics} />
-          </section>
-        </>
+            <GreenBuildingBanner greenBuilding={data.greenBuilding} />
+          </div>
+
+          {/* Baris 2 — tabel Knowledge Management (full width). */}
+          <KnowledgeTable initial={data.knowledge} projectId={data.project.id} />
+
+          {/* Baris 3 — PDOC + MSL (dengan filter komponen). */}
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <MonthlyBarChart
+              data={data.charts.pdoc}
+              title={`Dokumentasi PDOC ${data.project.year}`}
+              subtitle={`Minggu terisi per bulan · ${data.charts.pdoc.reduce(
+                (total, point) => total + point.value,
+                0,
+              )}/60`}
+              height={200}
+            />
+            <MslSection msl={data.charts.msl} engDb={data.charts.engDb} />
+          </div>
+
+          {/* Baris 4 — dua komponen MSL pertama. */}
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <MonthlyBarChart
+              data={mslSeries(data.charts.msl, "engineeringValue")}
+              title="MSL — Engineering Value"
+              subtitle="Skala 0–5 per bulan"
+              height={200}
+            />
+            <MonthlyBarChart
+              data={mslSeries(data.charts.msl, "metodeKerja")}
+              title="MSL — Metode Kerja"
+              subtitle="Skala 0–5 per bulan"
+              height={200}
+            />
+          </div>
+
+          {/* Baris 5 — Eng Execution + ESG. */}
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <MonthlyBarChart
+              data={mslSeries(data.charts.msl, "engineeringExecution")}
+              title="MSL — Eng Execution"
+              subtitle="Skala 0–5 per bulan"
+              height={200}
+            />
+            <EsgChart esg={data.charts.esg} year={data.project.year} />
+          </div>
+        </div>
       ) : null}
     </div>
   );
