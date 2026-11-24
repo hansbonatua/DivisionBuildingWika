@@ -7,7 +7,7 @@ import Link from "next/link";
 type DashboardHeaderProps = {
   sidebarOpen: boolean;
   onToggleSidebar: () => void;
-  user?: { name: string; role: string };
+  user?: { name: string; role: string; photoUrl?: string | null };
 };
 
 function displayInitials(name: string): string {
@@ -23,6 +23,7 @@ function displayInitials(name: string): string {
 export default function DashboardHeader({ sidebarOpen, onToggleSidebar, user }: DashboardHeaderProps) {
   const displayName = user?.name ?? "R. Triyanto S.T.";
   const displayRole = user?.role ?? "CMS";
+  const displayPhoto = user?.photoUrl ?? null;
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement | null>(null);
 
@@ -94,9 +95,30 @@ export default function DashboardHeader({ sidebarOpen, onToggleSidebar, user }: 
           onClick={() => setProfileOpen((prev) => !prev)}
           className="flex cursor-pointer items-center gap-3 rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
         >
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-blue-200 bg-blue-100 text-xs font-bold text-secondary">
-            {displayInitials(displayName) || "WB"}
-          </div>
+          {displayPhoto && /^(https?:\/\/|\/)/.test(displayPhoto) ? (
+            displayPhoto.startsWith("/") ? (
+              <Image
+                src={displayPhoto}
+                alt=""
+                width={36}
+                height={36}
+                className="h-9 w-9 shrink-0 rounded-lg border border-blue-200 object-cover"
+              />
+            ) : (
+              // Remote URLs (e.g. Vercel Blob) bypass next/image so no
+              // remotePatterns config is needed, same as UserAvatar.
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={displayPhoto}
+                alt=""
+                className="h-9 w-9 shrink-0 rounded-lg border border-blue-200 object-cover"
+              />
+            )
+          ) : (
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-blue-200 bg-blue-100 text-xs font-bold text-secondary">
+              {displayInitials(displayName) || "WB"}
+            </div>
+          )}
           <div className="hidden flex-col text-left sm:flex">
             <span className="text-xs font-bold leading-tight text-slate-900">{displayName}</span>
             <span className="mt-0.5 text-[11px] font-medium leading-tight text-slate-500">{displayRole}</span>

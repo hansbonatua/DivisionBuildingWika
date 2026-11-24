@@ -9,7 +9,7 @@ export default function DashboardShell({
   user,
 }: {
   children: React.ReactNode;
-  user?: { name: string; role: string; mslAccess?: boolean };
+  user?: { name: string; role: string; mslAccess?: boolean; photoUrl?: string | null };
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
