@@ -115,10 +115,42 @@ installStub("@/lib/auth/session", {
   deleteUserSessions: async () => undefined,
 });
 
+let headPhotoResult: {
+  pathname: string;
+  size: number;
+  contentType: string;
+  url: string;
+} | null = null;
+let headPhotoCalls = 0;
+const deletePhotoCalls: string[] = [];
+let photoReachable: boolean | null = true;
+
+// Keep the real error classes so the service's `instanceof` checks stay valid;
+// only the storage calls are replaced.
 /* eslint-disable @typescript-eslint/no-require-imports */
-const { CannotChangeLastAdminRoleError, updateSafeUser } = require(
-  "@/lib/users/service",
-) as typeof import("@/lib/users/service");
+const realPublicImageModule = require(
+  "@/lib/storage/public-image",
+) as typeof import("@/lib/storage/public-image");
+/* eslint-enable @typescript-eslint/no-require-imports */
+
+installStub("@/lib/storage/public-image", {
+  ...realPublicImageModule,
+  headPublicCmsImage: async (pathname: string) => {
+    headPhotoCalls += 1;
+    return headPhotoResult && headPhotoResult.pathname === pathname
+      ? headPhotoResult
+      : null;
+  },
+  deletePublicCmsBlob: async (pathname: string) => {
+    deletePhotoCalls.push(pathname);
+    return { deleted: true, reason: "deleted" };
+  },
+  isPublicImageReachable: async () => photoReachable,
+});
+
+/* eslint-disable @typescript-eslint/no-require-imports */
+const { CannotChangeLastAdminRoleError, InvalidUserPhotoError, updateSafeUser } =
+  require("@/lib/users/service") as typeof import("@/lib/users/service");
 /* eslint-enable @typescript-eslint/no-require-imports */
 
 beforeEach(() => {
@@ -127,6 +159,10 @@ beforeEach(() => {
   repositoryStub.countActiveAdmins = async () => activeAdminCount;
   updateCalls.length = 0;
   activityCalls.length = 0;
+  headPhotoResult = null;
+  headPhotoCalls = 0;
+  deletePhotoCalls.length = 0;
+  photoReachable = true;
 });
 
 describe("updateSafeUser — proteksi Admin aktif terakhir", () => {
@@ -212,5 +248,82 @@ describe("updateSafeUser — proteksi Admin aktif terakhir", () => {
     await updateSafeUser(USER_ID, userPatch({ role: "Admin" }), ACTOR_ID, "Admin");
 
     assert.equal(countCalls, 0);
+  });
+});
+
+describe("updateSafeUser — verifikasi foto profil", () => {
+  const OTHER_ID = "33333333-3333-4333-8333-333333333333";
+  const UPLOAD_ID = "44444444-4444-4444-8444-444444444444";
+
+  function photoUrlFor(userId: string): string {
+    return `https://bdwika-cms.public.blob.vercel-storage.com/user-photos/${userId}/${UPLOAD_ID}/avatar-budi.jpg`;
+  }
+
+  it("menerima URL eksternal tanpa memverifikasi storage", async () => {
+    const updated = await updateSafeUser(
+      USER_ID,
+      userPatch({ photoUrl: "https://example.com/foto.jpg" }),
+      ACTOR_ID,
+      "Admin",
+    );
+
+    assert.equal(updated.photoUrl, "https://example.com/foto.jpg");
+    assert.equal(headPhotoCalls, 0);
+    assert.equal(updateCalls.length, 1);
+  });
+
+  it("menolak URL di namespace user sendiri bila objek tidak ditemukan", async () => {
+    headPhotoResult = null;
+
+    await assert.rejects(
+      updateSafeUser(
+        USER_ID,
+        userPatch({ photoUrl: photoUrlFor(USER_ID) }),
+        ACTOR_ID,
+        "Admin",
+      ),
+      (error: unknown) => error instanceof InvalidUserPhotoError,
+    );
+
+    assert.equal(headPhotoCalls, 1);
+    assert.equal(updateCalls.length, 0);
+  });
+
+  it("memperlakukan namespace user lain sebagai URL eksternal", async () => {
+    const otherUrl = photoUrlFor(OTHER_ID);
+
+    const updated = await updateSafeUser(
+      USER_ID,
+      userPatch({ photoUrl: otherUrl }),
+      ACTOR_ID,
+      "Admin",
+    );
+
+    assert.equal(updated.photoUrl, otherUrl);
+    assert.equal(headPhotoCalls, 0);
+  });
+
+  it("menerima foto tersimpan yang valid lalu menghapus foto lama di namespace sendiri", async () => {
+    const oldUrl = photoUrlFor(USER_ID);
+    const newUrl = `https://bdwika-cms.public.blob.vercel-storage.com/user-photos/${USER_ID}/${UPLOAD_ID}/avatar-baru.jpg`;
+    target = makeUser({ photoUrl: oldUrl });
+    headPhotoResult = {
+      pathname: `user-photos/${USER_ID}/${UPLOAD_ID}/avatar-baru.jpg`,
+      size: 1024,
+      contentType: "image/jpeg",
+      url: newUrl,
+    };
+
+    const updated = await updateSafeUser(
+      USER_ID,
+      userPatch({ photoUrl: newUrl }),
+      ACTOR_ID,
+      "Admin",
+    );
+
+    assert.equal(updated.photoUrl, newUrl);
+    assert.deepEqual(deletePhotoCalls, [
+      `user-photos/${USER_ID}/${UPLOAD_ID}/avatar-budi.jpg`,
+    ]);
   });
 });

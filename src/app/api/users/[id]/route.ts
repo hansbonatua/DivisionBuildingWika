@@ -11,6 +11,7 @@ import {
   DuplicateNipError,
   deleteUserSafely,
   getSafeUserById,
+  InvalidUserPhotoError,
   updateSafeUser,
   UserConflictError,
   UserNotFoundError,
@@ -113,6 +114,12 @@ export async function PATCH(request: Request, context: RouteContext) {
         return NextResponse.json(
           { error: { message: "Admin aktif terakhir tidak dapat diubah rolenya" } },
           { status: 403 },
+        );
+      }
+      if (error instanceof InvalidUserPhotoError) {
+        return NextResponse.json(
+          { error: { message: "Foto profil tidak valid atau terlalu besar" } },
+          { status: 400 },
         );
       }
       throw error;

@@ -2,7 +2,13 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { upload } from "@vercel/blob/client";
 import { POSITION_OPTIONS } from "@/lib/users/options";
+import {
+  USER_PHOTO_ALLOWED_TYPES,
+  USER_PHOTO_MAX_BYTES,
+  buildUserPhotoPathname,
+} from "@/lib/users/photo-storage";
 import { ROLE_OPTIONS, isUserRole, type UserRole } from "@/lib/users/roles";
 
 export type UserFormValues = {
@@ -23,6 +29,8 @@ export type UserFormValues = {
 // Initial form data: SafeUser rows (real edit) or legacy CmsUser rows (mock
 // callers pending migration). Password hashes are never passed in.
 export type UserFormInitialData = {
+  // Required for a photo upload: the pathname is scoped to this user id.
+  id?: string;
   photo?: string | null;
   photoUrl?: string | null;
   name?: string;
@@ -47,6 +55,22 @@ type UserFormProps = {
 
 const inputClass =
   "h-10 w-full rounded-lg border border-outline/60 bg-white px-3.5 text-xs font-semibold text-primary focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20";
+
+// Maps SDK/HTTP failures to something an admin can act on. Never surfaces a
+// token, a store name or a raw SDK message.
+function userPhotoUploadErrorMessage(error: unknown): string {
+  const message = error instanceof Error ? error.message : "";
+  if (/too large|maximum size|size limit/i.test(message)) {
+    return "Ukuran foto melebihi batas 2 MB.";
+  }
+  if (/content type|not allowed|unsupported/i.test(message)) {
+    return "Format foto tidak didukung. Gunakan JPG, PNG, atau WEBP.";
+  }
+  if (/unauthori|forbidden|401|403/i.test(message)) {
+    return "Sesi Anda tidak memiliki izin mengunggah foto.";
+  }
+  return "Gagal mengunggah foto. Periksa koneksi lalu coba lagi.";
+}
 
 export default function UserForm({
   mode,
@@ -81,21 +105,37 @@ export default function UserForm({
   const [photoPreview, setPhotoPreview] = useState(initialPhotoUrl);
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // Photo upload state: the file is uploaded when the form is submitted, so a
+  // cancelled edit never leaves an orphan object behind.
+  const [pendingPhotoFile, setPendingPhotoFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadPercent, setUploadPercent] = useState<number | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   function handleFileChange(event: React.ChangeEvent<HTMLInputElement>): void {
     const file = event.target.files?.[0];
     if (!file) {
       return;
     }
+    setUploadError(null);
+    if (!(USER_PHOTO_ALLOWED_TYPES as readonly string[]).includes(file.type)) {
+      setUploadError("Format foto harus JPG, PNG, atau WEBP.");
+      return;
+    }
+    if (file.size > USER_PHOTO_MAX_BYTES) {
+      setUploadError("Ukuran foto maksimal 2 MB.");
+      return;
+    }
     if (photoPreview.startsWith("blob:")) {
       URL.revokeObjectURL(photoPreview);
     }
+    setPendingPhotoFile(file);
     setPhotoPreview(URL.createObjectURL(file));
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
-    if (submitting) {
+    if (submitting || uploading) {
       return;
     }
     if (!formName.trim() || !formNip.trim() || !formEmail.trim()) {
@@ -106,10 +146,56 @@ export default function UserForm({
       setFormError("Lengkapi nama, NIP, email, dan password.");
       return;
     }
-    // Blob previews are local-only and can never be persisted.
-    const persistentPhoto = formPhotoUrl.trim().startsWith("blob:")
-      ? ""
-      : formPhotoUrl.trim();
+
+    // Upload first, then submit the persisted URL. The form never sends a local
+    // blob: preview, and a failed upload aborts the submit (the selected file
+    // stays so it can be retried without re-picking).
+    let nextPhotoUrl = formPhotoUrl.trim();
+    if (pendingPhotoFile) {
+      const userId = initialData?.id;
+      if (!userId) {
+        setUploadError("Simpan user dulu, lalu upload foto di halaman Edit.");
+        return;
+      }
+      const pathname = buildUserPhotoPathname(userId, pendingPhotoFile.name);
+      if (!pathname) {
+        setUploadError("Nama atau format file foto tidak valid.");
+        return;
+      }
+      setFormError(null);
+      setUploadError(null);
+      setSubmitting(true);
+      setUploading(true);
+      setUploadPercent(0);
+      try {
+        const blob = await upload(pathname, pendingPhotoFile, {
+          access: "public",
+          contentType: pendingPhotoFile.type,
+          handleUploadUrl: "/api/users/photo/upload-token",
+          clientPayload: JSON.stringify({ userId }),
+          multipart: false,
+          onUploadProgress: (event) => {
+            const percentage = Number(event.percentage);
+            if (Number.isFinite(percentage)) {
+              setUploadPercent(Math.max(0, Math.min(100, Math.round(percentage))));
+            }
+          },
+        });
+        nextPhotoUrl = blob.url;
+        setFormPhotoUrl(blob.url);
+        setPhotoPreview(blob.url);
+        setPendingPhotoFile(null);
+      } catch (error) {
+        setUploadPercent(null);
+        setUploadError(userPhotoUploadErrorMessage(error));
+        setSubmitting(false);
+        return;
+      } finally {
+        setUploading(false);
+      }
+    }
+
+    const persistentPhoto = nextPhotoUrl.startsWith("blob:") ? "" : nextPhotoUrl;
     setFormError(null);
     setSubmitting(true);
     try {
@@ -170,12 +256,38 @@ export default function UserForm({
                 id="u_photo"
                 type="file"
                 accept=".jpg,.jpeg,.png,.webp"
+                disabled={mode === "add"}
                 onChange={handleFileChange}
-                className="w-full text-xs text-slate-600 file:mr-3 file:rounded-md file:border file:border-outline/70 file:bg-white file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-primary hover:file:bg-slate-50"
+                className="w-full text-xs text-slate-600 file:mr-3 file:rounded-md file:border file:border-outline/70 file:bg-white file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-primary hover:file:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
               />
-              <p className="mt-1 text-[11px] text-slate-400">
-                Preview otomatis; pilih ulang untuk replace image.
-              </p>
+              {mode === "add" ? (
+                <p className="mt-1 text-[11px] text-slate-400">
+                  Simpan user dulu, lalu upload foto di halaman Edit.
+                </p>
+              ) : (
+                <p className="mt-1 text-[11px] text-slate-400">
+                  JPG/PNG/WEBP maksimal 2 MB. Foto diunggah saat Simpan.
+                </p>
+              )}
+              {uploadError ? (
+                <p role="alert" className="mt-1 text-[11px] font-semibold text-red-700">
+                  {uploadError}
+                </p>
+              ) : null}
+              {uploading ? (
+                <div
+                  className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-200"
+                  role="progressbar"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={uploadPercent ?? 0}
+                >
+                  <div
+                    className="h-full rounded-full bg-secondary transition-all"
+                    style={{ width: `${uploadPercent ?? 0}%` }}
+                  />
+                </div>
+              ) : null}
             </div>
           </div>
           <div className="mt-3">
@@ -188,6 +300,9 @@ export default function UserForm({
               placeholder="misal: /asset/profil/nama.jpg atau https://..."
               value={formPhotoUrl}
               onChange={(e) => {
+                // Typing a URL replaces any pending file: only one source wins.
+                setPendingPhotoFile(null);
+                setUploadError(null);
                 setFormPhotoUrl(e.target.value);
                 if (!e.target.value.startsWith("blob:")) {
                   setPhotoPreview(e.target.value);
@@ -196,7 +311,7 @@ export default function UserForm({
               className={inputClass}
             />
             <p className="mt-1 text-[11px] text-slate-400">
-              Yang tersimpan hanya URL di atas; pratinjau file bersifat lokal.
+              URL ini menang atas file yang dipilih; kosongkan untuk menghapus foto.
             </p>
           </div>
         </div>
@@ -411,10 +526,10 @@ export default function UserForm({
         </Link>
         <button
           type="submit"
-          disabled={submitting}
+          disabled={submitting || uploading}
           className="rounded-lg bg-secondary px-5 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-primary disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {submitting ? "Menyimpan..." : submitLabel}
+          {uploading ? "Mengunggah..." : submitting ? "Menyimpan..." : submitLabel}
         </button>
       </div>
     </form>

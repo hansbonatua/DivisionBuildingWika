@@ -22,6 +22,18 @@ import type {
 } from "@/lib/users/schema";
 import { logActivity } from "@/lib/activity-log/service";
 import type { ActivityAction } from "@/lib/pg/schema";
+import {
+  PublicImageStorageNotConfiguredError,
+  deletePublicCmsBlob,
+  headPublicCmsImage,
+  isPublicImageReachable,
+} from "@/lib/storage/public-image";
+import {
+  USER_PHOTO_ALLOWED_TYPES,
+  USER_PHOTO_MAX_BYTES,
+  extractPathnameFromUrl,
+  isUserPhotoPathnameFor,
+} from "@/lib/users/photo-storage";
 
 // Server-only: user lookups (auth + User Control read-path) with a safe projection.
 // password_hash is available internally for login verification but is never
@@ -53,6 +65,109 @@ async function logUserActivity(
     await logActivity(actorUserId, action, "USER", title);
   } catch (error) {
     console.error("Failed to record USER activity log", error);
+  }
+}
+
+function normalizeUserPhotoContentType(contentType: string): string {
+  return contentType.split(";")[0]?.trim().toLowerCase() ?? "";
+}
+
+/**
+ * Validates a photo_url before it is persisted.
+ *
+ * - empty/null clears the photo;
+ * - a local `/asset/...` path is kept as-is (legacy data, never uploaded);
+ * - a non-http(s) value is rejected;
+ * - a public-blob URL outside THIS user's namespace is kept as-is (legacy
+ *   external URL, never verified);
+ * - a URL inside user-photos/{userId}/ must resolve to a stored public object
+ *   with an allowed content type, the allowed size and the exact same URL.
+ */
+async function verifyUserPhotoUrl(
+  userId: string,
+  photoUrl: string | null,
+): Promise<string | null> {
+  if (!photoUrl) {
+    return null;
+  }
+  const value = photoUrl.trim();
+  if (value.length === 0) {
+    return null;
+  }
+  if (value.startsWith("/")) {
+    return value;
+  }
+  let parsed: URL;
+  try {
+    parsed = new URL(value);
+  } catch {
+    throw new InvalidUserPhotoError();
+  }
+  if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+    throw new InvalidUserPhotoError();
+  }
+  const pathname = extractPathnameFromUrl(value);
+  if (!pathname || !isUserPhotoPathnameFor(pathname, userId)) {
+    return value;
+  }
+  try {
+    const metadata = await headPublicCmsImage(pathname);
+    if (!metadata) {
+      throw new InvalidUserPhotoError(
+        "Foto profil tidak ditemukan. Unggah ulang foto.",
+      );
+    }
+    if (metadata.size <= 0 || metadata.size > USER_PHOTO_MAX_BYTES) {
+      throw new InvalidUserPhotoError("Ukuran foto profil maksimal 2 MB.");
+    }
+    if (
+      !(USER_PHOTO_ALLOWED_TYPES as readonly string[]).includes(
+        normalizeUserPhotoContentType(metadata.contentType),
+      )
+    ) {
+      throw new InvalidUserPhotoError(
+        "Format foto profil harus JPG, PNG, atau WEBP.",
+      );
+    }
+    if (metadata.pathname !== pathname || metadata.url !== value) {
+      throw new InvalidUserPhotoError();
+    }
+    const reachable = await isPublicImageReachable(value);
+    if (reachable !== true) {
+      throw new InvalidUserPhotoError(
+        "Foto profil harus tersimpan pada penyimpanan publik.",
+      );
+    }
+    return value;
+  } catch (error) {
+    if (error instanceof PublicImageStorageNotConfiguredError) {
+      throw new InvalidUserPhotoError();
+    }
+    throw error;
+  }
+}
+
+/**
+ * Best-effort removal of the photo a user just replaced. Only objects inside
+ * this user's namespace are touched: legacy external URLs and local assets are
+ * never deleted, and a failure never fails the save.
+ */
+async function deleteReplacedUserPhoto(
+  userId: string,
+  oldPhotoUrl: string | null,
+  newPhotoUrl: string | null,
+): Promise<void> {
+  if (!oldPhotoUrl || oldPhotoUrl === newPhotoUrl) {
+    return;
+  }
+  const pathname = extractPathnameFromUrl(oldPhotoUrl);
+  if (!pathname || !isUserPhotoPathnameFor(pathname, userId)) {
+    return;
+  }
+  try {
+    await deletePublicCmsBlob(pathname);
+  } catch (error) {
+    console.error("Failed to delete replaced user photo", error);
   }
 }
 
@@ -138,6 +253,16 @@ export class CannotChangeLastAdminRoleError extends Error {
   constructor() {
     super("Admin aktif terakhir tidak dapat diubah rolenya");
     this.name = "CannotChangeLastAdminRoleError";
+  }
+}
+
+// Raised when a profile photo URL fails server-side verification: a blob in the
+// user's own namespace that is missing, too large, the wrong type, or not
+// publicly reachable. Routes map this to 400.
+export class InvalidUserPhotoError extends Error {
+  constructor(message = "Foto profil tidak valid atau terlalu besar") {
+    super(message);
+    this.name = "InvalidUserPhotoError";
   }
 }
 
@@ -280,7 +405,14 @@ export async function updateSafeUser(
   if (input.phone !== undefined) patch.phone = input.phone;
   if (input.position !== undefined) patch.position = input.position;
   if (input.role !== undefined) patch.role = input.role;
-  if (input.photoUrl !== undefined) patch.photoUrl = input.photoUrl;
+  // Profile photos in this user's namespace are verified against the stored
+  // object before anything is written; local /asset paths and external URLs
+  // stay untouched for backwards compatibility.
+  const verifiedPhotoUrl =
+    input.photoUrl !== undefined
+      ? await verifyUserPhotoUrl(id, input.photoUrl)
+      : undefined;
+  if (verifiedPhotoUrl !== undefined) patch.photoUrl = verifiedPhotoUrl;
   // Capability is resolved against the RESULTING role, not the current one:
   //   Management -> Management (flag omitted)   => unchanged
   //   anything   -> Management + mslAccess      => supplied value
@@ -356,6 +488,9 @@ export async function updateSafeUser(
       if (changeNotes.length > 0) {
         await logUserActivity(actorUserId, "UPDATE", changeTitle);
       }
+      if (verifiedPhotoUrl !== undefined) {
+        await deleteReplacedUserPhoto(id, existing.photoUrl, verifiedPhotoUrl);
+      }
       return statusUpdated;
     }
     if (Object.keys(patch).length === 0) {
@@ -365,6 +500,9 @@ export async function updateSafeUser(
       return toSafeUser(current);
     }
     await logUserActivity(actorUserId, "UPDATE", changeTitle);
+    if (verifiedPhotoUrl !== undefined) {
+      await deleteReplacedUserPhoto(id, existing.photoUrl, verifiedPhotoUrl);
+    }
     return toSafeUser(current);
   } catch (error) {
     if (
@@ -438,16 +576,23 @@ export async function updateOwnProfile(
   }
   // Only self-editable fields are ever written; role/status/nip/email/
   // position cannot reach the database through this path by construction.
+  const verifiedPhotoUrl =
+    input.photoUrl !== undefined
+      ? await verifyUserPhotoUrl(userId, input.photoUrl)
+      : undefined;
   const patch: Partial<NewPgUser> = {};
   if (input.name !== undefined) patch.name = input.name;
   if (input.phone !== undefined) patch.phone = input.phone;
-  if (input.photoUrl !== undefined) patch.photoUrl = input.photoUrl;
+  if (verifiedPhotoUrl !== undefined) patch.photoUrl = verifiedPhotoUrl;
   if (Object.keys(patch).length === 0) {
     return toSafeUser(existing);
   }
   const updated = await updateUserRow(userId, patch);
   if (!updated) {
     throw new UserNotFoundError();
+  }
+  if (verifiedPhotoUrl !== undefined) {
+    await deleteReplacedUserPhoto(userId, existing.photoUrl, verifiedPhotoUrl);
   }
   return toSafeUser(updated);
 }

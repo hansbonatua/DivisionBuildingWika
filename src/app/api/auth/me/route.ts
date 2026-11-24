@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser, requireUser, UnauthenticatedError } from "@/lib/auth/current-user";
-import { updateOwnProfile, UserNotFoundError } from "@/lib/users/service";
+import {
+  InvalidUserPhotoError,
+  updateOwnProfile,
+  UserNotFoundError,
+} from "@/lib/users/service";
 import { profileUpdateSchema } from "@/lib/users/schema";
 
 export async function GET() {
@@ -64,6 +68,12 @@ export async function PATCH(request: Request) {
     } catch (error) {
       if (error instanceof UserNotFoundError) {
         return NextResponse.json({ error: { message: "User tidak ditemukan" } }, { status: 404 });
+      }
+      if (error instanceof InvalidUserPhotoError) {
+        return NextResponse.json(
+          { error: { message: "Foto profil tidak valid atau terlalu besar" } },
+          { status: 400 },
+        );
       }
       throw error;
     }
