@@ -2,9 +2,9 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import { upload } from "@vercel/blob/client";
+import BerkasSignatureField from "@/components/dashboard/berkas/BerkasSignatureField";
 import {
   BERKAS_UPLOAD_TOKEN_URL,
-  TTD_MAX_BYTES,
   buildValidatorTtdUploadPath,
   readApiErrorMessage,
 } from "@/components/dashboard/berkas/client";
@@ -14,16 +14,7 @@ const inputClass =
   "w-full rounded-lg border border-outline/60 bg-white px-3.5 py-2.5 text-xs font-semibold leading-relaxed text-primary placeholder:text-primary/40 focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-primary/50";
 const labelClass = "mb-1.5 block text-xs font-semibold text-slate-700";
 
-function isImageFile(file: File): boolean {
-  const lower = file.name.toLowerCase();
-  return (
-    file.type === "image/png" ||
-    file.type === "image/jpeg" ||
-    lower.endsWith(".png") ||
-    lower.endsWith(".jpg") ||
-    lower.endsWith(".jpeg")
-  );
-}
+const SIGNATURE_REQUIRED = "Pilih atau gambar TTD terlebih dahulu.";
 
 export default function BerkasTtdDialog({
   berkas,
@@ -37,12 +28,11 @@ export default function BerkasTtdDialog({
   onSaved: () => void;
 }) {
   const titleId = useId();
-  const fileId = useId();
   const catatanId = useId();
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
-  const [file, setFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
+  const [ttdFile, setTtdFile] = useState<File | null>(null);
+  const [fileError, setFileError] = useState<string | null>(null);
   const [catatan, setCatatan] = useState("");
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<number | null>(null);
@@ -61,12 +51,6 @@ export default function BerkasTtdDialog({
       previousFocus?.focus();
     };
   }, []);
-
-  useEffect(() => {
-    return () => {
-      if (preview) URL.revokeObjectURL(preview);
-    };
-  }, [preview]);
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent): void {
@@ -96,37 +80,31 @@ export default function BerkasTtdDialog({
     }
   }
 
-  function handleFileChange(next: File | null): void {
-    setError(null);
-    if (!next) return;
-    if (!isImageFile(next)) {
-      setError("TTD harus berupa gambar PNG atau JPG.");
-      return;
+  function handleSignatureChange(next: File | null): void {
+    setTtdFile(next);
+    if (next) {
+      setFileError(null);
+      setError(null);
     }
-    if (next.size <= 0 || next.size > TTD_MAX_BYTES) {
-      setError("Ukuran TTD maksimal 2 MB.");
-      return;
-    }
-    setFile(next);
-    setPreview(URL.createObjectURL(next));
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     if (busy) return;
-    if (!file) {
-      setError("Pilih gambar TTD terlebih dahulu.");
+    if (!ttdFile) {
+      setFileError(SIGNATURE_REQUIRED);
       return;
     }
 
     setBusy(true);
     setError(null);
+    setFileError(null);
     setProgress(0);
 
     try {
       const role = urutan === 1 ? "validasi-1" : "validasi-2";
-      const pathname = buildValidatorTtdUploadPath(berkas.id, role, file);
-      const uploaded = await upload(pathname, file, {
+      const pathname = buildValidatorTtdUploadPath(berkas.id, role, ttdFile);
+      const uploaded = await upload(pathname, ttdFile, {
         access: "private",
         handleUploadUrl: BERKAS_UPLOAD_TOKEN_URL,
         clientPayload: JSON.stringify({
@@ -134,7 +112,7 @@ export default function BerkasTtdDialog({
           berkasId: berkas.id,
           role,
         }),
-        contentType: file.type,
+        contentType: ttdFile.type,
         onUploadProgress: ({ percentage }) => {
           setProgress(Math.min(95, Math.round(percentage * 0.95)));
         },
@@ -229,42 +207,13 @@ export default function BerkasTtdDialog({
               </div>
             ) : null}
 
-            <div>
-              <span className={labelClass}>
-                Gambar TTD <span className="text-red-600">*</span>
-              </span>
-              <label
-                htmlFor={fileId}
-                className="flex cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-outline bg-background/40 px-4 py-6 text-center transition-colors hover:border-secondary/60 hover:bg-blue-50/40"
-              >
-                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" className="mb-2 text-secondary" aria-hidden="true">
-                  <path d="M12 20h9" />
-                  <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
-                </svg>
-                <span className="text-xs font-bold text-primary">
-                  {file ? file.name : "Pilih gambar TTD"}
-                </span>
-                <span className="mt-1 text-[11px] text-primary/50">
-                  PNG/JPG, maksimal 2 MB
-                </span>
-              </label>
-              <input
-                id={fileId}
-                type="file"
-                accept="image/png,image/jpeg,.png,.jpg,.jpeg"
-                disabled={busy}
-                onChange={(event) => handleFileChange(event.target.files?.[0] ?? null)}
-                className="sr-only"
-              />
-              {preview ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={preview}
-                  alt="Pratinjau TTD"
-                  className="mt-3 h-24 w-full rounded-xl border border-outline bg-white object-contain p-2"
-                />
-              ) : null}
-            </div>
+            <BerkasSignatureField
+              value={ttdFile}
+              onChange={handleSignatureChange}
+              label="Gambar TTD"
+              error={fileError}
+              disabled={busy}
+            />
 
             <div>
               <label htmlFor={catatanId} className={labelClass}>

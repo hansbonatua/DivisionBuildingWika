@@ -5,12 +5,12 @@ import { upload } from "@vercel/blob/client";
 import {
   BERKAS_UPLOAD_TOKEN_URL,
   PDF_MAX_BYTES,
-  TTD_MAX_BYTES,
   buildOriginalUploadPath,
   buildPenyusunTtdUploadPath,
   getPdfPageCount,
   readApiErrorMessage,
 } from "@/components/dashboard/berkas/client";
+import BerkasSignatureField from "@/components/dashboard/berkas/BerkasSignatureField";
 import {
   formatBerkasSize,
   type BerkasDto,
@@ -23,17 +23,6 @@ const inputClass =
 const labelClass = "mb-1.5 block text-xs font-semibold text-slate-700";
 const fileLabelClass =
   "flex cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-outline bg-background/40 px-4 py-5 text-center transition-colors hover:border-secondary/60 hover:bg-blue-50/40";
-
-function isImageFile(file: File): boolean {
-  const lower = file.name.toLowerCase();
-  return (
-    file.type === "image/png" ||
-    file.type === "image/jpeg" ||
-    lower.endsWith(".png") ||
-    lower.endsWith(".jpg") ||
-    lower.endsWith(".jpeg")
-  );
-}
 
 function isPdfFile(file: File): boolean {
   return file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
@@ -52,7 +41,6 @@ export default function BerkasFormDialog({
   const judulId = useId();
   const kodeSeriId = useId();
   const pdfId = useId();
-  const ttdId = useId();
   const jabatanPenyusunId = useId();
   const validator1Id = useId();
   const validator2Id = useId();
@@ -65,7 +53,7 @@ export default function BerkasFormDialog({
   const [kodeSeri, setKodeSeri] = useState("");
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [ttdFile, setTtdFile] = useState<File | null>(null);
-  const [ttdPreview, setTtdPreview] = useState<string | null>(null);
+  const [ttdError, setTtdError] = useState<string | null>(null);
   const [jabatanPenyusun, setJabatanPenyusun] = useState("");
   const [validator1, setValidator1] = useState("");
   const [validator2, setValidator2] = useState("");
@@ -91,12 +79,6 @@ export default function BerkasFormDialog({
       previousFocus?.focus();
     };
   }, []);
-
-  useEffect(() => {
-    return () => {
-      if (ttdPreview) URL.revokeObjectURL(ttdPreview);
-    };
-  }, [ttdPreview]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -190,19 +172,9 @@ export default function BerkasFormDialog({
     setPdfFile(file);
   }
 
-  function handleTtdChange(file: File | null): void {
-    setError(null);
-    if (!file) return;
-    if (!isImageFile(file)) {
-      setError("TTD penyusun harus berupa gambar PNG atau JPG.");
-      return;
-    }
-    if (file.size <= 0 || file.size > TTD_MAX_BYTES) {
-      setError("Ukuran TTD maksimal 2 MB.");
-      return;
-    }
+  function handleSignatureChange(file: File | null): void {
     setTtdFile(file);
-    setTtdPreview(URL.createObjectURL(file));
+    setTtdError(null);
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>): Promise<void> {
@@ -219,7 +191,7 @@ export default function BerkasFormDialog({
       return;
     }
     if (!ttdFile) {
-      setError("Upload TTD penyusun terlebih dahulu.");
+      setTtdError("Upload TTD penyusun terlebih dahulu.");
       return;
     }
     if (!validator1 || !validator2) {
@@ -512,38 +484,13 @@ export default function BerkasFormDialog({
                 </div>
               </div>
               <div className="mt-4">
-                <span className={labelClass}>
-                  Upload TTD Penyusun <span className="text-red-600">*</span>
-                </span>
-                <div className="flex flex-wrap items-center gap-3">
-                  <label htmlFor={ttdId} className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-outline bg-white px-3.5 py-2.5 text-xs font-bold text-primary transition-colors hover:border-secondary/60 hover:text-secondary">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                      <path d="M12 3v12" />
-                      <path d="m7 10 5 5 5-5" />
-                      <path d="M5 21h14" />
-                    </svg>
-                    {ttdFile ? "Ganti TTD" : "Pilih gambar TTD"}
-                  </label>
-                  <input
-                    id={ttdId}
-                    type="file"
-                    accept="image/png,image/jpeg,.png,.jpg,.jpeg"
-                    disabled={busy}
-                    onChange={(event) => handleTtdChange(event.target.files?.[0] ?? null)}
-                    className="sr-only"
-                  />
-                  {ttdPreview ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={ttdPreview}
-                      alt="Pratinjau TTD penyusun"
-                      className="h-12 w-24 rounded-lg border border-outline bg-white object-contain p-1"
-                    />
-                  ) : null}
-                  <span className="text-[11px] font-medium text-primary/50">
-                    PNG/JPG, maksimal 2 MB
-                  </span>
-                </div>
+                <BerkasSignatureField
+                  value={ttdFile}
+                  onChange={handleSignatureChange}
+                  label="Upload TTD Penyusun"
+                  error={ttdError}
+                  disabled={busy}
+                />
               </div>
             </div>
 
