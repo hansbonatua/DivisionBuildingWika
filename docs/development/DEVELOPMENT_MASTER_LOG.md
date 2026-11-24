@@ -5,6 +5,58 @@ Dokumentasi audit repository ada di `docs/audit/`; dokumen ini mencatat **peruba
 
 ---
 
+## DL-2026-11-24-01 — Recap: BLC & Penyesuaian Akhir
+
+| Field | Nilai |
+|---|---|
+| Feature ID | `ENT-BLC` (recap seluruh modul) |
+| Tanggal | 24 November 2026 |
+| Status | **RECAP DOKUMENTASI** — hanya memperbarui tiga dokumen development; tidak mengubah kode sumber, database, atau API |
+| Commit | `b833ca7` — `feat:BLC core enterprise` (HEAD saat pass ini) |
+| Branch | `main` |
+| Baseline | `d11577f` — `style(berkas): adjust document code box position and rename table header` |
+| Migration | `0028_project_green_certificates`, `0029_project_esg_assessments`, dan `0030_building_learning_center` — **APPLIED**; journal 31 entry |
+
+### Perubahan
+
+#### 1. Building Learning Center (BLC) — selesai (`b833ca7`)
+- **Database:** tiga tabel pada migration `0030_building_learning_center` — `learning_categories` (nama unik case-insensitive, `sort_order`), `learning_contents` (tipe `sharing`/`training`/`certificate`, CHECK payload yang memisahkan `video_url` untuk sharing dan `external_url` untuk training/certificate, CHECK URL video YouTube/Vimeo embed, CHECK thumbnail https, `UNIQUE(id, type)`, index GIN trigram `judul`), dan `learning_attachments` (khusus sharing, maksimal 20 MB, `file_pathname` unik, FK komposit `ON DELETE CASCADE`). Migration **APPLIED**; journal 31 entry.
+- **Backend Sub-fase 1:** modul domain `src/lib/learning/*`, route `GET`/`POST /api/learning/contents`, `GET`/`PUT`/`DELETE /api/learning/contents/[id]`, `GET`/`POST /api/learning/categories`, `POST /api/learning/upload-token`, dan `GET /api/learning/attachments/[id]/file`; DTO memuat `thumbnail_url`, `attachment_count`, dan `video_embed_url`; list mengembalikan `meta.total`, `meta.page`, `meta.page_size` (24), dan `meta.available_categories`.
+- **Backend Sub-fase 2:** namespace CMS `cms/learning/` pada `src/lib/cms/storage-path.ts` untuk thumbnail publik; lampiran privat berprefix `learning/`; route cleanup baru `POST /api/learning/upload/cleanup` yang menolak (409) pathname yang masih direferensikan baris database; kontrak PATCH lampiran memakai union `{id, nama}` untuk lampiran lama dan input lampiran baru, sehingga edit tidak menghapus file yang tidak diubah.
+- **RBAC:** `LEARNING_VIEW` (Admin, Head Office, Management, Project) untuk layout `/dashboard/learning` dan pembacaan; `LEARNING_MANAGE` (Admin, Head Office) untuk mutasi dan Admin Control. Menu Admin Control hanya dirender untuk `LEARNING_MANAGE`.
+- **UI:** accordion **Building Learning Center** di Core Enterprise dengan submenu **Sharing Session**, **Training**, **Certificate**, dan **Admin Control**; card grid 24 item dengan filter Kategori dan search Judul; kartu Sharing membuka detail internal (judul, deskripsi, kategori, iframe 16:9, daftar lampiran, tombol Kembali); kartu Training/Certificate membuka `external_url` di tab baru; Admin Control bertab Sharing/Training/Certificate/Kategori dengan tabel Edit/Hapus dan dialog form (video URL + thumbnail + banyak lampiran untuk sharing; external link + thumbnail untuk training/certificate). Tab Kategori read-only karena kontrak API belum menyediakan PATCH/DELETE kategori.
+- **Test:** `src/components/dashboard/learningSidebar.test.ts` (path helper, empat menu, visibilitas per role, gating `LEARNING_MANAGE`, state accordion) serta test schema/service/storage-path BLC.
+
+#### 2. Penyesuaian Layout PDF Berkas (`d11577f`)
+- Kode Dokumen dipindah ke pojok kanan atas di dalam kotak border hitam 0,5 pt, sejajar border kanan tabel dan dipusatkan vertikal pada band logo; teks dikapitalisasi, Helvetica regular 9 pt, lebar mengikuti teks (maksimum 200 pt).
+- Header kolom pertama tabel cover berubah dari `Tim Penyusun` menjadi `Penyusun`; test `pdf-engine.test.ts` disesuaikan.
+- Status: `IMPLEMENTED & VERIFIED (static)`; render visual PDF belum diperiksa Owner.
+
+#### 3. Status akhir modul sebelumnya
+- **Standard & Regulation** — commit `d688472`; migration `0027_standard_regulation` **APPLIED**; `IMPLEMENTED BUT NOT FULLY VERIFIED` (visual Vercel dan upload nyata belum dicek).
+- **Database Green Building & ESG** — commit `a6cbe60`; migration `0028_project_green_certificates` dan `0029_project_esg_assessments` **APPLIED** (`0029` dikonfirmasi `05898d5`); Sertifikasi dan Penilaian ESG `IMPLEMENTED BUT NOT FULLY VERIFIED`.
+- **Reorder Sidebar Core Enterprise** — commit `4ab2ef7`; murni pemindahan blok JSX tanpa perubahan teks, ikon, `href`, maupun permission.
+- **Modul lain** — Berkas `IMPLEMENTED & VERIFIED (Production-Ready)`, PDOC dan CST `IMPLEMENTED & VERIFIED`, Dashboard Welcoming `IMPLEMENTED & VERIFIED`, Dashboard SASAA & Kelola Foto `IMPLEMENTED BUT NOT FULLY VERIFIED`.
+
+### File impacted
+- Hanya dokumentasi: `docs/development/CURRENT_PROJECT_STATE.md`, `docs/development/DEVELOPMENT_MASTER_LOG.md`, dan `docs/development/FEATURE_REGISTER.md`.
+- Tidak ada perubahan pada `src/**`, `drizzle/**`, schema database, API, atau konfigurasi.
+
+### Verifikasi
+| Pemeriksaan | Hasil | Sumber |
+|---|---|---|
+| `npm test` | **299/299 PASS** (72 suite) | Freebuff (dijalankan ulang pada pass ini) |
+| `npx tsc --noEmit` / ESLint file BLC | **PASS** | Freebuff (pass implementasi P4 Sub-fase 2) |
+| `git diff --check` | **PASS** | Freebuff (pass dokumentasi ini) |
+| Runtime browser / Vercel BLC | **NOT RUN** — grid kartu, filter/search, detail sharing, video embed, upload/download lampiran, Admin Control, dan RBAC 4 role belum dicek Owner | — |
+
+### Batasan
+- Pass ini murni dokumentasi: tidak ada commit, push, deploy, migration, seed, atau DB write.
+- Status BLC tetap `IMPLEMENTED BUT NOT FULLY VERIFIED` sampai Owner memeriksa visual Vercel dan alur upload/download lampiran.
+- Angka test 299/299 berasal dari eksekusi `npm test` pada working tree bersih di HEAD `b833ca7`.
+
+---
+
 ## DL-2026-11-20-01 — Penyesuaian Layout PDF Berkas
 
 | Field | Nilai |
