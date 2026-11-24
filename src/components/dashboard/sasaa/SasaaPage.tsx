@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import EngDbCompletionChart from "./EngDbCompletionChart";
 import EsgChart from "./EsgChart";
 import GreenBuildingBanner from "./GreenBuildingBanner";
 import KnowledgeTable from "./KnowledgeTable";
@@ -11,19 +12,10 @@ import ProjectPhotoCarousel from "./ProjectPhotoCarousel";
 import {
   readApiErrorMessage,
   type SasaaData,
-  type SasaaMslMonths,
   type SasaaProjectOption,
 } from "./types";
 
 const PROJECTS_ENDPOINT = "/api/dashboard/sasaa";
-
-/** Project one MSL component (or the canonical total) onto 12 chart months. */
-function mslSeries(
-  msl: SasaaMslMonths[],
-  key: keyof SasaaMslMonths,
-): Array<{ month: number; value: number }> {
-  return msl.map((month, index) => ({ month: index + 1, value: month[key] }));
-}
 
 function PageHeader({
   selectedId,
@@ -370,7 +362,13 @@ export default function SasaaPage({
           {/* Baris 2 — tabel Knowledge Management (full width). */}
           <KnowledgeTable initial={data.knowledge} projectId={data.project.id} />
 
-          {/* Baris 3 — PDOC + MSL (dengan filter komponen). */}
+          {/* Baris 3 — ESG (kiri) + Skor MSL dengan filter komponen (kanan). */}
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <EsgChart esg={data.charts.esg} year={data.project.year} />
+            <MslSection msl={data.charts.msl} engDb={data.charts.engDb} />
+          </div>
+
+          {/* Baris 4 — PDOC + persentase kelengkapan Engineering Database. */}
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <MonthlyBarChart
               data={data.charts.pdoc}
@@ -381,34 +379,10 @@ export default function SasaaPage({
               )}/60`}
               height={200}
             />
-            <MslSection msl={data.charts.msl} engDb={data.charts.engDb} />
-          </div>
-
-          {/* Baris 4 — dua komponen MSL pertama. */}
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <MonthlyBarChart
-              data={mslSeries(data.charts.msl, "engineeringValue")}
-              title="MSL — Engineering Value"
-              subtitle="Skala 0–5 per bulan"
-              height={200}
+            <EngDbCompletionChart
+              projectName={data.project.name}
+              engDb={data.charts.engDb}
             />
-            <MonthlyBarChart
-              data={mslSeries(data.charts.msl, "metodeKerja")}
-              title="MSL — Metode Kerja"
-              subtitle="Skala 0–5 per bulan"
-              height={200}
-            />
-          </div>
-
-          {/* Baris 5 — Eng Execution + ESG. */}
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <MonthlyBarChart
-              data={mslSeries(data.charts.msl, "engineeringExecution")}
-              title="MSL — Eng Execution"
-              subtitle="Skala 0–5 per bulan"
-              height={200}
-            />
-            <EsgChart esg={data.charts.esg} year={data.project.year} />
           </div>
         </div>
       ) : null}

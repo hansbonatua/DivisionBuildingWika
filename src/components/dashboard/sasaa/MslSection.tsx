@@ -6,8 +6,8 @@ import type { SasaaEngDbStatus, SasaaMslMonths } from "./types";
 
 // MSL block: one chart whose series is chosen by the segmented control, plus
 // the Engineering Database coverage status. The control only swaps this chart;
-// the three per-component charts below the section are rendered by the page and
-// are never filtered by it.
+// the per-component MSL charts were removed from the page, so this section is
+// now the single place where each component's monthly series is shown.
 
 type ComponentKey = "total" | "engineeringValue" | "metodeKerja" | "engineeringExecution";
 
