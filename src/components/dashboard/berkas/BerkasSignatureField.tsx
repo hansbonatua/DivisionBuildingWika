@@ -199,7 +199,10 @@ export default function BerkasSignatureField({
     }
 
     applySize();
-    pad.addEventListener("end", handleEnd);
+    // signature_pad 5.x dispatches "endStroke" (not "end"); listening to the
+    // wrong name meant the drawing was never converted into a File, so the
+    // parent stayed empty and Undo never enabled.
+    pad.addEventListener("endStroke", handleEnd);
     window.addEventListener("resize", handleResize);
 
     return () => {

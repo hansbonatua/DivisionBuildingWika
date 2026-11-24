@@ -207,6 +207,24 @@ test("memilih file PNG di bawah 2 MB memanggil onChange dengan File tersebut", (
   assert.equal(onChange.mock.calls[0]?.arguments[0], file);
 });
 
+test("mode draw mendengarkan endStroke agar hasil goresan tersimpan", () => {
+  const addSpy = mock.method(SignaturePad.prototype, "addEventListener");
+  render(
+    createElement(BerkasSignatureField, {
+      value: null,
+      onChange: noop,
+      defaultMode: "draw",
+    }),
+  );
+
+  const events = addSpy.mock.calls.map((call) => call.arguments[0]);
+  assert.ok(
+    events.includes("endStroke"),
+    `expected an endStroke listener, got: ${events.join(", ")}`,
+  );
+  assert.ok(!events.includes("end"), "signature_pad 5.x does not emit \"end\"");
+});
+
 test("klik Hapus memanggil SignaturePad.clear", () => {
   const clearSpy = mock.method(SignaturePad.prototype, "clear");
   render(
