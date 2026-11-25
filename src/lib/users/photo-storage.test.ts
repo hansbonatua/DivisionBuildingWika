@@ -116,6 +116,39 @@ describe("user photo storage", () => {
     assert.equal(extractPathnameFromUrl("not a url"), null);
   });
 
+  it("extracts the pathname from a MinIO public bucket URL", () => {
+    const previousEndpoint = process.env.S3_ENDPOINT_PUBLIC;
+    const previousBucket = process.env.S3_BUCKET_PUBLIC;
+    process.env.S3_ENDPOINT_PUBLIC = "https://storage.bdwika.cloud";
+    process.env.S3_BUCKET_PUBLIC = "wibex-public";
+    try {
+      const url = `https://storage.bdwika.cloud/wibex-public/user-photos/${USER_ID}/${UPLOAD_ID}/avatar-budi.jpg`;
+      assert.equal(
+        extractPathnameFromUrl(url),
+        `user-photos/${USER_ID}/${UPLOAD_ID}/avatar-budi.jpg`,
+      );
+      // A different bucket on the same host is not this user's photo.
+      assert.equal(
+        extractPathnameFromUrl(
+          `https://storage.bdwika.cloud/wibex-private/user-photos/${USER_ID}/${UPLOAD_ID}/avatar-budi.jpg`,
+        ),
+        null,
+      );
+      // The legacy Vercel host still resolves while old rows remain.
+      assert.equal(
+        extractPathnameFromUrl(
+          `https://bdwika-cms.public.blob.vercel-storage.com/user-photos/${USER_ID}/${UPLOAD_ID}/avatar-budi.jpg`,
+        ),
+        `user-photos/${USER_ID}/${UPLOAD_ID}/avatar-budi.jpg`,
+      );
+    } finally {
+      if (previousEndpoint === undefined) delete process.env.S3_ENDPOINT_PUBLIC;
+      else process.env.S3_ENDPOINT_PUBLIC = previousEndpoint;
+      if (previousBucket === undefined) delete process.env.S3_BUCKET_PUBLIC;
+      else process.env.S3_BUCKET_PUBLIC = previousBucket;
+    }
+  });
+
   it("decodes encoded file segments", () => {
     const url = `https://bdwika-cms.public.blob.vercel-storage.com/user-photos/${USER_ID}/${UPLOAD_ID}/avatar-budi%20santoso.jpg`;
     assert.equal(

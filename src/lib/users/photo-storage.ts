@@ -31,7 +31,9 @@ export type UserPhotoContentType = (typeof USER_PHOTO_ALLOWED_TYPES)[number];
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const FILE_NAME_RE = /^avatar(-[a-z0-9-]{1,40})?\.(jpg|png|webp)$/;
-const BLOB_HOST_RE = /(^|\.)public\.blob\.vercel-storage\.com$/i;
+// Legacy Vercel Blob public host. Kept ONLY so rows written before the MinIO
+// migration still resolve to a pathname (ownership detection and cleanup).
+const LEGACY_BLOB_HOST_RE = /(^|\.)public\.blob\.vercel-storage\.com$/i;
 
 export type ParsedUserPhotoPath = {
   userId: string;
@@ -146,12 +148,32 @@ export function isUserPhotoPathnameFor(
 }
 
 /**
- * Pathname behind a public Vercel Blob URL, or null when the URL is not a
- * public-blob URL at all (an external/legacy photo URL, a local /asset path or
- * an unparseable string).
+ * Base URL of the public bucket: `${S3_ENDPOINT_PUBLIC}/${S3_BUCKET_PUBLIC}`.
  *
- * Host-agnostic within the Vercel Blob public domain so a store move or custom
- * domain does not break ownership detection.
+ * Read lazily and never at module scope: this module is also imported by Client
+ * Components (for the pure pathname helpers), where a server-only variable is
+ * simply undefined and this function returns null.
+ */
+function publicBucketBaseUrl(): URL | null {
+  const endpoint = process.env.S3_ENDPOINT_PUBLIC?.trim();
+  const bucket = process.env.S3_BUCKET_PUBLIC?.trim();
+  if (!endpoint || !bucket) return null;
+  try {
+    return new URL(`${endpoint.replace(/\/+$/, "")}/${bucket}`);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Pathname behind a public object URL, or null when the URL does not address an
+ * object in the public bucket (an external/legacy photo URL, a local /asset
+ * path or an unparseable string).
+ *
+ * Two hosts are recognized on purpose:
+ *   - the current public bucket (`S3_ENDPOINT_PUBLIC`/`S3_BUCKET_PUBLIC`);
+ *   - the legacy Vercel Blob public host, so photos stored before the MinIO
+ *     migration keep their ownership detection until they are re-uploaded.
  */
 export function extractPathnameFromUrl(url: string): string | null {
   if (typeof url !== "string") {
@@ -162,7 +184,18 @@ export function extractPathnameFromUrl(url: string): string | null {
     if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
       return null;
     }
-    if (!BLOB_HOST_RE.test(parsed.hostname)) {
+
+    const base = publicBucketBaseUrl();
+    if (base && parsed.origin === base.origin) {
+      const prefix = `${base.pathname.replace(/\/+$/, "")}/`;
+      if (!parsed.pathname.startsWith(prefix)) {
+        return null;
+      }
+      const pathname = decodeURIComponent(parsed.pathname.slice(prefix.length));
+      return pathname.length > 0 ? pathname : null;
+    }
+
+    if (!LEGACY_BLOB_HOST_RE.test(parsed.hostname)) {
       return null;
     }
     const pathname = decodeURIComponent(parsed.pathname.replace(/^\/+/, ""));

@@ -1,298 +1,249 @@
 # CURRENT PROJECT STATE — BDWIKA / WIBEX
 
-Terakhir diperbarui: 24 November 2026 (Revisi Dashboard SASAA `IMPLEMENTED BUT NOT FULLY VERIFIED` — enam grafik bulanan (PDOC, MSL, Engineering Value, Metode Kerja, Eng Execution, ESG), tabel Knowledge Management 3 kategori dengan pagination Next (3 per kategori), banner Green Building; filter komponen MSL hanya untuk grafik MSL; recharts ^3.10.1 sudah ada; backend agregator diperluas + endpoint GET /api/dashboard/sasaa/[projectId]/knowledge?page=N (BARU); schema/migration nol perubahan; static checks PASS (335/335, 73 suite); runtime Vercel belum dicek Owner; commit `1391602`; Revisi TTD inline modul Berkas `IMPLEMENTED & VERIFIED` — runtime Vercel PASS (Owner, 24 November 2026): pengajuan inline, validasi 1 upload, validasi 2 inline, PDF cover 3 TTD, watermark NIP; commit `23cdcb2`; static checks PASS (320/320, 72 suite); Building Learning Center (BLC) `IMPLEMENTED BUT NOT FULLY VERIFIED` — tiga submenu Sharing Session, Training, Certificate, card grid, video embed, dan Admin Control; migration `0030_building_learning_center` APPLIED; commit `b833ca7`; backend dan UI selesai; static checks PASS (299/299, 72 suite); visual Vercel belum dicek; Database Green Building & ESG `IMPLEMENTED BUT NOT FULLY VERIFIED` — submenu Sertifikasi Green Building dan Penilaian ESG; migration `0028_project_green_certificates` dan `0029_project_esg_assessments` APPLIED; commit `a6cbe60`; backend dan UI keduanya selesai; static checks PASS (286/286, 70 suite); visual Vercel belum dicek; Standard & Regulation `IMPLEMENTED BUT NOT FULLY VERIFIED` — migration `0027_standard_regulation` APPLIED; backend dan UI selesai; static checks PASS (270/270, 65 suite); visual Vercel belum dicek; Dashboard SASAA & Kelola Foto `IMPLEMENTED BUT NOT FULLY VERIFIED` — migration `0026_project_photos` APPLIED; security patch Next.js 16.4.6 / React 19.3.1; build PASS 98 routes; Dashboard Welcoming `IMPLEMENTED & VERIFIED` — commit `eb77e1c`, migration `0025_activity_logs` APPLIED; Modul Berkas Sprint 1 & 2 + Audit Readiness + Final Polish `IMPLEMENTED & VERIFIED (Production-Ready)` — Sprint 1 runtime Vercel PASS, Owner-confirmed 10 November 2026; Audit Readiness/Final Polish static checks PASS (256/256, 61 suite); migration `0020`–`0024` **APPLIED**, termasuk `0024_berkas_search_index`; PDOC V1 + Monthly Delta dan CST `IMPLEMENTED & VERIFIED`; runtime browser 4 role PDOC/CST PASS, Owner-confirmed 10 November 2026; WIBEX Governance & Workflow **APPROVED & EFFECTIVE**, Owner Hans, 10 November 2026).
+> **Peta kondisi proyek untuk sesi AI berikutnya.** Ditulis dari audit read-only repository pada **25 November 2026**.
+> **Aturan utama: kode adalah sumber kebenaran.** Bila dokumen ini berbeda dengan kode, kode menang dan dokumen harus diperbarui.
+> Dokumen ini **hanya** memuat kondisi; riwayat keputusan ada di `DEVELOPMENT_MASTER_LOG.md`, status per fitur di `FEATURE_REGISTER.md`.
 
-**Status proyek:** `PARTIALLY VERIFIED` — MKS, KM V2, PDOC, CST, **Berkas** `IMPLEMENTED & VERIFIED (Production-Ready)`, **Dashboard Welcoming** `IMPLEMENTED & VERIFIED` (RBAC 4 role, Owner confirmed; Berkas Sprint 1 diuji Owner di Vercel; Audit Readiness & Final Polish PASS dengan 256/256 test), **Standard & Regulation** `IMPLEMENTED BUT NOT FULLY VERIFIED` (migration `0027_standard_regulation` APPLIED; backend dan UI selesai; 270/270 test PASS; visual Vercel belum dicek), **Database Green Building & ESG** `IMPLEMENTED BUT NOT FULLY VERIFIED` (Sertifikasi Green Building + Penilaian ESG; migration `0028_project_green_certificates` dan `0029_project_esg_assessments` **APPLIED**; commit `a6cbe60`; backend dan UI selesai; 286/286 test PASS saat itu; visual Vercel belum dicek), dan **Building Learning Center (BLC)** `IMPLEMENTED BUT NOT FULLY VERIFIED` (tiga submenu Sharing, Training, Certificate + Admin Control; migration `0030_building_learning_center` **APPLIED**; commit `b833ca7`; backend dan UI selesai; static checks PASS 299/299, 72 suite; visual Vercel dan runtime belum dicek). Bukti: `DL-2026-11-09-01`, `DL-2026-11-09-02`, `DL-2026-11-10-03`, `DL-2026-11-10-04`, `DL-2026-11-10-05`, `DL-2026-11-10-06`, `DL-2026-11-10-07`, `DL-2026-11-12-03`, `DL-2026-11-12-05`, `DL-2026-11-12-06`, `DL-2026-11-12-07`, `DL-2026-11-16-01`, `DL-2026-11-18-01`, `DL-2026-11-18-02`, `DL-2026-11-24-01`.
-
-**Berkas — Revisi TTD inline (24 November 2026):** `IMPLEMENTED & VERIFIED` — runtime Vercel PASS (Owner, 24 November 2026): pengajuan inline, validasi 1 upload, validasi 2 inline, PDF cover 3 TTD, dan watermark NIP; commit `23cdcb2`; static checks PASS (320/320, 72 suite). Status `IMPLEMENTED & VERIFIED (Production-Ready)` di atas tetap berlaku untuk baseline Sprint 1 & 2 yang sudah diuji Owner.
-
-**Dashboard SASAA & Kelola Foto:** `IMPLEMENTED BUT NOT FULLY VERIFIED` — migration `0026_project_photos` **APPLIED**; aggregator API, carousel, empat widget, dan fitur upload Admin selesai; build PASS 98 routes; visual Vercel belum dicek.
-
-**Dashboard SASAA — Revisi (24 November 2026):** `IMPLEMENTED BUT NOT FULLY VERIFIED` — enam grafik bulanan, tabel KM dengan pagination, banner Green Building, filter komponen MSL; backend agregator diperluas; static checks PASS (335/335, 73 suite); runtime Vercel belum dicek Owner.
-
-**Standard & Regulation:** `IMPLEMENTED BUT NOT FULLY VERIFIED` — migration `0027_standard_regulation` **APPLIED**; backend, API, dan UI lima submenu selesai; tabel berjenjang Sub-Kategori → Dokumen, upload privat PDF/Word/Excel/ZIP maksimal 20 MB, CRUD, download, dan RBAC selesai; static checks PASS (270/270, 65 suite); visual Vercel dan alur upload nyata belum dicek Owner.
-
-**Database Green Building & ESG:** `IMPLEMENTED BUT NOT FULLY VERIFIED` — dua submenu selesai dalam commit `a6cbe60`; RBAC `GREEN_BUILDING_ESG_VIEW`/`GREEN_BUILDING_ESG_MANAGE` dipakai bersama; static checks PASS (286/286, 70 suite); visual Vercel belum dicek Owner.
-
-- **Sertifikasi Green Building:** migration `0028_project_green_certificates` **APPLIED**; tabel `project_green_certificates` dengan CHECK komposit Lembaga/Level; API certificates + project-options; filter tahun, search nama proyek, dan form dinamis Lembaga/Level.
-- **Penilaian ESG:** migration `0029_project_esg_assessments` **dibuat** (penerapan belum terverifikasi); tabel `project_esg_assessments` dengan 12 kolom status bulan, `UNIQUE(project_id, year)`, dan `year` snapshot Master Project; API list/create/update/delete + PATCH satu bulan; UI tabel 12 bulan dengan `<select>` native, optimistic update, dan rollback per sel.
-
-**Tata kelola:** WIBEX Development Governance dan WIBEX Engineering Workflow **APPROVED & EFFECTIVE** — disetujui Owner (Hans), 10 November 2026.
-
-## 1. Repository
-
-| Item | Nilai |
+| Field | Nilai |
 |---|---|
-| Root | `D:\MagangHub-Wika-StaffEngDigitalisasiBuilding\progress\bdwika` |
-| Branch | `main` (tracking `origin/main`) |
-| Baseline fitur | `a7527e1` — `feat: project documentation monthly recap and summary report` |
-| HEAD | `bb7228f` — `feat(sasaa): implement executive dashboard, photo carousel, and admin photo management` (HEAD lokal; status push dan remote-tracking tidak diperiksa pada pass ini) |
-| Stack | Next.js 16.4.6 · React 19.3.1 · TypeScript 5.9.3 · Tailwind 4 · Drizzle ORM · PostgreSQL (Neon) · MongoDB · Vercel Blob |
-| Node / npm | v24 · npm 10 |
-| Dev server | tidak dikelola Freebuff pada E; runtime dilakukan Owner (Owner confirmed) |
-| Database | `neondb` (PostgreSQL 18.6), journal file **31 entry**; `0017_calculation_sheet_templates` **APPLIED** (Owner-confirmed melalui runtime 10 November 2026); `0018_project_documentations` **APPLIED**; **0019 APPLIED** — `0019_project_documentation_period`; **`0020_berkas_pengajuan`, `0021_berkas_catatan`, `0022_berkas_kode_seri`, `0023_berkas_sprint2`, dan `0024_berkas_search_index` APPLIED** (`0020`–`0022` Owner-confirmed melalui runtime Vercel 10 November 2026; `0023` mengikuti konfirmasi database Sprint 2; `0024` index GIN trigram judul/kode_seri, APPLIED 12 November 2026; `0025_activity_logs` **APPLIED** 12 November 2026; **`0026_project_photos` APPLIED** 12 November 2026; **`0027_standard_regulation` APPLIED** 16 November 2026; **`0028_project_green_certificates` APPLIED** 18 November 2026; **`0029_project_esg_assessments` APPLIED** 18 November 2026 (dikonfirmasi `05898d5`); **`0030_building_learning_center` APPLIED** 24 November 2026; journal 31 entry) |
+| Terakhir diperbarui | **25 November 2026** |
+| HEAD | **`dcbf13e`** — `refactor(pre-deploy):new revision-1` (24 Nov 2026, 17:33 +0700) |
+| Branch | `main` |
+| Working tree | **BERSIH** (`git status` kosong, tidak ada file modified/untracked) |
+| Status remote | tidak diperiksa pada pass ini (tidak ada `git fetch`); asumsikan HEAD lokal = yang akan di-push Owner |
+| Migration | **32 file** `drizzle/0000`–`0031` + `meta/_journal.json` **32 entry** |
+| Test | **358/358 PASS** (76 suite, 50 file test) — 25 November 2026 |
+| Build | **PASS** (`npm run build`, "Compiled successfully in 72s", `output: "standalone"`) — 25 November 2026 |
 
-## 2. Working Tree (HEAD `b833ca7`; bersih)
+---
 
-Baseline verifikasi: `HEAD` = `b833ca7` — `feat:BLC core enterprise`; security patch `package.json`/`package-lock.json` (Next.js 16.4.6, React/React DOM 19.3.1), Regulation, Database Green Building & ESG, reorder sidebar Core Enterprise, penyesuaian layout PDF Berkas, dan Building Learning Center sudah masuk commit dan working tree bersih. Pass dokumentasi ini hanya mengubah tiga dokumen development dan **tidak** melakukan commit/push.
+## 1. Ringkasan Eksekutif
 
-| Item | Nilai |
+**WIBEX (BDWIKA)** adalah platform internal Building Division PT Wijaya Karya (Persero) Tbk. yang terdiri dari dua sisi:
+
+1. **Landing page publik** (`/`) — hero, about, Our Project, Green Building, media sosial, klien.
+2. **WIBEX Portal / CMS Admin** (`/login` → `/dashboard`) — CMS konten landing + **Core Enterprise** (Program Kerja, Template & Form, Master Project, Engineering Databases, MSL, Knowledge Management, Metode Kerja Standar, Calculation Sheet, Project Documentation, Berkas, Standard & Regulation, Green Building & ESG, Building Learning Center, Dashboard SASAA, User & RBAC).
+
+**Status keseluruhan: `PRODUCTION-READY untuk modul core yang sudah diverifikasi` + 6 area `IMPLEMENTED BUT NOT FULLY VERIFIED`.**
+
+- 14 modul/area berstatus **IMPLEMENTED & VERIFIED** (sebagian besar lewat runtime 4 role yang dikonfirmasi Owner).
+- 6 area sudah selesai secara kode dan static-check PASS, tetapi **belum diverifikasi visual/runtime di Vercel**: Standard & Regulation, Sertifikasi Green Building, Penilaian ESG, Building Learning Center, Dashboard SASAA (+ Kelola Foto), dan revisi tampilan terbaru (sidebar, kartu SASAA, menu INNOVATION).
+- Tidak ada modul besar yang belum dimulai. Tidak ada temuan CRITICAL yang terbuka.
+
+**Skala kode saat ini**
+
+| Metrik | Jumlah |
 |---|---|
-| HEAD lokal | `b833ca7` — `feat:BLC core enterprise` |
-| Commit BLC | `b833ca7` — `feat:BLC core enterprise` (P4 Sub-fase 1 + 2, migration `0030`) |
-| Commit layout PDF Berkas | `d11577f` — `style(berkas): adjust document code box position and rename table header` |
-| Commit reorder sidebar | `4ab2ef7` — `style(sidebar): reorder core enterprise menu items` |
-| Commit fitur Regulation | `d688472` — `feat(regulation): implement standard & regulation module with hierarchical tables and file uploads` |
-| Security patch | Next.js `16.4.6`, React/React DOM `19.3.1` (CVE fix); sudah di-commit pada `d24fa71` |
-| Commit fitur PDOC | `a7527e1` — `feat: project documentation monthly recap and summary report` |
-| Commit fitur CST | `5636113` — `feat: core enterprise calculation sheet template v-1` |
-| Commit dokumentasi PDOC | `062f8d4` — `docs: mark PDOC 0019 migration applied` |
-| Commit fitur Berkas | `1668685` — `feat(berkas): implement ajukan and verifikasi modules with pdf watermark` (41 file, +15.037 / −1) |
-| Commit Berkas — layout cover | `a85d26f` — `fix(berkas): refine pdf cover layout to match standard pptx and use new logo` |
-| Commit Berkas — strict grid | `bb0dfdd` — `fix(berkas): implement strict grid layout for pdf cover to prevent text overlap` |
-| Commit Berkas — kode seri, landscape, delete | `d3813b3` — `feat(berkas): add serial code, landscape pdf, and admin delete` |
-| Commit Berkas — reposisi kode seri | `0805776` — `style(berkas): move serial code to top right corner of pdf` |
-| Baseline dokumentasi/UI | `8cfef26` — `chore: align sidebar text and elevate PDOC status to verified` |
-| Range fitur PDOC | `5636113..a7527e1`; 41 file, +15.396 / −29 |
-| Isi commit PDOC | PDOC V1 + Monthly Delta, migration `0018`/`0019`, halaman Rekap Bulanan + Summary, sidebar accordion, dan sinkronisasi dokumen |
-| Status remote | HEAD lokal `b833ca7` sudah di-push Owner; remote-tracking tidak diperiksa pada pass ini |
-| Migration | `0017` **APPLIED** (Owner-confirmed melalui runtime); `0018` **APPLIED**; `0019` **APPLIED**; `0020`, `0021`, dan `0022` **APPLIED** (Owner-confirmed melalui runtime Vercel 10 November 2026); `0023_berkas_sprint2` **APPLIED** (konfirmasi database Sprint 2 sudah dimigrasi); `0024_berkas_search_index` **APPLIED** (index GIN trigram judul/kode_seri, 12 November 2026); `0025_activity_logs` **APPLIED** 12 November 2026; `0026_project_photos` **APPLIED** 12 November 2026; **`0027_standard_regulation` APPLIED** 16 November 2026; **`0028_project_green_certificates` APPLIED** 18 November 2026; **`0029_project_esg_assessments` APPLIED** 18 November 2026 (dikonfirmasi `05898d5`); **`0030_building_learning_center` APPLIED** 24 November 2026; journal 31 entry |
+| Modul dashboard (`src/app/dashboard/*`) | 22 folder modul |
+| Route handler API (`src/app/api/**/route.ts`) | 105 |
+| Halaman (`page.tsx`) | 69 |
+| Komponen `.tsx` | 144 |
+| File test | 50 (76 suite, 358 test) |
+| Permission RBAC | 39 |
+| Tabel PostgreSQL | 35 |
+| Koleksi MongoDB | 5 |
+| Migration | 32 (0000–0031) |
 
-Detail file historis sebelum commit tersedia di Git history; jangan menyalin tabel working tree lama sebagai kondisi saat ini.
+---
 
-## 3. Status Pemeriksaan Terakhir
+## 2. Daftar Modul & Status
 
-| Pemeriksaan | Perintah | Exit | Status |
+Legenda: **✅ VERIFIED** = sudah diuji runtime/visual dan dikonfirmasi Owner · **🟡 NOT FULLY VERIFIED** = kode + static check PASS, verifikasi visual/runtime Owner belum ada.
+
+### 2.1 Landing page & CMS
+
+| Modul | Status | Bukti / Catatan |
+|---|---|---|
+| Landing page publik (Hero, About, Projects, Green Building, Social, Clients, Footer) | ✅ VERIFIED | `src/app/page.tsx`, `src/components/landing/*`; data via `GET /api/<modul>/public`, empty-first (tanpa konten karangan) |
+| Navbar landing: HOME, ABOUT, OUR PROJECT, SUSTAINABILITY, **INNOVATION** | 🟡 NOT FULLY VERIFIED (khusus INNOVATION) | `src/components/landing/Navbar.tsx`; SUSTAINABILITY + INNOVATION (`https://im.dewika.id`) `target="_blank"` + `rel="noopener noreferrer"` + ikon ↗, desktop & menu HP; static check PASS, visual belum dicek |
+| CMS Hero / Our Project / Green Building / Media Sosial / Our Client | ✅ VERIFIED | MongoDB + Vercel Blob publik; **feed publik Green Building CMS masih 0 item** (lihat TD-05) |
+| Upload gambar CMS + cleanup referensi | ✅ VERIFIED | `src/lib/cms/*`, `src/lib/storage/public-image.ts` |
+
+### 2.2 Core Enterprise
+
+| Modul | Status | Bukti / Catatan |
+|---|---|---|
+| Auth (NIP + password), sesi opaque, lockout | ✅ VERIFIED | `src/lib/auth/*`; bcrypt cost 12, cookie `wibex_session`, 5 gagal/15 menit |
+| RBAC + User Directory (+ posisi Manager, activity log, proteksi admin terakhir, foto profil) | ✅ VERIFIED | `src/lib/auth/permissions.ts` (39 permission, 3 lapis); migration `0025_activity_logs`, `0031_user_activity_logs` |
+| Profil mandiri (`/dashboard/profile/edit`) | ✅ VERIFIED | termasuk upload foto profil ≤2 MB (jpeg/png/webp) |
+| Program Kerja (+ RI/catatan/evidence, Summary, PDF) | ✅ VERIFIED | runtime 4 role dikonfirmasi Owner |
+| Template & Form (link + upload dokumen privat) | ✅ VERIFIED | Blob privat, download via route ber-guard |
+| Master Project (direktori proyek kanonik) | ✅ VERIFIED | GIN trigram, sumber baris modul lain |
+| Engineering Databases (6 kategori + summary) | ✅ VERIFIED | — |
+| MSL Engineering (bulanan, skor, PDF V2.5) | ✅ VERIFIED · **frozen** | jangan refactor tanpa instruksi Owner |
+| Struktur Organisasi | ✅ VERIFIED · **frozen** | jangan refactor tanpa instruksi Owner |
+| Knowledge Management V2 (Lesson Learn, Best Practice/KI-KM, VA/VE) | ✅ VERIFIED | V1→V2 drop+rebuild; RBAC 4 role PASS 9 Nov 2026 |
+| Metode Kerja Standar (6 disiplin A–F, multi PIC, reorder, PDF) | ✅ VERIFIED | RBAC 4 role PASS 9 Nov 2026 |
+| Calculation Sheet Template (7 kategori, inline edit) | ✅ VERIFIED | runtime browser 4 role PASS 10 Nov 2026 |
+| Project Documentation (Rekap Bulanan + Summary 12 bulan) | ✅ VERIFIED | runtime browser 4 role PASS 10 Nov 2026 |
+| Berkas (Ajukan, Verifikasi, PDF cover, watermark NIP, reject/revisi, TTD inline) | ✅ VERIFIED (Production-Ready) | Sprint 1 runtime Vercel PASS 10 Nov 2026; TTD inline runtime PASS 24 Nov 2026 |
+| Dashboard Welcoming (`/dashboard`) | ✅ VERIFIED | commit `eb77e1c`, `activity_logs` |
+| Dashboard SASAA (6 grafik bulanan, tabel KM, banner GB, kartu kelengkapan Eng DB) + Kelola Foto | 🟡 NOT FULLY VERIFIED | backend + UI selesai; visual Vercel belum dicek |
+| Standard & Regulation (5 submenu, tabel berjenjang, upload privat ≤20 MB) | 🟡 NOT FULLY VERIFIED | migration `0027`; visual + upload nyata belum dicek |
+| Database Green Building & ESG — Sertifikasi | 🟡 NOT FULLY VERIFIED | migration `0028`; visual belum dicek |
+| Database Green Building & ESG — Penilaian ESG (12 bulan) | 🟡 NOT FULLY VERIFIED | migration `0029`; visual + optimistic rollback belum dicek |
+| Building Learning Center (Sharing, Training, Certificate, Admin Control) | 🟡 NOT FULLY VERIFIED | migration `0030`; upload Blob nyata + visual belum dicek |
+
+### 2.3 Perubahan tampilan terbaru (24–25 November 2026, sudah di HEAD)
+
+| Perubahan | File | Status |
+|---|---|---|
+| Sidebar: urutan BLC, panel biru Master Project, border 1.5 px pada 4 menu akordeon, rata kiri label | `src/components/dashboard/DashboardSidebar.tsx` | static PASS; visual HP/drawer belum dicek |
+| Submenu Master Project: kotak border biru (bukan biru gelap) | `DashboardSidebar.tsx` | static PASS; visual belum dicek |
+| Kartu "Proyek Terpilih" SASAA tanpa kotak PIC Proyek | `src/components/dashboard/sasaa/SasaaPage.tsx` | static PASS; visual belum dicek |
+| Menu INNOVATION di navbar (desktop + HP, ikon ↗) | `src/components/landing/Navbar.tsx` | static PASS; visual belum dicek |
+
+---
+
+## 3. Status Database
+
+### 3.1 Migration
+
+- **32 migration** di `drizzle/` (`0000`–`0031`) dan `meta/_journal.json` berisi **32 entry** — file dan journal sinkron.
+- **APPLIED yang tercatat di dokumentasi/commit:** `0017`–`0030` (termasuk `0024_berkas_search_index`, `0025_activity_logs`, `0026_project_photos`, `0027_standard_regulation`, `0028_project_green_certificates`, `0029_project_esg_assessments`, `0030_building_learning_center`).
+- **`0031_user_activity_logs`** (24 November 2026) tercatat di journal tetapi **belum tercatat sebagai APPLIED di dokumen mana pun** → status penerapan **BELUM DIVERIFIKASI** (lihat TD-11).
+- Status APPLIED **tidak dapat diperiksa dari repository** (tidak ada akses/kredensial database pada pass ini). Verifikasi butuh `DIRECT_URL`/`DATABASE_URL` + `drizzle-kit`.
+
+### 3.2 Migration terbaru
+
+| Migration | Isi |
+|---|---|
+| `0025_activity_logs` | tabel `activity_logs` (feed Dashboard Welcoming) |
+| `0026_project_photos` | tabel `project_photos` (4 slot foto per proyek, SASAA) |
+| `0027_standard_regulation` | `regulation_sub_kategori`, `regulation_document` |
+| `0028_project_green_certificates` | `project_green_certificates` (CHECK komposit Lembaga/Level) |
+| `0029_project_esg_assessments` | `project_esg_assessments` (12 kolom status bulan, UNIQUE project+year) |
+| `0030_building_learning_center` | `learning_categories`, `learning_contents`, `learning_attachments` |
+| `0031_user_activity_logs` | tabel log aktivitas user (User Directory) |
+
+### 3.3 Tabel PostgreSQL (35)
+
+`users` · `sessions` · `login_attempts` · `program_kerja_groups` · `program_kerja` · `program_kerja_monthly` · `program_kerja_pics` · `template_forms` · `knowledge_entries` · `knowledge_evidence` · `knowledge_pics` · `knowledge_evidence_archive` · `knowledge_evidence_selection` · `master_projects` · `project_photos` · `engineering_database_entries` · `msl_assessments` · `msl_year_notes` · `organization_structure` · `metode_kerja_sub_kategori` · `metode_kerja_item` · `metode_kerja_pic` · `regulation_sub_kategori` · `regulation_document` · `calculation_sheet_templates` · `project_documentations` · `berkas_pengajuan` · `berkas_penyusun` · `berkas_validasi` · `activity_logs` · `project_green_certificates` · `project_esg_assessments` · `learning_categories` · `learning_contents` · `learning_attachments`
+
+Sumber tunggal skema: **`src/lib/pg/schema.ts`**. Ekstensi `pg_trgm` dipakai untuk pencarian (Master Project, Berkas, BLC).
+
+### 3.4 Koleksi MongoDB (5)
+
+`heroes` · `portfolio_projects` · `green_building_certificates` · `social_posts` · `clients` — hanya untuk konten landing; index dibuat lazy pada request pertama.
+
+---
+
+## 4. Status Pengujian & Kualitas
+
+| Pemeriksaan | Perintah | Hasil | Tanggal |
 |---|---|---|---|
-| TypeScript | `npx tsc --noEmit` | 0 | PASS |
-| ESLint (file KM) | `npx eslint src/lib/knowledge-management src/app/api/knowledge-management src/components/dashboard/knowledge-management` | 0 | PASS |
-| Test otomatis | `npm test` | 0 | **299/299 PASS** (72 suite; termasuk test PDOC, Berkas, Regulation, Green Building ESG access/schema, BLC schema/service/storage-path/sidebar, pdf-engine termasuk cover/garis merah/footer WIKA, types, dan navigasi sidebar; Final Polish 256/256) |
-| ESLint (CST + sidebar) | `npx eslint src/lib/calculation-sheet-template src/components/dashboard/calculation-sheet-template src/app/dashboard/calculation-sheet-template src/app/api/calculation-sheet-template src/components/dashboard/DashboardSidebar.tsx` | 0 | PASS |
-| ESLint (PDOC + sidebar) | `npx eslint src/lib/project-documentation src/app/api/project-documentation src/components/dashboard/project-documentation src/components/dashboard/DashboardSidebar.tsx src/components/dashboard/projectDocumentationSidebar.test.ts src/app/dashboard/project-documentation` | 0 | PASS |
-| ESLint (Berkas) | `npx eslint src/lib/berkas src/components/dashboard/berkas src/app/api/berkas src/app/dashboard/berkas src/components/dashboard/DashboardSidebar.tsx src/lib/auth/permissions.ts src/lib/storage/blob.ts` | 0 | PASS |
-| TTD Inline static | `npx tsc --noEmit` + `npx eslint src/components/dashboard/berkas/BerkasFormDialog.tsx src/components/dashboard/berkas/BerkasFormDialog.test.tsx` | 0 | PASS |
-| Test TTD Inline | `npm test` (termasuk `BerkasFormDialog.test.tsx`, `BerkasSignatureField.test.tsx`, `BerkasTtdDialog.test.tsx`) | 0 | **320/320 PASS** (72 suite; 5 test baru `BerkasFormDialog`) |
-| Runtime TTD Inline | Vercel + browser, 4 role | — | **PASS — Owner confirmed 24 November 2026** |
-| SASAA Revisi (static) | `npx tsc --noEmit` + ESLint | 0 | PASS |
-| Test SASAA Revisi | `npm test` | 0 | **335/335 PASS** (73 suite) |
-| Runtime SASAA Revisi | Vercel, 4 role | — | **NOT RUN** — enam grafik, filter MSL, Next tabel KM, banner GB belum dicek Owner |
-| ESLint (Regulation) | `npx eslint src/components/dashboard/regulation src/app/dashboard/regulation src/components/dashboard/DashboardSidebar.tsx` | 0 | PASS |
-| ESLint (BLC) | `npx eslint src/lib/learning src/lib/cms/storage-path.ts src/app/api/learning src/app/dashboard/learning src/components/dashboard/learning src/components/dashboard/learningSidebar.test.ts src/components/dashboard/DashboardSidebar.tsx` | 0 | PASS |
-| Diff hygiene | `git diff --check` | 0 | PASS |
-| Dashboard Welcoming (static) | `npx tsc --noEmit` + ESLint file dashboard | 0 | PASS |
-| Test Dashboard Welcoming | `npm test` | 0 | **256/256 PASS** (61 suite) |
-| Dashboard SASAA & Kelola Foto (static) | `npx tsc --noEmit` + ESLint file UI/API | 0 | PASS |
-| Build Next.js (baseline SASAA) | `npx next build` | 0 | **PASS — 98 routes** (build dengan route Regulation belum dijalankan pada pass ini) |
-| Security patch | `npm ls next react react-dom --depth=0` | 0 | Next.js `16.4.6`; React/React DOM `19.3.1` |
-| Drift Drizzle | `npx drizzle-kit generate` | — | tidak dijalankan pada task dokumentasi; snapshot `0019`–`0027` tersedia |
-| Migration | `npx drizzle-kit migrate` | — | **0017–0030 APPLIED** (Owner-confirmed; `0020`–`0022` melalui runtime Vercel 10 November 2026; `0023` mengikuti konfirmasi database Sprint 2; `0024` APPLIED 12 November 2026; `0025_activity_logs` APPLIED 12 November 2026; **`0026_project_photos` APPLIED** 12 November 2026; **`0027_standard_regulation` APPLIED** 16 November 2026; **`0028_project_green_certificates` APPLIED** 18 November 2026; **`0029_project_esg_assessments` APPLIED** 18 November 2026; **`0030_building_learning_center` APPLIED** 24 November 2026); tidak dijalankan pada task ini |
-| Runtime BLC | Vercel + browser, 4 role | — | **NOT RUN** — grid kartu, filter/search, detail sharing, video embed, download lampiran, Admin Control, dan RBAC Admin/Head Office vs Management/Project belum dicek Owner |
-| Runtime Regulation | Vercel, 4 role | — | **NOT RUN** — visual dan alur upload Vercel belum dicek Owner |
-| Runtime Green Building ESG | Vercel, 4 role | — | **NOT RUN** — visual Sertifikasi (tabel, dialog, form dinamis Lembaga/Level) dan Penilaian ESG (grid 12 bulan, optimistic update/rollback, dialog form/hapus) belum dicek Owner |
-| Runtime CST | Browser, 4 role | — | **PASS** (Owner-confirmed 10 November 2026) |
-| Runtime PDOC | Browser desktop + mobile, 4 role | — | **PASS** (Owner-confirmed 10 November 2026) |
-| Runtime Berkas | Vercel, 4 role | — | **PASS untuk Sprint 1 V1** — pengajuan, verifikasi berurutan, cover landscape, kode seri, watermark NIP, delete Admin (Owner-confirmed 10 November 2026); Audit Readiness & Final Polish PASS melalui 256/256 test; smoke test browser Sprint 2/final polish belum dijalankan pada pass dokumentasi ini |
-| Deploy Vercel Berkas | — | — | **PASS** (Owner-confirmed 10 November 2026) |
-| PDF visual Berkas (cover/merge/watermark) | — | — | **PASS untuk V1** — cover A4 landscape, kode seri pojok kanan atas, watermark NIP (Owner-confirmed); garis merah dan footer WIKA diverifikasi lewat unit test, bukan render visual baru |
+| Unit + komponen test | `npm test` | **358/358 PASS**, 76 suite, 50 file, exit 0 | 25 Nov 2026 |
+| TypeScript | `npx tsc --noEmit` | PASS (exit 0) | 25 Nov 2026 |
+| ESLint | `npx eslint <file berubah>` | PASS (exit 0) | 25 Nov 2026 |
+| Build produksi | `npm run build` | **PASS** — "Compiled successfully in 72s", 69 halaman, `output: "standalone"` | 25 Nov 2026 |
+| Hygiene diff | `git diff --check` | PASS | 25 Nov 2026 |
 
-## 4. Knowledge Management V2
+**Security patch — sudah diterapkan dan terpasang:**
 
-**Status:** `IMPLEMENTED & VERIFIED` — RBAC 4 role PASS (Owner confirmed 9 November 2026).
+| Paket | Versi terpasang | Catatan |
+|---|---|---|
+| `next` | **16.4.6** | patch keamanan (commit `d24fa71`, `a4aa8a3`) |
+| `react` / `react-dom` | **19.3.1** | idem |
+| `zod` | 4.6.7 | perbaikan vulnerability (`a4aa8a3`) |
+| `@vercel/blob` | 2.9.0 | — |
 
-**Enhancement 2026-11-05 (P4).** View modal read-only, PDF seluruh tabel (A4 landscape) dan per-record (A4 portrait), filter tahun, serta search proyek single-select — semuanya client-side dari record yang sudah dimuat. Kolom Aksi selalu render (Lihat semua role, Edit hanya Manage). Tidak ada endpoint, schema, atau migration baru. Static checks PASS (60/60 test); runtime Admin dan cleanup PASS (**Owner confirmed**); RBAC 4 role (Admin, Head Office, Management, Project) PASS (**Owner confirmed** 9 November 2026). Detail: `DL-2026-11-05-03`, `DL-2026-11-09-01`.
+**Cakupan test:** logika domain murni (skor MSL, agregasi summary, permission/RBAC, schema Zod, storage path, PDF engine, navigasi sidebar) + beberapa komponen React (`@testing-library/react` + `jsdom`). **Tidak ada** E2E/Playwright, tidak ada CI — semua dijalankan manual.
 
-- **Model:** multiple records per project/kategori (bukan satu baris per project), form modal Add/Edit, evidence **tepat satu**, PIC **minimal satu** (Head Office), optimistic concurrency integer `version`, permanent delete.
-- **Migration:** `0015_knowledge_management_v2_fresh` **APPLIED** di `neondb` (5 November 2026). Tabel V1 di-drop, V2 dibangun ulang. Data V1 = 1 test record, hilang per keputusan Owner (no backup, accepted risk).
-- **Verifikasi:** API 71/73 PASS lalu dua temuan diperbaiki (updated_by null saat create; pesan validasi spesifik 20.000) dan diverifikasi runtime; concurrency 4/4 PASS; regresi 7/7 PASS (MSL, Org, Program Kerja, Master Project, User, Landing CMS, Sidebar); runtime browser Admin PASS (gate Owner).
-- **RBAC:** Admin (full CRUD), Head Office (CRUD tanpa Delete), Management & Project (read-only) — semuanya **PASS** di runtime (Owner confirmed 9 November 2026). Tidak ada role yang tertunda verifikasi.
-- **Catatan operasional:** `drizzle.config.ts` tidak membaca `.env.local`; export `DIRECT_URL` sebelum `npx drizzle-kit migrate` (lihat `docs/audit/13`).
+---
 
-## 5. Kondisi yang Perlu Diketahui
+## 5. Technical Debt & Pending Tasks
 
-- WIBEX Development Governance dan Engineering Workflow resmi berlaku sebagai **APPROVED & EFFECTIVE** (Owner Hans, 10 November 2026); tidak ada perubahan aturan pada pass ini.
-- PDOC V1 + Monthly Delta (`a7527e1`) dan Modul Berkas (`1668685` → `a85d26f` → `bb0dfdd` → `d3813b3` → `0805776`) sudah di-commit; working tree bersih sebelum pass dokumentasi V1 ini.
-- Migration `0020_berkas_pengajuan`, `0021_berkas_catatan`, `0022_berkas_kode_seri`, `0023_berkas_sprint2`, dan `0024_berkas_search_index` sudah **APPLIED** (`0020`–`0022` Owner-confirmed melalui runtime Vercel 10 November 2026; `0023` mengikuti konfirmasi database Sprint 2; `0024` index trigram judul/kode_seri); tidak ada migration Berkas yang tertunda.
-- Database KM dalam keadaan bersih: `knowledge_entries/pics/evidence = 0`, tidak ada project `ZZ-KM-TEST-*` (cleanup runtime **Owner confirmed**).
-- Tidak ada user baru, suspend, atau reset password selama pengujian; baseline user 10 akun tidak berubah.
-- Modul MSL dan Struktur Organisasi protected — tidak disentuh.
-- Feed publik Green Building masih 0 item (empty state).
-- `schema.ts` mencakup PDOC periodik, tiga tabel Berkas, kolom `kode_seri`, kolom rejection/revision, serta index GIN trigram judul/kode_seri; snapshot `0020`–`0024` tersedia. Status drift schema tidak diuji ulang pada pass dokumentasi ini.
+| ID | Prioritas | Item | Tindakan yang disarankan |
+|---|---|---|---|
+| TD-01 | HIGH | **CSP belum dipasang.** `next.config.ts` hanya memasang `X-Content-Type-Options`, `Referrer-Policy`, `X-Frame-Options`, `Permissions-Policy` | Susun CSP Report-Only → enforce (perhatikan gambar Blob remote + inline style) |
+| TD-02 | HIGH | **Belum ada CI.** `tsc`/`eslint`/`test`/`build` hanya dijalankan manual | Tambahkan pipeline (tsc + eslint + npm test) minimal untuk PR |
+| TD-03 | MEDIUM | **6 area belum diverifikasi visual/runtime Vercel:** Regulation, Sertifikasi GB, ESG, BLC, Dashboard SASAA + Kelola Foto, revisi tampilan (sidebar, kartu SASAA, INNOVATION) | Owner cek di Vercel dengan 4 role, lalu naikkan status di `FEATURE_REGISTER.md` |
+| TD-04 | MEDIUM | `.env.example` ada di disk tetapi **gitignored** (`.gitignore:44` = `.env*`) dan hanya memuat 4 variabel | Track ulang (`!.env.example`) + lengkapi 13 nama variabel |
+| TD-05 | MEDIUM | Feed publik **Green Building CMS masih 0 item** (empty state) | Pastikan minimal 1 sertifikat berstatus `Published` |
+| TD-06 | MEDIUM | Foto profil: blob orphan bila PATCH gagal, tanpa compare-and-set, tanpa rate limit, pesan 400 generik | Cleanup best-effort + validasi pesan |
+| TD-07 | MEDIUM | **`0031_user_activity_logs` belum tercatat APPLIED** | Konfirmasi ke database, lalu catat di dokumen |
+| TD-08 | LOW | BLC tab **Kategori** read-only (API belum punya PATCH/DELETE kategori) | Tambahkan kontrak API bila dibutuhkan |
+| TD-09 | LOW | Navbar desktop kini 6 item `space-x-8` + logo 180 px + tombol Portal → berpotensi sesak pada 768–1100 px | Kecilkan spacing di `md` bila terlihat meluber |
+| TD-10 | LOW | Index MongoDB dibuat lazy pada request pertama | Buat index saat bootstrap/deploy |
+| TD-11 | LOW | Tidak ada retensi/penjadwalan `login_attempts` dan `sessions` kedaluwarsa | Scheduler/cron pembersihan |
+| TD-12 | LOW | Beberapa komponen besar (mis. `TemplateFormEditor` ±1.000 baris) | Pecah hanya bila disentuh untuk perubahan fungsional |
+| TD-13 | INFO | MSL Engineering & Struktur Organisasi berstatus **frozen** | Jangan refactor tanpa instruksi eksplisit Owner |
 
-## 6. Metode Kerja Standar (P4)
+**Pending keputusan produk**
 
-**Status:** `IMPLEMENTED & VERIFIED` — static checks PASS, migration APPLIED, runtime fitur + UI tabel PASS; RBAC 4 role PASS (Owner confirmed 9 November 2026).
+1. **Dashboard SASAA — kartu "Persentase Kelengkapan per Proyek"**: saat ini hanya menampilkan **proyek terpilih** (opsi 1), karena frontend hanya menerima `charts.engDb` untuk proyek terpilih. Bila ingin satu bar per proyek, endpoint agregator harus diperluas (bukan sekadar perubahan tampilan).
+2. **Integrasi/ekspansi SASAA** (mis. ringkasan lintas proyek) belum direncanakan.
+3. **Kebijakan "frozen"** MSL & Struktur Organisasi belum punya dokumen resmi — masih berdasarkan catatan historis.
 
-- **Cakupan:** 3 tabel domain (sub-kategori, item, PIC), 10 route API, 7 komponen frontend + exporter PDF, route `/dashboard/metode-kerja-standar/{summary,[disiplin]}`.
-- **Migration:** `0016_metode_kerja_standar` **APPLIED**; journal 17 entry; object terverifikasi (3 tabel, 16 index, 2 constraint trigger, CHECK disiplin A–F, unique kode per disiplin).
-- **Sidebar:** sejak 8 November 2026, KM dan MKS sama-sama route-driven (default collapsed). Keputusan ini menggantikan perilaku awal DL-2026-11-04-15; visibilitas per role tidak berubah.
-- **Tabel:** 7 kolom `Sub-Kategori | Item | PIC | Evidence | Catatan | Jumlah | Aksi`; sel Sub-Kategori di-merge `rowSpan={items.length + 1}` (rel `bg-blue-50`, border bawah tunggal), baris ringkas (`py-2`), tombol aksi seragam `h-7` tanpa pembungkusan, kolom Aksi 240px, `min-w` 1290px. **Summary Report** memakai pengelompokan ala Program Kerja: Disiplin menjadi baris header `colSpan` penuh (navy, teks putih), Sub-Kategori di-merge `rowSpan` sesuai jumlah item yang lolos filter, 5 kolom (Sub-Kategori, Item, PIC, Evidence, Status) di UI dan PDF (PDF mencetak label sub-kategori sekali karena `rowSpan` bisa terpotong page break).
-- **Detail:** `docs/design/MKS_P4_FINALIZATION.md`; keputusan `DL-2026-11-08-01`.
-- **Known limitation:** tidak ada auto-collapse antar-route dalam satu sesi. RBAC 4 role sudah PASS (9 November 2026).
+---
 
-## 7. Calculation Sheet Template (P4, 10 November 2026)
+## 6. Environment & Stack
 
-**Status:** **`IMPLEMENTED & VERIFIED`** — static checks PASS; migration `0017` **APPLIED** (terbukti dari runtime CRUD); runtime browser 4 role PASS (Owner-confirmed 10 November 2026).
+| Komponen | Versi / Detail |
+|---|---|
+| Framework | **Next.js 16.4.6** (App Router, `output: "standalone"`) |
+| UI | **React 19.3.1** / React DOM 19.3.1 |
+| Bahasa | TypeScript **5.9.3** (`strict`) |
+| Styling | Tailwind CSS **4.3.3** via `@tailwindcss/postcss`; **tanpa** `tailwind.config.*`; token di `src/app/globals.css` (`--primary #001f3f`, `--secondary #0061a5`, `--surface #ffffff`, `--outline #c3c6cf`, `--background #f8f9ff`) |
+| Database utama | **PostgreSQL (Neon)** via `postgres` 3.4.9 + **Drizzle ORM 0.45.4** (`drizzle-kit` 0.31.11) |
+| Database konten | **MongoDB** (`mongodb` driver 7.7.0) — 5 koleksi landing |
+| Storage | **Vercel Blob** (`@vercel/blob` 2.9.0) — publik untuk gambar CMS/foto proyek, privat untuk dokumen Template & Form, Regulation, lampiran BLC, PDF Berkas |
+| PDF | `pdf-lib` 1.17.1 (cover + merge + watermark), `pdfjs-dist` 6.5.438 (viewer), `jspdf` 4.2.1 + `jspdf-autotable` 5.0.9 (export client-side) |
+| Grafik | `recharts` 3.10.1 |
+| Tanda tangan | `signature_pad` 5.1.7 (TTD inline Berkas) |
+| Validasi | `zod` 4.6.7 |
+| Auth | `bcryptjs` 3.0.3, sesi opaque di PostgreSQL (tanpa NextAuth) |
+| Runtime lokal | Node **v24.18.0**, npm **12.2.3**, Windows (Git Bash) |
+| Deploy | Vercel (runtime Owner); build lokal PASS |
+| Test tooling | `tsx` 4.23.15, `jsdom` 31.0.1, `@testing-library/react` 16.3.3 |
 
-- **Cakupan:** master reference flat, tujuh kategori kanonik tanpa prefix (Arsitektur, Struktur, Infrastruktur, Geoteknik, Green Building, MEEP, Lainnya), halaman Summary Report + route per kategori, tabel inline 6 kolom, dan header kategori `colSpan={6}`.
-- **Model:** `calculation_sheet_templates`; kode unik per kategori, satu PIC Head Office, evidence URL opsional (`http`/`https`, ≤2.048), catatan ≤2.000. Tanpa optimistic concurrency.
-- **API:** `GET` list flat, `POST` create (201), `PUT`/`DELETE` per id, `GET pic-options` (Manage-only) — seluruhnya `Cache-Control: no-store`.
-- **RBAC:** `CALCULATION_SHEET_VIEW` (Admin, Head Office, Management, Project); `CALCULATION_SHEET_MANAGE` (Admin, Head Office, termasuk delete). Layout guard + API service sama-sama menegakkan.
-- **UI:** satu tabel inline per kategori; satu baris edit dan satu create draft pada satu waktu; error validasi/API tampil di bawah baris; navigasi sidebar per kategori membuka accordion CST. Summary Report menyediakan rekap lintas kategori dan PDF client-side.
-- **Migration:** `drizzle/0017_calculation_sheet_templates.sql` + snapshot tersedia; `0017` **APPLIED** (Owner-confirmed melalui runtime 10 November 2026); journal saat itu 20 entry (kini 22 entry).
-- **Verifikasi:** `tsc` PASS, `eslint` PASS, `npm test` **233/233 PASS** (saat itu; total kini 245/245), `git diff --check` PASS. Runtime browser 4 role **PASS** (Owner-confirmed 10 November 2026): tujuh kategori + header `colSpan` + sidebar; inline Create/Edit/Delete; URL invalid ditolak; duplikasi kode ditolak; Admin/Head Office manage, Management/Project read-only.
-- **Detail:** `DL-2026-11-10-04` (runtime PASS); `DL-2026-11-09-02` (historis); `docs/design/CST_P2_AUDIT.md`, `docs/design/CST_P3_TECHNICAL_DESIGN.md`.
+**Script:** `dev` · `build` · `start` · `lint` · `test` (`node --import tsx --test "src/**/*.test.ts" "src/**/*.test.tsx"`).
 
-## 8. Project Documentation (P4 + Monthly Delta, 10 November 2026)
+**Environment variable (nama saja, jangan pernah dicetak nilainya):** `DATABASE_URL`, `DIRECT_URL`, `MONGODB_URI`, `MONGODB_DB_NAME`, `BLOB_READ_WRITE_TOKEN`, `VERCEL_OIDC_TOKEN`, `BLOB_STORE_ID`, `CMS_BLOB_READ_WRITE_TOKEN`, `ADMIN_NIP`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_NAME`, `ADMIN_POSITION`, `NODE_ENV`.
 
-**Status:** `IMPLEMENTED & VERIFIED` — static checks PASS; commit fitur `a7527e1`; dokumentasi `062f8d4`; migration `0018` + `0019` APPLIED; runtime browser 4 role PASS (Owner-confirmed 10 November 2026).
+**Arsitektur wajib diikuti:** `Client Component → Route Handler (auth + Zod + mapping HTTP) → Service (aturan bisnis + otorisasi) → Repository (Drizzle/Mongo) → DB`. Otorisasi 3 lapis (layout guard, route, `assert*` di service). Permission terpusat di `src/lib/auth/permissions.ts`.
 
-- **Cakupan:** PDOC V1 + Monthly Delta. Root `/dashboard/project-documentation` redirect ke `/rekap-bulanan`; halaman rekap memiliki filter Tahun/Bulan; halaman `/summary` menampilkan matriks 12 bulan; sidebar berupa accordion dengan submenu **Rekap Bulanan** dan **Summary Report**.
-- **Model:** `project_documentations` beridentitas `(project_id, year, month)` dengan unique composite; lima URL minggu, audit per minggu, `catatan`, dan audit level baris. Master Project tetap menjadi sumber baris; summary menampilkan semua project, termasuk `0/5`.
-- **API:** tiga endpoint: `GET /api/project-documentation?year&month`, `PUT /api/project-documentation/[projectId]/[year]/[month]`, dan `GET /api/project-documentation/summary?year`. PUT bersifat upsert per periode; field opsional; URL kosong menjadi `NULL`; periode berasal dari path/query, bukan body.
-- **RBAC:** `DOCUMENTATION_VIEW` (Admin, Head Office, Management, Project); `DOCUMENTATION_MANAGE` (Admin, Head Office, Project). Management read-only; Admin, Head Office, dan Project dapat mengelola.
-- **UI:** tabel 8 kolom, inline edit, audit per minggu, search, dan PDF A4 landscape pada Rekap Bulanan; filter tahun/bulan memicu fetch ulang. Summary read-only memakai warna 5/5 hijau, 1–4/5 amber, 0/5 abu-abu.
-- **Runtime PASS (Owner, 4 role):** filter tahun/bulan dan tabel semua project; simpan 5 URL + catatan dengan audit per minggu; URL kosong tampil `—` dan URL invalid menampilkan error per baris; simpan tanpa perubahan tidak mengubah timestamp; Summary 12 bulan dengan `0/5`; PDF A4 landscape dengan filter line periode; Management read-only sedangkan Admin/Head Office/Project manage; sidebar accordion terbuka pada kedua route; desktop + mobile.
-- **Migration:** `0018_project_documentations` **APPLIED** (Owner-confirmed); `0019_project_documentation_period` **APPLIED** (Owner-confirmed 10 November 2026); journal saat itu 20 entry (kini 22 entry).
-- **Verifikasi:** `tsc` PASS, `eslint` PASS, `npm test` **233/233 PASS** (saat itu; 59 suite; 58 test PDOC di 6 file; total kini 245/245), `git diff --check` PASS. Runtime visual + RBAC 4 role **PASS** (Owner-confirmed 10 November 2026).
-- **Detail:** `DL-2026-11-10-03` (runtime PASS), `DL-2026-11-10-02` (historis), `DL-2026-11-10-01` (historis), `docs/design/PDOC_MONTHLY_IMPACT_ANALYSIS.md`, `docs/design/PDOC_P3_DELTA_MONTHLY.md`.
+---
 
-## 9. Berkas — Ajukan, Verifikasi, PDF, Reject & Revisi (Sprint 1 & 2 + Audit Readiness + Final Polish)
+## 7. Riwayat Perubahan 2–3 Minggu Terakhir (audit `git log`)
 
-**Status:** `IMPLEMENTED & VERIFIED (Production-Ready)` — Sprint 1 V1 diuji Owner di Vercel (runtime PASS, 10 November 2026); Sprint 2 dan Final Polish selesai dengan static checks PASS (256/256, 61 suite); migration `0020`–`0024` **APPLIED**, termasuk `0024_berkas_search_index`. **Notifikasi Sidebar**, **Footer WIKA**, dan **Garis Merah** sudah `IMPLEMENTED & VERIFIED` melalui test otomatis dan pemeriksaan statis.
+| Tanggal | Modul / peristiwa | Commit kunci |
+|---|---|---|
+| 24 Nov 2026 | User Directory: posisi Manager, user activity log, proteksi admin terakhir, foto profil · Berkas TTD inline · Dashboard SASAA struktur baru (6 grafik, tabel KM, banner GB) · revisi sidebar (urutan, panel biru, border, rata kiri) · revisi pra-deploy | `aaa326a`, `a30c6cb`, `2382319`, `b9477c8`, `8a3270f`, `d5f9ae8`, `8964561`, `dcbf13e` |
+| 23 Nov 2026 | **Building Learning Center (BLC)** core enterprise + recap dokumentasi | `b833ca7`, `b34c30e` |
+| 20 Nov 2026 | Penyesuaian layout PDF Berkas | `d11577f` |
+| 19 Nov 2026 | `output: "standalone"`, perbaikan vulnerability zod, ignore `.cloud-attachments` | `1825357`, `a4aa8a3`, `2842b4e` |
+| 18 Nov 2026 | **Sertifikasi Green Building + Penilaian ESG** (migration 0028/0029) · reorder sidebar Core Enterprise | `a6cbe60`, `05898d5`, `4ab2ef7`, `9d52086` |
+| 16 Nov 2026 | **Standard & Regulation** (migration 0027) | `d688472` |
+| 12 Nov 2026 | **Dashboard SASAA + Kelola Foto** (0026) + security patch Next/React · **Dashboard Welcoming** (0025) · Berkas Sprint 2 + audit + index (0023/0024) | `bb7228f`, `d24fa71`, `eb77e1c`, `c4176cf`, `1eb9280`, `9684fc1` |
+| 10–11 Nov 2026 | Berkas Sprint 1 V1 (cover, kode seri, watermark) · CST · PDOC | `1668685`, `d3813b3`, `5636113`, `a7527e1` |
+| 8–9 Nov 2026 | **Metode Kerja Standar** (0016) · KM sidebar fix · verifikasi PDOC/CST/MKS/KM | `1857f51`, `9dd9f5d`, `c053c48` |
 
-- **Cakupan:** satu dokumen PDF pengajuan per record. Pemohon mengunggah PDF asli (≤20 MB, 1–200 halaman) beserta TTD penyusun; dua validator menandatangani berurutan; sistem membuat cover A4 landscape, menggabungkannya dengan PDF asli, lalu menyediakan viewer read-only dan unduhan berwatermark NIP. Kode Seri tampil di pojok kanan atas cover, dan Admin dapat menghapus record beserta objek turunannya.
-- **Model:** `berkas_pengajuan` (status `MENUNGGU_TTD_1` → `MENUNGGU_TTD_2` → `SELESAI`/`DITOLAK`, `version`, metadata PDF asli/generated, `catatan` ≤2.000, `kode_seri` ≤100, `rejection_reason` 1–2.000, `rejected_at`, `rejected_by`, `revision_count` ≥0), `berkas_penyusun` (maks 4, urutan dan user unik per berkas, TTD wajib PNG/JPEG ≤2 MB), `berkas_validasi` (tepat 2 slot, validator berbeda, TTD opsional sampai giliran). CHECK menjaga konsistensi status ↔ `completed_at`, generated PDF, dan rejection state.
-- **API:** `GET`/`POST /api/berkas`, `GET /api/berkas/notifications`, `POST /api/berkas/upload-token` (token unggah Blob privat per prefix), `GET /api/berkas/user-options`, `POST /api/berkas/[id]/ttd`, `POST /api/berkas/[id]/reject`, `PUT /api/berkas/[id]/revisi`, `GET /api/berkas/[id]/view` (original atau `?type=generated`), `GET /api/berkas/[id]/download`, dan `DELETE /api/berkas/[id]` (Admin-only). Route TTD, download, reject/revisi, notifikasi, dan delete memakai `runtime = "nodejs"`; response privat `no-store`.
-- **RBAC:** `BERKAS_VIEW` dan `BERKAS_DOWNLOAD` (Admin, Head Office, Management, Project); `BERKAS_CREATE` dan `BERKAS_VALIDATE` (Admin, Head Office, Management); `BERKAS_DELETE` hanya Admin melalui super-application. Validasi bersifat record-scoped — pemegang `BERKAS_VALIDATE` tetap harus validator yang ditugaskan pada record. Download menolak user tanpa NIP (403 `NIP_REQUIRED`).
-- **PDF Engine:** `pdf-lib` di server. Cover A4 landscape 842 × 595 pt dengan logo, judul (maks 3 baris), dan tabel tanda tangan 3 kolom memakai grid strict (lebar kolom tetap; tinggi baris header 28, nama 30, jabatan 34, TTD 80, tanggal 16 pt). Kode Seri (≤100 karakter) digambar Helvetica Bold 9 pt rata kanan tepat di atas garis atas tabel, hanya bila terisi. Merge dilakukan sekali saat Validator 2 menandatangani. Watermark `NIP: <nip>` diagonal 45°, abu-abu, opacity 0,15, ditempel per halaman saat download sehingga cover tidak dibangun ulang.
-- **UI:** sidebar **Berkas** dengan submenu **Ajukan** dan **Verifikasi**; `/dashboard/berkas` redirect ke `/ajukan`; `layout.tsx` menjaga `BERKAS_VIEW`. Form ajukan (PDF asli, penyusun, jabatan manual, dua validator, input Kode Seri opsional), modal TTD, halaman verifikasi dengan catatan verifikator, viewer `pdfjs-dist` berbasis `<canvas>` dengan worker dari `public/pdfjs/`, serta tombol/modal hapus khusus Admin pada tabel Ajukan.
-- **Migration:** `0020_berkas_pengajuan` (3 tabel, 5 FK, 7 index + unique constraint, 22 CHECK), `0021_berkas_catatan` (kolom `catatan` + CHECK ≤2.000), `0022_berkas_kode_seri` (kolom `kode_seri` + CHECK 1–100), `0023_berkas_sprint2` (status `DITOLAK`, kolom rejection/revision, CHECK, partial unique index `kode_seri`), dan `0024_berkas_search_index` (GIN trigram `judul` dan `kode_seri`) — seluruhnya **APPLIED** (Owner-confirmed; `0020`–`0022` melalui runtime Vercel); journal 25 entry.
-- **Verifikasi:** `tsc` PASS, `eslint` PASS, `npm test` **256/256 PASS** (61 suite; termasuk test cover/garis merah/footer WIKA, posisi kode seri, dan Final Polish), `git diff --check` PASS. Runtime Vercel V1 **PASS** (Owner-confirmed 10 November 2026): pengajuan, verifikasi berurutan, cover landscape, kode seri, watermark NIP, viewer, dan delete Admin.
-- **Detail:** `DL-2026-11-12-05` (Final Polish Production-Ready); `DL-2026-11-12-03` (Sprint 2); `DL-2026-11-10-07` (V1 final); `DL-2026-11-10-06` (historis); desain `docs/design/BERKAS_P3_TECHNICAL_DESIGN.md`.
+Detail per perubahan (file, keputusan, hasil verifikasi) ada di `DEVELOPMENT_MASTER_LOG.md`.
 
-### Sprint 2 & Final Polish (12 November 2026)
+---
 
-- **Database:** migration `0023_berkas_sprint2` menambah status `DITOLAK`, kolom `rejection_reason`, `rejected_at`, `rejected_by`, `revision_count`, CHECK rejection/status, dan partial unique index `kode_seri`. Migration **APPLIED**; journal saat itu 24 entry.
-- **Reject & revisi:** `POST /api/berkas/[id]/reject` untuk Admin atau validator slot aktif; `PUT /api/berkas/[id]/revisi` hanya untuk pemohon/Admin, memvalidasi PDF baru dan page count server-side, mereset ke `MENUNGGU_TTD_1`, mengosongkan TTD validator, dan menaikkan `revision_count`.
-- **Pagination & search:** `GET /api/berkas?search=&page=&limit=` mengembalikan `data`, `assignments`, dan `pagination`; halaman Ajukan/Verifikasi memakai kontrol search debounce dan navigasi halaman.
-- **Orphan blob cleanup:** `cleanupBerkasBlobs()` best-effort dipanggil pada create gagal, TTD gagal, revisi, dan delete; pathname yang masih dimiliki record lain tidak dihapus.
-- **Server-side page count:** PDF asli dan PDF revisi dihitung dengan `pdf-lib` sebelum record/commit disimpan.
-- **Preview watermark:** tombol Preview pada File Generate memanggil `GET /api/berkas/[id]/view?type=generated`; route dan download memakai `getWatermarkedGeneratedPdf()` yang sama sehingga watermark NIP identik.
-- **Info pengunggah:** tabel Ajukan menampilkan ikon tautan, nama pemohon, dan tanggal dibuat dengan format PDOC (`Oleh: Nama, 12 Nov 2026`); klik judul tetap membuka PDF original.
-- **Cover styling:** garis merah 2 pt di bawah judul dan footer biru gelap 35 pt berisi dua baris peringatan hak cipta WIKA, khusus halaman cover.
-- **Notifikasi Sidebar:** endpoint `GET /api/berkas/notifications` mengembalikan `{ needsAction }`; badge merah pada accordion Berkas dan submenu Ajukan/Verifikasi, diperbarui saat route berubah dan setiap 30 detik.
-- **UI:** dialog Revisi menampilkan alasan penolakan dan upload PDF baru; dialog Tolak mewajibkan alasan ≤2.000 karakter; baris `DITOLAK` tidak menampilkan aksi TTD.
-- **Audit Readiness (P2):** seluruh temuan High & Medium ditutup — race condition cleanup blob, viewer satu halaman, RBAC halaman Verifikasi, orphan blob create, delete transaction, dan badge Sidebar.
-- **Final Polish (P4):** migration `0024_berkas_search_index` untuk pencarian judul/kode seri; validasi decodability TTD dengan `pdf-lib` (`embedPng`/`embedJpg`, error 400); cleanup create memakai referensi blob; dead code dihapus; font PDF.js disalin ke `public/pdfjs/standard_fonts/` dan `standardFontDataUrl` dikonfigurasi.
-- **Verifikasi:** `npx tsc --noEmit` PASS, ESLint file terkait PASS, `npm test` **256/256 PASS** (61 suite), `git diff --check` PASS. Runtime browser alur Sprint 2/final polish belum direproduksi pada pass dokumentasi ini.
-- **Detail:** `DL-2026-11-12-05` (Final Polish Production-Ready); `DL-2026-11-12-03` (Sprint 2).
+## 8. Aturan Kerja untuk AI Berikutnya
 
-### TTD Inline (24 November 2026)
+1. **Baca kode dulu, ubah kemudian.** Dokumen ini ringkasan; detail perilaku ada di file.
+2. **Periksa `git status` sebelum bekerja.** Working tree saat audit bersih — jangan `git add .` atau menghapus perubahan yang bukan milik Anda.
+3. **Jangan pernah** menjalankan migration/seed, deploy, commit, atau push tanpa instruksi eksplisit Owner.
+4. **Jangan mencetak** nilai environment/secret di chat, log, atau file.
+5. **Hormati fitur frozen** (MSL Engineering, Struktur Organisasi): usulkan, jangan langsung refactor.
+6. **Ikuti pola yang ada**: Route → Service → Repository, permission terpusat, Zod di batas HTTP, storage DB-first, error domain → HTTP (bukan 500).
+7. **Migration baru**: tambahkan file di `drizzle/` (jangan edit migration lama) + perbarui `src/lib/pg/schema.ts` pada perubahan yang sama.
+8. **Setelah mengubah kode**: jalankan `npx tsc --noEmit`, `npx eslint <file>`, dan `npm test`; jalankan `npm run build` bila menyentuh routing/konfigurasi. Laporkan hasil sebenarnya.
+9. **Bahasa**: kode & komentar Inggris; teks UI dalam Bahasa Indonesia.
+10. **UI belum dianggap "verified"** hanya karena static check PASS — verifikasi visual/runtime adalah keputusan Owner.
 
-- **Status:** `IMPLEMENTED & VERIFIED` — runtime Vercel PASS (Owner confirmed 24 November 2026): pengajuan TTD inline, validasi 1 upload, validasi 2 inline, PDF cover 3 TTD, dan watermark NIP; static checks PASS (320/320, 72 suite).
-- **Cakupan:** input TTD penyusun pada form Ajukan dan dialog TTD validator memakai satu komponen dengan dua mode — **Upload File** (PNG/JPEG ≤2 MB) dan **Gambar TTD** (kanvas tanda tangan, undo, hapus, pratinjau); mode default tetap Upload File sehingga alur lama tidak berubah.
-- **Komponen baru:** `src/components/dashboard/berkas/BerkasSignatureField.tsx` dengan test `BerkasSignatureField.test.tsx`, dipakai `BerkasFormDialog.tsx` (area TTD penyusun lama beserta state pratinjaunya dihapus) dan `BerkasTtdDialog.tsx`; kontrak props `value`/`onChange`/`disabled`/`label`/`error`/`defaultMode`/`idPrefix`.
-- **Dependency:** `signature_pad ^5.1.7` (runtime; API `undo()` tidak tersedia pada versi ini sehingga undo memakai snapshot data URL); perangkat test `jsdom ^31.0.1`, `@testing-library/react ^16.3.3`, `@testing-library/user-event ^14.6.13`, `@types/jsdom ^30.0.0`; script `npm test` memakai glob `src/**/*.test.ts` dan `src/**/*.test.tsx`.
-- **Kontrak tidak berubah:** payload `POST /api/berkas` tetap `penyusun[0].ttdPathname` berupa string pathname; token unggah tetap `{ kind: "penyusun_ttd", uploadId, urutan: 1 }`; `uploadId` tetap dibagi dengan PDF asli; urutan progress tetap 10 → 65 → 70 → 85 → 90; API, skema database, dan migration tidak berubah (tanpa migration baru).
-- **Detail:** `DL-2026-11-24-02` (runtime Vercel PASS 24 November 2026).
+---
 
-## 10. Dashboard Welcoming (12 November 2026)
+## 9. Yang Belum Terverifikasi (jujur)
 
-**Status:** `IMPLEMENTED & VERIFIED` — commit `eb77e1c` (`feat(dashboard): implement welcoming dashboard UI with stats and activities`) sudah di-push ke Vercel; migration `0025_activity_logs` **APPLIED**; static checks PASS (256/256, 61 suite).
-
-- **Aktivitas:** tabel `activity_logs` dan `logActivity(actorId, action, entityType, title, tx?)`; penulisan log ikut transaksi domain agar tidak ada aktivitas tanpa perubahan data.
-- **Integrasi:** Berkas (`createBerkas`, submit TTD, reject, revisi, delete), Master Project (create/update/delete), dan PDOC (update dokumentasi).
-- **Data dashboard:** `getDashboardData(actor)` mengembalikan statistik, Action Center, dan lima aktivitas terbaru; scope mengikuti role (Project melihat proyek sebagai PIC, Berkas sebagai pemohon, aktivitas sebagai aktor; Admin/Head Office/Management melihat data global). MSL dan Total User ditampilkan `null`/“Tidak tersedia” bila belum tersedia.
-- **UI:** `/dashboard` adalah Server Component yang memanggil `getCurrentUser()` dan `getDashboardData()`, lalu merender `DashboardView` client. Komponen: `WelcomeCard`, `StatGrid`/`StatCard`, `ActionCenter`, `QuickLinks`, `ActivityFeed`, dan `DashboardSkeleton`.
-- **Empty state:** Action Center menampilkan “Tidak ada tindakan yang dibutuhkan saat ini. Kerja bagus!”; Activity Feed menampilkan “Belum ada aktivitas tercatat”.
-- **Verifikasi:** `npx tsc --noEmit` PASS, ESLint file dashboard PASS, `npm test` **256/256 PASS** (61 suite), `git diff --check` PASS. Runtime/visual tidak direproduksi pada pass dokumentasi ini.
-- **Detail:** `DL-2026-11-12-06`; commit `eb77e1c`.
-
-## 11. Dashboard SASAA & Kelola Foto (12 November 2026)
-
-**Status:** `IMPLEMENTED BUT NOT FULLY VERIFIED` — backend dan UI selesai; migration `0026_project_photos` **APPLIED**; build PASS 98 routes; visual di Vercel **belum dicek**. Detail: `DL-2026-11-12-07`; commit `bb7228f`.
-
-- **Database:** tabel anak `project_photos` dengan tepat empat slot `1–4`, unique `(project_id, slot)`, unique `blob_pathname`, validasi MIME/ukuran/URL, FK cascade ke Master Project, dan audit `created_by`/`updated_by`. Migration `0026_project_photos` **APPLIED**; journal 27 entry saat implementasi (kini 28 entry).
-- **Storage:** foto disimpan di Vercel Blob Public dengan namespace `project-photos/{projectId}/{uploadUuid}/{slot}-{safeName}`; token upload dibatasi 10 menit; metadata diverifikasi melalui `headPublicCmsImage` sebelum transaksi database.
-- **API:** `GET /api/dashboard/sasaa`, `GET /api/dashboard/sasaa/[projectId]`, `POST /api/master-project/photos/upload`, `GET /api/master-project/[id]/photos`, dan `PUT /api/master-project/[id]/photos`. Agregator menjalankan query foto, MSL, Engineering Database, PDOC, dan KM secara paralel.
-- **RBAC:** `DASHBOARD_SASAA_VIEW` untuk Admin, Head Office, Management, dan Project; `MASTER_PROJECT_PHOTOS_MANAGE` hanya Admin.
-- **UI SASAA:** dropdown proyek, header nama/lokasi/tahun/PIC, carousel empat foto dengan autoplay 6000 ms, pause hover/focus, `prefers-reduced-motion`, indikator dot, serta empat widget MSL/Eng DB/PDOC/KM. Tersedia skeleton, error/retry, dan empty state.
-- **Kelola Foto:** tabel seluruh Master Project dengan status `0/4`–`4/4`; modal empat slot untuk upload/ganti/hapus, preview, progress, dan penyimpanan atomik lewat PUT. Upload langsung ke Blob Public dan halaman dijaga untuk Admin.
-- **Security patch:** Next.js dinaikkan ke `16.4.6` dan React/React DOM ke `19.3.1` (CVE fix). `npm ls` mengonfirmasi versi terpasang; `package.json`/`package-lock.json` masih di working tree.
-- **Build:** `npx next build` **PASS — 98 routes**.
-- **Verifikasi:** `npx tsc --noEmit` PASS, ESLint file UI/API PASS (0 error; 2 warning `no-img-element` karena Blob remote memakai `<img>`), `npm test` **256/256 PASS** (61 suite), `git diff --check` PASS.
-- **Batasan:** visual Vercel, alur upload nyata, dan interaksi carousel belum diperiksa pada pass ini; karena itu status belum dinaikkan menjadi `IMPLEMENTED & VERIFIED`.
-
-### Revisi Dashboard SASAA (24 November 2026)
-
-- **Status:** `IMPLEMENTED BUT NOT FULLY VERIFIED` — backend + UI selesai; static checks PASS (335/335, 73 suite); runtime Vercel belum dicek.
-- **Cakupan:** enam grafik bulanan 0–5 (PDOC minggu terisi, MSL skor total + filter komponen, Engineering Value, Metode Kerja, Eng Execution, ESG dengan konversi Complete=5/Half=3/null=0); tabel Knowledge Management 3 kategori (LL, VA/VE, KI/KM) dengan max 3 konten per kategori per halaman + tombol Next (9 record baru per klik); banner Green Building (lembaga, level, status, tahun, link dokumen).
-- **Backend:** agregator `src/lib/dashboard/sasaa-service.ts` diperluas; `src/lib/sasaa/{types,repository}.ts` baru; endpoint `GET /api/dashboard/sasaa/[projectId]/knowledge?page=N` baru. Schema/migration nol perubahan.
-- **Komponen baru:** `MonthlyBarChart`, `MslSection`, `KnowledgeTable`, `GreenBuildingBanner`, `EsgChart`. `SasaaStatsGrid` (4 stat card lama) tidak lagi dipakai.
-- **Dependency:** `recharts` `^3.10.1` (sudah ada sebelumnya).
-- **Detail:** `DL-2026-11-24-03` (akan dibuat saat runtime PASS).
-
-## 12. Standard & Regulation (16 November 2026)
-
-**Status:** `IMPLEMENTED BUT NOT FULLY VERIFIED` — backend dan UI selesai; migration `0027_standard_regulation` **APPLIED**; static checks PASS (270/270, 65 suite); visual Vercel dan alur upload nyata belum dicek Owner. Detail: `DL-2026-11-16-01`; desain `docs/design/REGULATION_P3_DESIGN.md`.
-
-- **Database:** dua tabel baru, `regulation_sub_kategori` dan `regulation_document`, dengan FK `ON DELETE RESTRICT`, CHECK panjang/urutan/nilai disiplin, unique kode per disiplin/sub-kategori, unique `file_pathname`, dan index sort. Migration `0027_standard_regulation` **APPLIED**; journal 28 entry.
-- **Kebijakan file:** Private Blob, maksimal 20 MB, PDF, DOC/DOCX, XLS/XLSX, dan ZIP; ZIP memakai fallback `application/octet-stream`; token upload berlaku 10 menit, tanpa overwrite/suffix; metadata diverifikasi dengan `headBlob()` sebelum row disimpan; blob lama dihapus best-effort setelah commit; orphan cleanup tersedia.
-- **API:** `GET /api/regulation/[disiplin]`, CRUD sub-kategori dan dokumen, `POST /api/regulation/upload`, `POST /api/regulation/upload/cleanup`, `GET /api/regulation/document/[id]/file`, dan `POST /api/regulation/reorder`. Respons privat memakai `Cache-Control: no-store`.
-- **RBAC:** `REGULATION_VIEW` untuk Admin, Head Office, Management, dan Project; `REGULATION_MANAGE` untuk Admin dan Head Office, termasuk delete. Layout guard dan API sama-sama menegakkan permission.
-- **UI:** accordion **Standard & Regulation** di Core Enterprise dengan lima submenu; root `/dashboard/regulation` redirect ke Prosedur WIKA; tabel berjenjang dengan `rowSpan` Sub-Kategori, kolom No/Kode/Judul/File/Catatan/Aksi; dialog tambah/edit/hapus; unduh per dokumen; empty state; mode baca untuk Management/Project.
-- **Upload UI:** form dokumen memilih file, menampilkan nama/ukuran, progress, lalu memakai token upload, menyimpan metadata, dan membersihkan blob baru bila penyimpanan metadata gagal. File lama tidak berubah bila penyimpanan gagal.
-- **Verifikasi:** `npx tsc --noEmit` PASS, ESLint file Regulation + sidebar PASS, `npm test` **270/270 PASS** (65 suite), `git diff --check` PASS. Build dengan route Regulation dan runtime visual Vercel belum dijalankan pada pass ini.
-- **Batasan:** status belum dinaikkan menjadi `IMPLEMENTED & VERIFIED` sampai Owner memeriksa visual Vercel, interaksi tabel/dialog, download, dan upload nyata.
-
-## 13. Database Green Building & ESG (18 November 2026)
-
-Dua submenu modul ini selesai bersamaan dan masuk commit `a6cbe60`.
-
-### 13.1 Sertifikasi Green Building
-
-**Status:** `IMPLEMENTED BUT NOT FULLY VERIFIED` — backend dan UI selesai; migration `0028_project_green_certificates` **APPLIED**; static checks PASS (286/286, 70 suite); visual Vercel belum dicek Owner. Detail: `DL-2026-11-18-01`; desain `docs/design/GREEN_BUILDING_P3_DESIGN.md`.
-
-- **Database:** tabel `project_green_certificates` dengan FK `project_id` ke `master_projects` (`ON DELETE RESTRICT`), CHECK komposit `lembaga` + `level`, CHECK `documentation_url` http(s) maksimal 2.048 karakter, serta index `pgc_project_id_idx` dan `pgc_certificate_year_idx`. Migration `0028_project_green_certificates` **APPLIED**; journal kini 30 entry setelah `0029` dibuat. Satu proyek dapat memiliki beberapa sertifikat; nama proyek selalu berasal dari JOIN `master_projects`.
-- **Nilai domain:** lembaga `BGH` (Utama, Madya, Pratama) atau `Greenship` (Certified/Bronze, Silver, Gold, Platinum); status `Certified`, `Non-Certified`, `Under Construction`. Dokumentasi hanya URL, tanpa upload/Blob.
-- **API:** `GET /api/green-building-esg/certificates?year=...&search=...`, `POST /api/green-building-esg/certificates`, `PUT`/`DELETE /api/green-building-esg/certificates/[id]`, dan `GET /api/green-building-esg/project-options?q=...`. List mengembalikan `data` + `meta.total` + `meta.available_years`; response privat `Cache-Control: private, no-store`.
-- **RBAC:** `GREEN_BUILDING_ESG_VIEW` untuk Admin, Head Office, Management, dan Project; `GREEN_BUILDING_ESG_MANAGE` untuk Admin dan Head Office. Layout guard, service, dan API sama-sama menegakkan permission; `GREEN_BUILDING_ESG_MANAGE` juga diperlukan untuk project-options.
-- **UI:** accordion **Database Green Building & ESG** di Core Enterprise, submenu **Sertifikasi Green Building**; halaman `/dashboard/green-building-esg/sertifikasi` dengan tabel 9 kolom, filter tahun dari `available_years`, search nama proyek (debounce 300 ms), skeleton, empty state, dialog tambah/edit, dan dialog hapus. Form memakai combobox Master Project dan level dinamis yang di-reset saat lembaga berubah. Read-only role melihat tabel tanpa tombol mutasi.
-- **Pemisahan modul:** namespace baru terpisah dari CMS lama `/dashboard/green-building` dan `/api/green-buildings`; modul KM tidak diubah.
-- **Verifikasi:** `npx tsc --noEmit` PASS, ESLint file Green Building + sidebar PASS, `npm test` **286/286 PASS** (70 suite), `git diff --check` PASS. Runtime visual Vercel dan RBAC 4 role belum dijalankan pada pass ini.
-- **Batasan:** status belum dinaikkan menjadi `IMPLEMENTED & VERIFIED` sampai Owner memeriksa visual Vercel, interaksi tabel/dialog, form dinamis Lembaga/Level, filter, search, dan RBAC Admin/Head Office vs Management/Project.
-
-### 13.2 Penilaian ESG
-
-**Status:** `IMPLEMENTED BUT NOT FULLY VERIFIED` — backend dan UI selesai; migration `0029_project_esg_assessments` **APPLIED** 18 November 2026 (dikonfirmasi `05898d5`); static checks PASS (286/286, 70 suite); visual Vercel belum dicek Owner. Detail: `DL-2026-11-18-02`; desain `docs/design/ESG_P3_DESIGN.md`.
-
-- **Database:** tabel `project_esg_assessments` — 12 kolom status bulan nullable (`month_1_status`–`month_12_status`), `UNIQUE(project_id, year)` (`pea_project_year_unique`), FK `project_id` `ON DELETE RESTRICT`, CHECK tiap bulan hanya `Complete`/`Half`/`NULL`, CHECK `documentation_url` http(s) maksimal 2.048 karakter, serta index `pea_year_idx`. `year` adalah snapshot `master_projects.year` yang diisi server, bukan dari body client.
-- **API:** `GET /api/green-building-esg/esg-assessments?year=...&search=...` (`meta.total`, `meta.available_years`), `POST`, `PUT`/`DELETE /api/green-building-esg/esg-assessments/[id]`, dan `PATCH /api/green-building-esg/esg-assessments/[id]/months/[month]` (satu bulan per request, idempoten, mengembalikan DTO lengkap). Body `.strict()` menolak `year` dari client; `project-options` dipakai ulang dari Sertifikasi.
-- **RBAC:** memakai ulang `GREEN_BUILDING_ESG_VIEW` (empat role) dan `GREEN_BUILDING_ESG_MANAGE` (Admin/Head Office); tidak ada permission baru.
-- **UI:** submenu **Penilaian ESG** di accordion yang sama; halaman `/dashboard/green-building-esg/esg` dengan tabel `table-fixed` 12 bulan, `<select>` native (kosong putih transparan, `Complete` hijau, `Half` kuning), state `savingCells` per sel dengan optimistic update dan rollback saat gagal, filter tahun dari `available_years`, search nama proyek (debounce 300 ms), dialog tambah/edit dengan tahun read-only dari proyek, dan dialog hapus.
-- **Verifikasi:** `npx tsc --noEmit` PASS, ESLint file ESG + sidebar PASS, `npm test` **286/286 PASS** (70 suite), `git diff --check` PASS. Runtime visual Vercel dan RBAC 4 role belum dijalankan pada pass ini.
-- **Batasan:** status belum dinaikkan menjadi `IMPLEMENTED & VERIFIED` sampai Owner memeriksa visual Vercel, interaksi 12 sel bulan, optimistic update/rollback, dialog form/hapus, filter, search, dan RBAC Admin/Head Office vs Management/Project, migration `0029` sudah **APPLIED** 18 November 2026 (dikonfirmasi `05898d5`).
-
-## 14. Building Learning Center (BLC) — 24 November 2026
-
-**Status:** `IMPLEMENTED BUT NOT FULLY VERIFIED` — backend Sub-fase 1 dan 2 serta seluruh UI selesai dalam commit `b833ca7`; migration `0030_building_learning_center` **APPLIED**; static checks PASS (299/299, 72 suite); runtime browser, upload Blob nyata, dan visual Vercel belum dicek Owner. Detail: `DL-2026-11-24-01`; desain `docs/design/BLC_P3_DESIGN.md`.
-
-- **Database:** tiga tabel — `learning_categories` (nama unik case-insensitive via `lower(btrim(nama))`, `sort_order`), `learning_contents` (tipe `sharing`/`training`/`certificate`, CHECK payload yang memisahkan `video_url` untuk sharing dan `external_url` untuk training/certificate, CHECK URL video YouTube/Vimeo embed, CHECK thumbnail https, `UNIQUE(id, type)`, index GIN trigram `judul`), dan `learning_attachments` (khusus `content_type = 'sharing'`, maksimal 20 MB, `file_pathname` unik, FK komposit `(content_id, content_type)` `ON DELETE CASCADE`). Migration `0030_building_learning_center` **APPLIED**; journal 31 entry.
-- **Storage:** namespace CMS `cms/learning/` untuk thumbnail publik; lampiran sharing disimpan di Blob privat dengan prefix `learning/` dan diunduh lewat route ber-guard; token unggah membedakan `kind` `thumbnail`/`attachment`; route cleanup `POST /api/learning/upload/cleanup` menghapus blob orphan dan menolak (409) pathname yang masih direferensikan baris database.
-- **API:** `GET`/`POST /api/learning/contents`, `GET`/`PUT`/`DELETE /api/learning/contents/[id]`, `GET`/`POST /api/learning/categories`, `POST /api/learning/upload-token`, `POST /api/learning/upload/cleanup`, dan `GET /api/learning/attachments/[id]/file`. List mengembalikan `meta.total`, `meta.page`, `meta.page_size` (24), dan `meta.available_categories`; DTO memuat `thumbnail_url`, `attachment_count`, dan `video_embed_url`. PATCH memakai union lampiran `{id, nama}` (lampiran lama dipertahankan) atau lampiran baru, sehingga edit tidak menghapus file yang tidak diubah.
-- **RBAC:** `LEARNING_VIEW` (Admin, Head Office, Management, Project) untuk layout guard dan pembacaan; `LEARNING_MANAGE` (Admin, Head Office) untuk mutasi dan halaman Admin Control. Layout `/dashboard/learning` menjaga `LEARNING_VIEW`; menu Admin Control hanya dirender untuk `LEARNING_MANAGE`.
-- **UI:** accordion **Building Learning Center** di Core Enterprise dengan submenu **Sharing Session**, **Training**, **Certificate**, dan **Admin Control**. Halaman grid kartu 24 item dengan filter Kategori dan search Judul; kartu Sharing membuka detail internal `/dashboard/learning/sharing/[id]` berisi judul, deskripsi, kategori, iframe video 16:9, daftar lampiran, dan tombol Kembali, sedangkan kartu Training/Certificate membuka `external_url` di tab baru. Admin Control memiliki tab Sharing/Training/Certificate/Kategori, tabel dengan Edit/Hapus, serta dialog form (judul, deskripsi, kategori, video URL + thumbnail + banyak lampiran untuk sharing; external link + thumbnail untuk training/certificate). Tab Kategori bersifat read-only karena kontrak API belum menyediakan PATCH/DELETE kategori; kategori baru dibuat inline dari form konten.
-- **Verifikasi:** `npx tsc --noEmit` PASS, ESLint seluruh file BLC + sidebar PASS, `npm test` **299/299 PASS** (72 suite, termasuk `learningSidebar.test.ts`), `git diff --check` PASS. Runtime browser, alur upload → simpan → unduh lampiran, dan RBAC 4 role belum dijalankan.
-- **Batasan:** status belum dinaikkan menjadi `IMPLEMENTED & VERIFIED` sampai Owner memeriksa visual Vercel, alur upload thumbnail/lampiran, edit konten yang mempertahankan lampiran lama, cleanup saat simpan gagal, download lampiran, serta RBAC Admin/Head Office vs Management/Project.
-
-## 15. Langkah Berikutnya
-
-1. Modul Berkas sudah `IMPLEMENTED & VERIFIED (Production-Ready)`; final acceptance tercatat pada `DL-2026-11-12-05`.
-2. Verifikasi visual Vercel untuk **Standard & Regulation**: lima submenu, header, tabel berjenjang, CRUD, download, upload PDF/Word/Excel/ZIP maksimal 20 MB, dan RBAC Admin/Head Office vs Management/Project.
-3. Verifikasi visual Vercel untuk Dashboard SASAA & Kelola Foto: carousel, empat widget, status foto, upload/ganti/hapus empat slot, dan RBAC Admin vs non-Admin.
-4. Verifikasi visual Vercel untuk **Database Green Building & ESG — Sertifikasi Green Building**: accordion sidebar, tabel, filter tahun, search proyek, dialog tambah/edit, level dinamis Lembaga/Level, dialog hapus, dan RBAC Admin/Head Office vs Management/Project.
-5. Verifikasi visual Vercel untuk **Database Green Building & ESG — Penilaian ESG**: submenu baru, tabel 12 bulan, tampilan `<select>` kosong/`Complete`/`Half`, optimistic update + rollback, filter tahun, search proyek, dialog tambah/edit, dialog hapus, dan RBAC Admin/Head Office vs Management/Project.
-6. Verifikasi visual Vercel untuk **Building Learning Center (BLC)**: accordion sidebar dengan tiga submenu + Admin Control, grid kartu 24 item, filter kategori, search judul, detail sharing (iframe 16:9 + lampiran), kartu training/certificate yang membuka tautan eksternal, dialog Admin (thumbnail + banyak lampiran), edit yang mempertahankan lampiran lama, cleanup upload, dan RBAC Admin/Head Office vs Management/Project.
-7. Smoke test browser opsional untuk Dashboard Welcoming, Revisi, Tolak, preview watermark, badge Sidebar, dan cover PDF jika akan deploy ulang.
-8. Pemeliharaan: pantau drift schema (snapshot `0030` tersedia) dan perilaku PDF pada perubahan berikutnya.
-9. Verifikasi visual dan runtime Vercel untuk **Revisi Dashboard SASAA**: enam grafik bulanan, filter komponen MSL (hanya grafik MSL berubah), tombol Next tabel KM (9 record per klik), banner GB, empty state (proyek tanpa foto/GB/KM), dan RBAC 4 role.
+- Status APPLIED migration `0031` (dan drift schema terhadap database produksi).
+- Visual/runtime Vercel untuk 6 area pada TD-03, termasuk RBAC 4 role di modul-modul baru.
+- Alur upload Blob nyata: Regulation (PDF/Word/Excel/ZIP), BLC (thumbnail + lampiran), foto proyek SASAA, foto profil.
+- Tampilan sidebar hasil redesign pada layar HP/drawer (kontras border 40%, panel biru, wrap label panjang).
+- Tampilan navbar dengan 6 item pada lebar 768–1100 px.
+- Isi database produksi (jumlah user, role, data konten), status deployment Vercel, dan domain.
+- Kebijakan resmi "frozen" MSL & Struktur Organisasi.

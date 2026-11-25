@@ -1,4 +1,4 @@
-import { upload } from "@vercel/blob/client";
+import { uploadFile } from "@/lib/storage/upload-client";
 import type { RegulationDisiplinKey } from "@/lib/regulation/constants";
 import {
   REGULATION_MAX_FILE_SIZE_BYTES,
@@ -98,16 +98,11 @@ export async function uploadRegulationFile(
     throw new Error("INVALID_FILE_NAME");
   }
 
-  const blob = await upload(pathname, file, {
-    access: "private",
+  const blob = await uploadFile(file, "/api/regulation/upload", {
+    pathname,
     contentType: resolveRegulationMimeType(file),
-    handleUploadUrl: "/api/regulation/upload",
-    multipart: true,
-    onUploadProgress: (event) => {
-      const percentage = Number(event.percentage);
-      if (Number.isFinite(percentage)) {
-        onProgress(Math.max(0, Math.min(100, Math.round(percentage))));
-      }
+    onProgress: (percentage) => {
+      onProgress(Math.max(0, Math.min(100, Math.round(percentage))));
     },
   });
 

@@ -238,6 +238,8 @@ async function verifyUploadSource(
     );
   }
   if (blob.size <= 0 || blob.size > TEMPLATE_FORM_MAX_FILE_SIZE_BYTES) {
+    // Over-limit bytes never become a record: remove the object first.
+    await deleteTemplateFormBlobBestEffort(blobPathname);
     throw new TemplateFormValidationError("Ukuran file maksimal 50 MB.");
   }
   if (

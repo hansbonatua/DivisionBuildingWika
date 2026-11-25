@@ -312,6 +312,8 @@ async function verifyUploadSource(input: {
     blob.size <= 0 ||
     blob.size > REGULATION_MAX_FILE_SIZE_BYTES
   ) {
+    // Over-limit bytes never become a record: remove the object first.
+    await deleteBlobBestEffort(filePathname);
     throw new RegulationValidationError("Ukuran file maksimal 20 MB.");
   }
 

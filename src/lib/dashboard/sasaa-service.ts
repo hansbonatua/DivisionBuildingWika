@@ -450,11 +450,14 @@ export async function saveProjectPhotos(
         "URL atau pathname foto tidak sesuai dengan file yang diunggah",
       );
     }
-    if (
-      !isCmsImageContentType(metadata.contentType) ||
-      metadata.size < 1 ||
-      metadata.size > CMS_IMAGE_MAX_BYTES
-    ) {
+    if (metadata.size < 1 || metadata.size > CMS_IMAGE_MAX_BYTES) {
+      // Over-limit bytes never become a record: remove the object first.
+      await deletePublicCmsBlob(photo.pathname).catch(() => undefined);
+      throw new SasaaValidationError(
+        "Foto harus berupa JPEG, PNG, WEBP, atau AVIF dengan ukuran maksimal 5 MB",
+      );
+    }
+    if (!isCmsImageContentType(metadata.contentType)) {
       throw new SasaaValidationError(
         "Foto harus berupa JPEG, PNG, WEBP, atau AVIF dengan ukuran maksimal 5 MB",
       );

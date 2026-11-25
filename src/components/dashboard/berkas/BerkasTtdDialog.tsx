@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
-import { upload } from "@vercel/blob/client";
+import { uploadFile } from "@/lib/storage/upload-client";
 import BerkasSignatureField from "@/components/dashboard/berkas/BerkasSignatureField";
 import {
   BERKAS_UPLOAD_TOKEN_URL,
@@ -104,16 +104,15 @@ export default function BerkasTtdDialog({
     try {
       const role = urutan === 1 ? "validasi-1" : "validasi-2";
       const pathname = buildValidatorTtdUploadPath(berkas.id, role, ttdFile);
-      const uploaded = await upload(pathname, ttdFile, {
-        access: "private",
-        handleUploadUrl: BERKAS_UPLOAD_TOKEN_URL,
-        clientPayload: JSON.stringify({
+      const uploaded = await uploadFile(ttdFile, BERKAS_UPLOAD_TOKEN_URL, {
+        pathname,
+        clientPayload: {
           kind: "validator_ttd",
           berkasId: berkas.id,
           role,
-        }),
+        },
         contentType: ttdFile.type,
-        onUploadProgress: ({ percentage }) => {
+        onProgress: (percentage) => {
           setProgress(Math.min(95, Math.round(percentage * 0.95)));
         },
       });

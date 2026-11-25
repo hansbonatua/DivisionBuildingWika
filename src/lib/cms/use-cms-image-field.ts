@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import { upload } from "@vercel/blob/client";
+import { uploadFile } from "@/lib/storage/upload-client";
 import {
   CMS_IMAGE_MAX_BYTES,
   cmsImageDefaultMimeType,
@@ -194,16 +194,11 @@ export function useCmsImageField(options: {
     busyRef.current = true;
     setUploadPercent(0);
     try {
-      const blob = await upload(pathname, file, {
-        access: "public",
+      const blob = await uploadFile(file, CMS_UPLOAD_ENDPOINT, {
+        pathname,
         contentType: file.type || cmsImageDefaultMimeType(file.name) || undefined,
-        handleUploadUrl: CMS_UPLOAD_ENDPOINT,
-        multipart: false,
-        onUploadProgress: (event) => {
-          const percentage = Number(event.percentage);
-          if (Number.isFinite(percentage)) {
-            setUploadPercent(Math.max(0, Math.min(100, Math.round(percentage))));
-          }
+        onProgress: (percentage) => {
+          setUploadPercent(Math.max(0, Math.min(100, Math.round(percentage))));
         },
       });
       return {

@@ -118,6 +118,8 @@ async function verifyUserPhotoUrl(
       );
     }
     if (metadata.size <= 0 || metadata.size > USER_PHOTO_MAX_BYTES) {
+      // Rejected uploads must not linger in the public bucket.
+      await deletePublicCmsBlob(pathname).catch(() => undefined);
       throw new InvalidUserPhotoError("Ukuran foto profil maksimal 2 MB.");
     }
     if (

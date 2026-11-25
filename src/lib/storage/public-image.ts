@@ -1,20 +1,24 @@
-import { BlobError, BlobNotFoundError, del, head } from "@vercel/blob";
+import { DeleteObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
+import {
+  getInternalS3Client,
+  isS3Configured,
+  isS3NotFoundError,
+  objectUrl,
+  readS3Config,
+} from "@/lib/storage/s3";
 
-// Thin, server-only wrapper around Vercel Blob for the PUBLIC CMS image store
-// (`bdwika-cms`).
+// Thin, server-only wrapper around the PUBLIC S3 (MinIO) bucket
+// (`S3_BUCKET_PUBLIC`, default `wibex-public`).
 //
 // Deliberately separate from @/lib/storage/blob, which is pinned to the PRIVATE
-// Template & Form document store:
-//   - this module never imports `openBlobDownload` and never asks for a stream;
-//   - it always passes the CMS read-write token explicitly, so the SDK can
-//     never fall back to `BLOB_READ_WRITE_TOKEN` (the private store token);
-//   - no `storeId`/OIDC path is used, because the read-write token is the only
-//     credential that can both verify metadata and mint a browser upload token.
+// bucket:
+//   - this module never opens a download stream;
+//   - every operation targets the public bucket explicitly, so an image can
+//     never be written into the document bucket by accident;
+//   - the exported surface is unchanged from the Vercel Blob implementation, so
+//     callers keep using headPublicCmsImage / deletePublicCmsBlob as before.
 //
 // Authorization stays in the routes/services; this file only talks to storage.
-// Credentials are never read into a return value, logged or serialized.
-
-const CMS_BLOB_TOKEN_ENV = "CMS_BLOB_READ_WRITE_TOKEN";
 
 export type PublicImageMetadata = {
   pathname: string;
@@ -28,53 +32,33 @@ export type PublicImageDeleteResult = {
   reason: "deleted" | "missing" | "not-configured";
 };
 
-/** The CMS public store has no usable credential configured. */
+/** The public bucket has no usable credential configured. */
 export class PublicImageStorageNotConfiguredError extends Error {
   constructor() {
-    super("CMS public image storage is not configured");
+    super("Public image storage is not configured");
     this.name = "PublicImageStorageNotConfiguredError";
   }
 }
 
-/** The CMS public store is configured but the request to it failed. */
+/** The public bucket is configured but the request to it failed. */
 export class PublicImageStorageUnavailableError extends Error {
   constructor(cause?: unknown) {
-    super("CMS public image storage request failed");
+    super("Public image storage request failed");
     this.name = "PublicImageStorageUnavailableError";
     this.cause = cause;
   }
 }
 
-/**
- * The CMS read-write token, or null when absent.
- *
- * Returned only to SDK calls in this module; never logged, never returned from
- * an API response and never persisted.
- */
-function resolveCmsBlobToken(): string | null {
-  const token = process.env[CMS_BLOB_TOKEN_ENV]?.trim();
-  return token && token.length > 0 ? token : null;
-}
-
 export function isPublicImageStorageConfigured(): boolean {
-  return resolveCmsBlobToken() !== null;
+  return isS3Configured();
 }
 
-/**
- * The CMS read-write token for server-side SDK configuration (client-upload
- * token signing). Server-only: never serialize it into a response, log it or
- * import this module from a Client Component.
- */
-export function resolveCmsBlobReadWriteToken(): string | null {
-  return resolveCmsBlobToken();
-}
-
-function requireCmsToken(): string {
-  const token = resolveCmsBlobToken();
-  if (!token) {
+function requireConfig() {
+  const config = readS3Config();
+  if (!config) {
     throw new PublicImageStorageNotConfiguredError();
   }
-  return token;
+  return config;
 }
 
 function normalizeStorageError(error: unknown): Error {
@@ -84,58 +68,67 @@ function normalizeStorageError(error: unknown): Error {
   ) {
     return error;
   }
-  if (
-    error instanceof BlobError &&
-    /no blob credentials|no read-write token/i.test(error.message)
-  ) {
-    return new PublicImageStorageNotConfiguredError();
-  }
   return new PublicImageStorageUnavailableError(error);
 }
 
 /**
- * Metadata of a public CMS object, or null when it does not exist.
+ * Metadata of a public object, or null when it does not exist.
  *
- * `token` is always passed explicitly: without it the SDK would authenticate
- * with `BLOB_READ_WRITE_TOKEN` (the PRIVATE store) and look in the wrong store.
+ * `url` is the canonical public URL, i.e. exactly the string a record stores.
+ * Verification compares the stored URL against it, so a record can never claim
+ * an object that lives somewhere else.
  */
 export async function headPublicCmsImage(
   pathname: string,
 ): Promise<PublicImageMetadata | null> {
-  const token = requireCmsToken();
+  const config = requireConfig();
   try {
-    const result = await head(pathname, { token });
+    const result = await getInternalS3Client(config).send(
+      new HeadObjectCommand({
+        Bucket: config.bucketPublic,
+        Key: pathname,
+      }),
+    );
     return {
-      pathname: result.pathname,
-      size: result.size,
-      contentType: result.contentType,
-      url: result.url,
+      pathname,
+      size: result.ContentLength ?? 0,
+      contentType: result.ContentType ?? "application/octet-stream",
+      url: objectUrl("public", pathname),
     };
   } catch (error) {
-    if (error instanceof BlobNotFoundError) return null;
+    if (isS3NotFoundError(error)) return null;
     throw normalizeStorageError(error);
   }
 }
 
 /**
- * Best-effort delete of a public CMS object. A missing object is not an error
+ * Best-effort delete of a public object. A missing object is not an error
  * (idempotent cleanup).
  *
  * Callers must already have verified that the object is CMS-owned and that no
- * CMS record references the pathname.
+ * record references the pathname.
  */
 export async function deletePublicCmsBlob(
   pathname: string,
 ): Promise<PublicImageDeleteResult> {
-  const token = resolveCmsBlobToken();
-  if (!token) {
+  const config = readS3Config();
+  if (!config) {
     return { deleted: false, reason: "not-configured" };
   }
   try {
-    await del(pathname, { token });
+    const existing = await headPublicCmsImage(pathname);
+    if (!existing) {
+      return { deleted: false, reason: "missing" };
+    }
+    await getInternalS3Client(config).send(
+      new DeleteObjectCommand({
+        Bucket: config.bucketPublic,
+        Key: pathname,
+      }),
+    );
     return { deleted: true, reason: "deleted" };
   } catch (error) {
-    if (error instanceof BlobNotFoundError) {
+    if (isS3NotFoundError(error)) {
       return { deleted: false, reason: "missing" };
     }
     throw normalizeStorageError(error);
@@ -143,7 +136,7 @@ export async function deletePublicCmsBlob(
 }
 
 /**
- * Defence-in-depth probe: a public CMS object must answer 2xx to an anonymous
+ * Defence-in-depth probe: a public object must answer 2xx to an anonymous
  * request. Returns null when the probe itself is inconclusive.
  */
 export async function isPublicImageReachable(

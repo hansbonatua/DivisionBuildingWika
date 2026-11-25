@@ -63,12 +63,26 @@ const canvasContext = new Proxy({} as Record<string | symbol, unknown>, {
   }
 ).getContext = () => canvasContext;
 
-// @vercel/blob/client is a CommonJS module here; the dialog reads `.upload` at
-// call time, so replacing the property mocks the upload for the whole suite.
+// The dialog imports `uploadFile` from a TypeScript module, whose exports are
+// live bindings (getter-only). Replace the cached module exports with a
+// delegating wrapper so each test can install its own mock.
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const blobClient = require("@vercel/blob/client") as {
-  upload: (...args: unknown[]) => Promise<{ pathname: string }>;
+type UploadImpl = (
+  ...args: unknown[]
+) => Promise<{ pathname: string; url: string }>;
+let uploadImpl: UploadImpl = async () => {
+  throw new Error("uploadFile mock not installed");
 };
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const uploadModuleId = require.resolve("@/lib/storage/upload-client");
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const realUploadClient = require(uploadModuleId) as Record<string, unknown>;
+if (require.cache[uploadModuleId]) {
+  require.cache[uploadModuleId].exports = {
+    ...realUploadClient,
+    uploadFile: (...args: unknown[]) => uploadImpl(...args),
+  };
+}
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { cleanup, fireEvent, render, screen, waitFor } = require("@testing-library/react") as typeof import("@testing-library/react");
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -130,10 +144,10 @@ test("dialog menampilkan tab Upload File aktif dan tab Gambar TTD", () => {
 
 type FetchFn = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 type UploadFn = (
-  pathname: string,
   body: File,
-  options?: unknown,
-) => Promise<{ pathname: string }>;
+  tokenRoute: string,
+  options: { pathname: string },
+) => Promise<{ pathname: string; url: string }>;
 
 test("submit tanpa TTD menampilkan error lokal dan tidak memanggil fetch", () => {
   const fetchMock = mock.fn<FetchFn>(async () => new Response("{}", { status: 200 }));
@@ -147,8 +161,11 @@ test("submit tanpa TTD menampilkan error lokal dan tidak memanggil fetch", () =>
 });
 
 test("upload PNG lalu Simpan mengirim pathname dan catatan ke API", async () => {
-  const uploadMock = mock.fn<UploadFn>(async () => ({ pathname: UPLOADED_PATHNAME }));
-  blobClient.upload = uploadMock as unknown as typeof blobClient.upload;
+  const uploadMock = mock.fn<UploadFn>(async () => ({
+    pathname: UPLOADED_PATHNAME,
+    url: `https://storage.test/wibex-public/${UPLOADED_PATHNAME}`,
+  }));
+  uploadImpl = uploadMock as unknown as typeof uploadImpl;
   const fetchMock = mock.fn<FetchFn>(async () => new Response("{}", { status: 200 }));
   globals.fetch = fetchMock;
 
@@ -161,9 +178,13 @@ test("upload PNG lalu Simpan mengirim pathname dan catatan ke API", async () => 
 
   assert.equal(uploadMock.mock.callCount(), 1);
   const uploadArgs = uploadMock.mock.calls[0]?.arguments ?? [];
-  assert.equal(typeof uploadArgs[0], "string");
-  assert.match(String(uploadArgs[0]), new RegExp(`^berkas/${BERKAS_ID}/validasi/1/`));
-  assert.equal(uploadArgs[1], file);
+  assert.equal(uploadArgs[0], file);
+  assert.equal(uploadArgs[1], "/api/berkas/upload-token");
+  const uploadOptions = uploadArgs[2] as { pathname: string };
+  assert.match(
+    uploadOptions.pathname,
+    new RegExp(`^berkas/${BERKAS_ID}/validasi/1/`),
+  );
 
   assert.equal(fetchMock.mock.callCount(), 1);
   const fetchArgs = fetchMock.mock.calls[0]?.arguments ?? [];

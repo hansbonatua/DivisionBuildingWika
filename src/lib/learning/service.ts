@@ -291,6 +291,8 @@ async function verifyThumbnail(
     );
   }
   if (metadata.size <= 0 || metadata.size > LEARNING_THUMBNAIL_MAX_BYTES) {
+    // Over-limit bytes never become a record: remove the object first.
+    await deletePublicBlobBestEffort(pathname);
     throw new LearningValidationError("Ukuran thumbnail maksimal 5 MB.");
   }
 
@@ -350,6 +352,8 @@ async function verifyAttachment(
     );
   }
   if (metadata.size <= 0 || metadata.size > LEARNING_ATTACHMENT_MAX_BYTES) {
+    // Over-limit bytes never become a record: remove the object first.
+    await deletePrivateBlobBestEffort(pathname);
     throw new LearningValidationError("Ukuran lampiran maksimal 20 MB.");
   }
 

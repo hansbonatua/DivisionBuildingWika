@@ -1,6 +1,6 @@
 "use client";
 
-import { upload } from "@vercel/blob/client";
+import { uploadFile } from "@/lib/storage/upload-client";
 import { useEffect, useRef, useState } from "react";
 import LearningDialogShell from "@/components/dashboard/learning/LearningDialogShell";
 import { readLearningApiError } from "@/components/dashboard/learning/api-error";
@@ -298,12 +298,11 @@ export default function LearningFormDialog({
         if (!pathname) {
           throw new Error("Format gambar thumbnail tidak didukung.");
         }
-        await upload(pathname, thumbnailFile, {
-          access: "public",
-          handleUploadUrl: UPLOAD_TOKEN_URL,
-          clientPayload: JSON.stringify({ kind: "thumbnail" }),
+        await uploadFile(thumbnailFile, UPLOAD_TOKEN_URL, {
+          pathname,
           contentType: thumbnailFile.type || undefined,
-          onUploadProgress: ({ percentage }) => {
+          clientPayload: { kind: "thumbnail" },
+          onProgress: (percentage) => {
             setProgress(Math.min(40, Math.round(percentage * 0.4)));
           },
         });
@@ -323,15 +322,14 @@ export default function LearningFormDialog({
           if (!pathname) {
             throw new Error(`Format file ${pending.file.name} tidak didukung.`);
           }
-          await upload(pathname, pending.file, {
-            access: "private",
-            handleUploadUrl: UPLOAD_TOKEN_URL,
-            clientPayload: JSON.stringify({ kind: "attachment" }),
+          await uploadFile(pending.file, UPLOAD_TOKEN_URL, {
+            pathname,
             contentType:
               pending.file.type ||
               learningAttachmentDefaultMimeType(pending.file.name) ||
               undefined,
-            onUploadProgress: ({ percentage }) => {
+            clientPayload: { kind: "attachment" },
+            onProgress: (percentage) => {
               const share = 40 / Math.max(1, pendingAttachments.length);
               setProgress(
                 Math.min(

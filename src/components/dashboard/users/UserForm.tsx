@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { upload } from "@vercel/blob/client";
+import { uploadFile } from "@/lib/storage/upload-client";
 import { POSITION_OPTIONS } from "@/lib/users/options";
 import {
   USER_PHOTO_ALLOWED_TYPES,
@@ -168,19 +168,18 @@ export default function UserForm({
       setUploading(true);
       setUploadPercent(0);
       try {
-        const blob = await upload(pathname, pendingPhotoFile, {
-          access: "public",
-          contentType: pendingPhotoFile.type,
-          handleUploadUrl: "/api/users/photo/upload-token",
-          clientPayload: JSON.stringify({ userId }),
-          multipart: false,
-          onUploadProgress: (event) => {
-            const percentage = Number(event.percentage);
-            if (Number.isFinite(percentage)) {
+        const blob = await uploadFile(
+          pendingPhotoFile,
+          "/api/users/photo/upload-token",
+          {
+            pathname,
+            contentType: pendingPhotoFile.type,
+            clientPayload: { userId },
+            onProgress: (percentage) => {
               setUploadPercent(Math.max(0, Math.min(100, Math.round(percentage))));
-            }
+            },
           },
-        });
+        );
         nextPhotoUrl = blob.url;
         setFormPhotoUrl(blob.url);
         setPhotoPreview(blob.url);

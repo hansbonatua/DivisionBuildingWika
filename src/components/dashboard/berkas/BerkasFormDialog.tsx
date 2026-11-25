@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
-import { upload } from "@vercel/blob/client";
+import { uploadFile } from "@/lib/storage/upload-client";
 import {
   BERKAS_UPLOAD_TOKEN_URL,
   PDF_MAX_BYTES,
@@ -236,26 +236,24 @@ export default function BerkasFormDialog({
       const pdfPath = buildOriginalUploadPath(currentUser.id, uploadId);
       const ttdPath = buildPenyusunTtdUploadPath(currentUser.id, uploadId, ttdFile);
 
-      const originalPdf = await upload(pdfPath, pdfFile, {
-        access: "private",
-        handleUploadUrl: BERKAS_UPLOAD_TOKEN_URL,
-        clientPayload: JSON.stringify({ kind: "original", uploadId }),
+      const originalPdf = await uploadFile(pdfFile, BERKAS_UPLOAD_TOKEN_URL, {
+        pathname: pdfPath,
+        clientPayload: { kind: "original", uploadId },
         contentType: "application/pdf",
-        onUploadProgress: ({ percentage }) => {
+        onProgress: (percentage) => {
           setProgress(Math.max(10, Math.round(percentage * 0.65)));
         },
       });
 
-      const penyusunTtd = await upload(ttdPath, ttdFile, {
-        access: "private",
-        handleUploadUrl: BERKAS_UPLOAD_TOKEN_URL,
-        clientPayload: JSON.stringify({
+      const penyusunTtd = await uploadFile(ttdFile, BERKAS_UPLOAD_TOKEN_URL, {
+        pathname: ttdPath,
+        clientPayload: {
           kind: "penyusun_ttd",
           uploadId,
           urutan: 1,
-        }),
+        },
         contentType: ttdFile.type,
-        onUploadProgress: ({ percentage }) => {
+        onProgress: (percentage) => {
           setProgress(70 + Math.round(percentage * 0.15));
         },
       });

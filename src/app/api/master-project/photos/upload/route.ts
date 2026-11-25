@@ -1,37 +1,44 @@
 import { NextResponse } from "next/server";
-import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import {
   getPermittedActor,
   mapPermissionError,
 } from "@/lib/auth/require-permission";
 import {
-  CMS_IMAGE_CACHE_CONTROL_MAX_AGE_SECONDS,
   CMS_IMAGE_MAX_BYTES,
-  CMS_IMAGE_UPLOAD_ALLOWED_CONTENT_TYPES,
+  isCmsImageContentType,
 } from "@/lib/cms/image-source";
 import { parseProjectPhotoPathname } from "@/lib/dashboard/project-photo-storage";
 import { getMasterProjectById } from "@/lib/master-project/repository";
 import {
   PublicImageStorageNotConfiguredError,
   PublicImageStorageUnavailableError,
+  headPublicCmsImage,
   isPublicImageStorageConfigured,
-  resolveCmsBlobReadWriteToken,
 } from "@/lib/storage/public-image";
+import {
+  contentTypeRejected,
+  createUploadTicket,
+  declaredSizeRejected,
+  readUploadTicketRequest,
+  uploadRequestRejected,
+} from "@/lib/storage/upload-presign";
 
-const STORAGE_NOT_CONFIGURED =
-  "Penyimpanan gambar belum dikonfigurasi.";
+// SASAA project-photo upload ticket route.
+//
+// The browser uploads straight to the PUBLIC bucket; this route only proves the
+// caller may write the requested slot of the requested project and mints a
+// short-lived presigned PUT for that exact pathname.
+
+const STORAGE_NOT_CONFIGURED = "Penyimpanan gambar belum dikonfigurasi.";
 const PATH_REJECTED =
   "Lokasi atau data foto proyek tidak valid. Unggah ulang foto.";
+const SIZE_REJECTED = "Ukuran foto proyek melebihi batas 5 MB.";
+const CONTENT_TYPE_REJECTED =
+  "Tipe file foto proyek tidak didukung. Gunakan JPG, PNG, WEBP, atau AVIF.";
+
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-class UploadPathRejectedError extends Error {
-  constructor() {
-    super(PATH_REJECTED);
-    this.name = "UploadPathRejectedError";
-  }
-}
 
 class UploadProjectNotFoundError extends Error {
   constructor() {
@@ -40,26 +47,22 @@ class UploadProjectNotFoundError extends Error {
   }
 }
 
-function parseClientPayload(
-  raw: unknown,
+function parseProjectPayload(
+  raw: Record<string, unknown> | null,
 ): { projectId: string; slot: number } | null {
-  if (typeof raw !== "string") return null;
-  try {
-    const value = JSON.parse(raw) as { projectId?: unknown; slot?: unknown };
-    if (
-      typeof value.projectId !== "string" ||
-      !UUID_RE.test(value.projectId) ||
-      typeof value.slot !== "number" ||
-      !Number.isInteger(value.slot) ||
-      value.slot < 1 ||
-      value.slot > 4
-    ) {
-      return null;
-    }
-    return { projectId: value.projectId, slot: value.slot };
-  } catch {
+  if (!raw) return null;
+  const { projectId, slot } = raw;
+  if (
+    typeof projectId !== "string" ||
+    !UUID_RE.test(projectId) ||
+    typeof slot !== "number" ||
+    !Number.isInteger(slot) ||
+    slot < 1 ||
+    slot > 4
+  ) {
     return null;
   }
+  return { projectId, slot };
 }
 
 export async function POST(request: Request) {
@@ -67,74 +70,45 @@ export async function POST(request: Request) {
     const auth = await getPermittedActor(PERMISSIONS.MASTER_PROJECT_PHOTOS_MANAGE);
     if ("response" in auth) return auth.response;
 
-    const token = resolveCmsBlobReadWriteToken();
-    if (!token || !isPublicImageStorageConfigured()) {
+    if (!isPublicImageStorageConfigured()) {
       return NextResponse.json(
         { error: { message: STORAGE_NOT_CONFIGURED } },
         { status: 503 },
       );
     }
 
-    let body: unknown;
-    try {
-      body = await request.json();
-    } catch {
-      return NextResponse.json(
-        { error: { message: "Body harus berupa JSON yang valid" } },
-        { status: 400 },
-      );
-    }
+    const body = await readUploadTicketRequest(request);
+    if (!body) return uploadRequestRejected("Permintaan upload tidak valid");
+
+    const parsedPath = parseProjectPhotoPathname(body.pathname);
+    const payload = parseProjectPayload(body.clientPayload);
     if (
-      typeof body !== "object" ||
-      body === null ||
-      typeof (body as { type?: unknown }).type !== "string"
+      !parsedPath ||
+      !payload ||
+      parsedPath.projectId !== payload.projectId ||
+      parsedPath.slot !== payload.slot
     ) {
-      return NextResponse.json(
-        { error: { message: "Permintaan upload tidak valid" } },
-        { status: 400 },
-      );
+      return uploadRequestRejected(PATH_REJECTED);
+    }
+    if (!isCmsImageContentType(body.contentType)) {
+      return contentTypeRejected(CONTENT_TYPE_REJECTED);
+    }
+    if (body.sizeBytes > CMS_IMAGE_MAX_BYTES) {
+      return declaredSizeRejected(SIZE_REJECTED);
     }
 
-    const result = await handleUpload({
-      request,
-      body: body as HandleUploadBody,
-      token,
-      onBeforeGenerateToken: async (pathname, clientPayload) => {
-        const parsedPath = parseProjectPhotoPathname(pathname);
-        const payload = parseClientPayload(clientPayload);
-        if (
-          !parsedPath ||
-          !payload ||
-          parsedPath.projectId !== payload.projectId ||
-          parsedPath.slot !== payload.slot
-        ) {
-          throw new UploadPathRejectedError();
-        }
+    const project = await getMasterProjectById(payload.projectId);
+    if (!project) {
+      throw new UploadProjectNotFoundError();
+    }
 
-        const project = await getMasterProjectById(payload.projectId);
-        if (!project) {
-          throw new UploadProjectNotFoundError();
-        }
-
-        return {
-          allowedContentTypes: [...CMS_IMAGE_UPLOAD_ALLOWED_CONTENT_TYPES],
-          maximumSizeInBytes: CMS_IMAGE_MAX_BYTES,
-          addRandomSuffix: false,
-          allowOverwrite: false,
-          cacheControlMaxAge: CMS_IMAGE_CACHE_CONTROL_MAX_AGE_SECONDS,
-          validUntil: Date.now() + 10 * 60 * 1000,
-        };
-      },
+    return await createUploadTicket({
+      visibility: "public",
+      pathname: body.pathname,
+      contentType: body.contentType,
+      alreadyExists: (await headPublicCmsImage(body.pathname)) !== null,
     });
-
-    return NextResponse.json(result, { status: 200 });
   } catch (error) {
-    if (error instanceof UploadPathRejectedError) {
-      return NextResponse.json(
-        { error: { message: PATH_REJECTED } },
-        { status: 400 },
-      );
-    }
     if (error instanceof UploadProjectNotFoundError) {
       return NextResponse.json(
         { error: { message: error.message } },

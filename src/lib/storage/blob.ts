@@ -1,16 +1,30 @@
-import { BlobError, BlobNotFoundError, del, get, head, put } from "@vercel/blob";
+import { Readable } from "node:stream";
+import {
+  DeleteObjectCommand,
+  GetObjectCommand,
+  HeadObjectCommand,
+  PutObjectCommand,
+} from "@aws-sdk/client-s3";
+import {
+  getInternalS3Client,
+  isS3Configured,
+  isS3NotFoundError,
+  objectUrl,
+  readS3Config,
+} from "@/lib/storage/s3";
 
-// Thin, server-only wrapper around Vercel Blob (private store).
+// Thin, server-only wrapper around the PRIVATE S3 (MinIO) bucket.
 //
 // Responsibilities ONLY: read/write metadata, stream a private download, delete
 // an object, and normalize infrastructure failures into a small set of typed
-// errors. Authorization belongs to the Template & Form service/routes.
+// errors. Authorization belongs to the module services/routes.
 //
-// Credentials resolve exactly like the SDK does:
-//   - BLOB_READ_WRITE_TOKEN (static, local development / non-Vercel hosts)
-//   - VERCEL_OIDC_TOKEN + BLOB_STORE_ID (OIDC, injected by Vercel for a
-//     connected store — no static token required in production)
-// Nothing here ever reads, logs or returns the credential value.
+// The exported surface is unchanged from the Vercel Blob implementation on
+// purpose: callers keep calling headBlob / openBlobDownload / putPrivateBlob /
+// deleteBlob and keep receiving the same shapes. Only the transport moved.
+//
+// Credentials live in @/lib/storage/s3 and are never read, logged or returned
+// from here.
 
 export type BlobObjectMetadata = {
   pathname: string;
@@ -34,7 +48,7 @@ export type BlobDeleteResult = {
 /** Storage is unreachable because no credential/store is configured. */
 export class BlobStorageNotConfiguredError extends Error {
   constructor() {
-    super("Vercel Blob is not configured");
+    super("Object storage is not configured");
     this.name = "BlobStorageNotConfiguredError";
   }
 }
@@ -42,28 +56,23 @@ export class BlobStorageNotConfiguredError extends Error {
 /** Storage is configured but the request to it failed. */
 export class BlobStorageUnavailableError extends Error {
   constructor(cause?: unknown) {
-    super("Vercel Blob request failed");
+    super("Object storage request failed");
     this.name = "BlobStorageUnavailableError";
     this.cause = cause;
   }
 }
 
 export function isBlobStorageConfigured(): boolean {
-  const readWriteToken = process.env.BLOB_READ_WRITE_TOKEN?.trim();
-  if (readWriteToken) return true;
-  const oidcToken = process.env.VERCEL_OIDC_TOKEN?.trim();
-  const storeId = process.env.BLOB_STORE_ID?.trim();
-  return Boolean(oidcToken && storeId);
+  return isS3Configured();
 }
 
 /**
- * Client uploads are a SEPARATE capability from reads: `handleUpload` signs the
- * browser's upload token with the static read-write token, so OIDC alone can
- * never mint one (verified live: the SDK throws before any request is made).
- * Route handlers use this to answer 503 instead of failing deep inside the SDK.
+ * Minting a presigned PUT is a SEPARATE capability from reads: it needs the
+ * access key pair, which is exactly what `isS3Configured()` proves. Route
+ * handlers use this to answer 503 instead of failing deep inside the SDK.
  */
 export function isBlobClientUploadConfigured(): boolean {
-  return Boolean(process.env.BLOB_READ_WRITE_TOKEN?.trim());
+  return isS3Configured();
 }
 
 function normalizeStorageError(error: unknown): Error {
@@ -73,96 +82,105 @@ function normalizeStorageError(error: unknown): Error {
   ) {
     return error;
   }
-  if (
-    error instanceof BlobError &&
-    /no blob credentials|no read-write token/i.test(error.message)
-  ) {
-    return new BlobStorageNotConfiguredError();
-  }
   return new BlobStorageUnavailableError(error);
 }
 
-async function requireConfigured(): Promise<void> {
-  if (!isBlobStorageConfigured()) {
+function requireConfig() {
+  const config = readS3Config();
+  if (!config) {
     throw new BlobStorageNotConfiguredError();
   }
+  return config;
 }
 
 /**
  * Metadata of a stored object, or null when it does not exist.
- * Works for private blobs: the control-plane metadata call is token-scoped.
+ * `url` is the object's address in the private namespace; the reachability
+ * probe relies on it NOT answering 2xx anonymously.
  */
 export async function headBlob(
   pathname: string,
 ): Promise<BlobObjectMetadata | null> {
-  await requireConfigured();
+  const config = requireConfig();
   try {
-    const result = await head(pathname);
+    const result = await getInternalS3Client(config).send(
+      new HeadObjectCommand({
+        Bucket: config.bucketPrivate,
+        Key: pathname,
+      }),
+    );
     return {
-      pathname: result.pathname,
-      size: result.size,
-      contentType: result.contentType,
-      url: result.url,
-      uploadedAt: result.uploadedAt,
+      pathname,
+      size: result.ContentLength ?? 0,
+      contentType: result.ContentType ?? "application/octet-stream",
+      url: objectUrl("private", pathname),
+      uploadedAt: result.LastModified ?? new Date(),
     };
   } catch (error) {
-    if (error instanceof BlobNotFoundError) return null;
+    if (isS3NotFoundError(error)) return null;
     throw normalizeStorageError(error);
   }
 }
 
 /**
- * Reads a PRIVATE blob as a stream. `access: "private"` is mandatory for the
- * private store and is pinned here, never accepted from a caller or client.
+ * Reads a PRIVATE object as a stream. The bucket is pinned here, never
+ * accepted from a caller or client.
  */
 export async function openBlobDownload(
   pathname: string,
 ): Promise<BlobDownload | null> {
-  await requireConfigured();
+  const config = requireConfig();
   try {
-    const result = await get(pathname, { access: "private" });
-    if (!result || result.statusCode !== 200 || !result.stream) {
-      return null;
-    }
+    const result = await getInternalS3Client(config).send(
+      new GetObjectCommand({
+        Bucket: config.bucketPrivate,
+        Key: pathname,
+      }),
+    );
+    if (!result.Body) return null;
     return {
-      stream: result.stream,
-      contentType: result.blob.contentType,
-      size: result.blob.size,
+      stream: Readable.toWeb(
+        result.Body as Readable,
+      ) as ReadableStream<Uint8Array>,
+      contentType: result.ContentType ?? "application/octet-stream",
+      size: result.ContentLength ?? 0,
     };
   } catch (error) {
-    if (error instanceof BlobNotFoundError) return null;
+    if (isS3NotFoundError(error)) return null;
     throw normalizeStorageError(error);
   }
 }
 
 /**
- * Writes bytes owned by the server to the PRIVATE store. Access and collision
- * policy are pinned here: callers cannot accidentally create a public object
- * or overwrite an existing one. Client-uploaded files are never written through
- * this helper; they arrive through a scoped upload token.
+ * Writes bytes owned by the server to the PRIVATE bucket. Bucket and collision
+ * policy are pinned here: callers cannot accidentally write to the public
+ * bucket or overwrite an existing object. Client-uploaded files never come
+ * through this helper; they arrive through a presigned PUT.
  */
 export async function putPrivateBlob(
   pathname: string,
-  body: Parameters<typeof put>[1],
+  body: Uint8Array | string | Readable,
   contentType: string,
 ): Promise<BlobObjectMetadata> {
-  await requireConfigured();
+  const config = requireConfig();
   try {
-    const result = await put(pathname, body, {
-      access: "private",
-      allowOverwrite: false,
-      addRandomSuffix: false,
-      contentType,
-    });
-    // PutBlobResult intentionally omits size/uploadedAt; read the authoritative
-    // metadata once so callers get the same shape as headBlob().
-    const metadata = await headBlob(result.pathname);
+    await getInternalS3Client(config).send(
+      new PutObjectCommand({
+        Bucket: config.bucketPrivate,
+        Key: pathname,
+        Body: body,
+        ContentType: contentType,
+      }),
+    );
+    // Read the authoritative metadata once so callers get the same shape as
+    // headBlob(), including the stored size.
+    const metadata = await headBlob(pathname);
     if (metadata) return metadata;
     return {
-      pathname: result.pathname,
+      pathname,
       size: 0,
-      contentType: result.contentType ?? contentType,
-      url: result.url,
+      contentType,
+      url: objectUrl("private", pathname),
       uploadedAt: new Date(),
     };
   } catch (error) {
@@ -172,20 +190,31 @@ export async function putPrivateBlob(
 
 /**
  * Best-effort delete. A missing object is not an error (idempotent cleanup).
- * Callers must have already verified that no Template & Form row references the
- * pathname.
+ * Callers must have already verified that no record references the pathname.
  */
 export async function deleteBlob(
   pathname: string,
 ): Promise<BlobDeleteResult> {
-  if (!isBlobStorageConfigured()) {
+  const config = readS3Config();
+  if (!config) {
     return { deleted: false, reason: "not-configured" };
   }
   try {
-    await del(pathname);
+    // S3 DeleteObject is idempotent and answers 204 for a missing key, so the
+    // existence probe is what keeps the "missing" outcome meaningful.
+    const existing = await headBlob(pathname);
+    if (!existing) {
+      return { deleted: false, reason: "missing" };
+    }
+    await getInternalS3Client(config).send(
+      new DeleteObjectCommand({
+        Bucket: config.bucketPrivate,
+        Key: pathname,
+      }),
+    );
     return { deleted: true, reason: "deleted" };
   } catch (error) {
-    if (error instanceof BlobNotFoundError) {
+    if (isS3NotFoundError(error)) {
       return { deleted: false, reason: "missing" };
     }
     throw normalizeStorageError(error);
@@ -195,7 +224,7 @@ export async function deleteBlob(
 /**
  * Defence-in-depth probe: is the object downloadable WITHOUT credentials?
  *
- * A private-store object must not answer 2xx to an anonymous request. Returns
+ * A private-bucket object must not answer 2xx to an anonymous request. Returns
  * null when the probe itself is inconclusive (network failure), so callers can
  * distinguish "definitely public" from "could not check".
  */
@@ -216,8 +245,8 @@ export async function isBlobPubliclyReachable(
 
 /**
  * Safe inline `Content-Disposition`. PDFs are streamed through the authenticated
- * viewer route, never through a public Blob URL; this header keeps the browser
- * from forcing a download while still providing a useful filename.
+ * viewer route, never through a public URL; this header keeps the browser from
+ * forcing a download while still providing a useful filename.
  *
  * A quoted ASCII fallback plus RFC 5987 encoding handles non-ASCII titles
  * without allowing header injection.

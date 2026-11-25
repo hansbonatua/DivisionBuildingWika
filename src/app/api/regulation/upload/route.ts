@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import {
   isValidRegulationBlobPathname,
   REGULATION_MAX_FILE_SIZE_BYTES,
@@ -9,17 +8,31 @@ import {
   ensureRegulationManage,
   RegulationValidationError,
 } from "@/lib/regulation/service";
-import { isBlobClientUploadConfigured } from "@/lib/storage/blob";
+import { headBlob, isBlobClientUploadConfigured } from "@/lib/storage/blob";
 import {
-  getActor,
-  handleRouteError,
-} from "../_helpers";
+  contentTypeRejected,
+  createUploadTicket,
+  declaredSizeRejected,
+  readUploadTicketRequest,
+  uploadRequestRejected,
+} from "@/lib/storage/upload-presign";
+import { getActor, handleRouteError } from "../_helpers";
 
 // POST /api/regulation/upload
 //
-// Mints a short-lived token for a direct browser -> Private Blob upload. File
-// bytes never pass through this function. The document row is created later by
-// POST /sub-kategori/[id]/document, where the stored object is verified.
+// Mints a short-lived presigned PUT for a direct browser -> PRIVATE bucket
+// upload. File bytes never pass through this function. The document row is
+// created later by POST /sub-kategori/[id]/document, where the stored object is
+// verified again.
+
+const SIZE_REJECTED_MESSAGE = "Ukuran file maksimal 20 MB.";
+const CONTENT_TYPE_REJECTED_MESSAGE =
+  "Tipe file tidak didukung. Gunakan PDF, Word, Excel, atau ZIP.";
+
+function normalizeContentType(value: string): string {
+  return value.split(";")[0]?.trim().toLowerCase() ?? "";
+}
+
 export async function POST(request: Request) {
   try {
     const actor = await getActor();
@@ -32,51 +45,36 @@ export async function POST(request: Request) {
       );
     }
 
-    let body: unknown;
-    try {
-      body = await request.json();
-    } catch {
-      throw new RegulationValidationError(
-        "Permintaan upload tidak valid",
-      );
-    }
-    if (
-      typeof body !== "object" ||
-      body === null ||
-      typeof (body as { type?: unknown }).type !== "string"
-    ) {
+    const body = await readUploadTicketRequest(request);
+    if (!body) {
       throw new RegulationValidationError("Permintaan upload tidak valid");
     }
 
-    const result = await handleUpload({
-      request,
-      body: body as HandleUploadBody,
-      onBeforeGenerateToken: async (pathname) => {
-        if (!isValidRegulationBlobPathname(pathname)) {
-          throw new RegulationValidationError(
-            "Nama atau lokasi file tidak valid. Gunakan format file yang didukung.",
-          );
-        }
-        return {
-          allowedContentTypes: [
-            ...REGULATION_UPLOAD_ALLOWED_CONTENT_TYPES,
-          ],
-          maximumSizeInBytes: REGULATION_MAX_FILE_SIZE_BYTES,
-          addRandomSuffix: false,
-          allowOverwrite: false,
-          validUntil: Date.now() + 10 * 60 * 1000,
-        };
-      },
-    });
+    if (!isValidRegulationBlobPathname(body.pathname)) {
+      return uploadRequestRejected(
+        "Nama atau lokasi file tidak valid. Gunakan format file yang didukung.",
+      );
+    }
 
-    return NextResponse.json(result, {
-      status: 200,
-      headers: { "Cache-Control": "no-store" },
+    const contentType = normalizeContentType(body.contentType);
+    if (
+      !(REGULATION_UPLOAD_ALLOWED_CONTENT_TYPES as readonly string[]).includes(
+        contentType,
+      )
+    ) {
+      return contentTypeRejected(CONTENT_TYPE_REJECTED_MESSAGE);
+    }
+    if (body.sizeBytes > REGULATION_MAX_FILE_SIZE_BYTES) {
+      return declaredSizeRejected(SIZE_REJECTED_MESSAGE);
+    }
+
+    return await createUploadTicket({
+      visibility: "private",
+      pathname: body.pathname,
+      contentType,
+      alreadyExists: (await headBlob(body.pathname)) !== null,
     });
   } catch (error) {
-    return handleRouteError(
-      error,
-      "POST /api/regulation/upload failed",
-    );
+    return handleRouteError(error, "POST /api/regulation/upload failed");
   }
 }

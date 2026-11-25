@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { canValidateBerkas } from "@/lib/berkas/access";
 import {
   berkasUploadClientPayloadSchema,
@@ -14,18 +13,28 @@ import {
   isValidBerkasUploadPathname,
   parseBerkasValidationTtdPathname,
 } from "@/lib/berkas/storage-path";
-import { isBlobClientUploadConfigured } from "@/lib/storage/blob";
-import { getActor, mapDomainError, parseJsonBody } from "../_helpers";
+import { headBlob, isBlobClientUploadConfigured } from "@/lib/storage/blob";
+import {
+  contentTypeRejected,
+  createUploadTicket,
+  declaredSizeRejected,
+  readUploadTicketRequest,
+  uploadRequestRejected,
+} from "@/lib/storage/upload-presign";
+import { getActor, mapDomainError } from "../_helpers";
 
-// Vercel Blob client-upload token route for Berkas.
+// Berkas upload ticket route.
 //
-// Bytes never pass through this function. The browser requests a short-lived
-// token, uploads directly to the PRIVATE store, then POST /api/berkas claims the
-// resulting pathname. The token is constrained to the actor's upload namespace,
-// the approved content types, and the 20 MB PDF / 2 MB TTD limits.
+// Bytes never pass through this function. The browser requests a presigned PUT,
+// uploads straight to the PRIVATE bucket, then POST /api/berkas claims the
+// resulting pathname. The ticket is constrained to the actor's upload
+// namespace, the approved content types, and the 20 MB PDF / 2 MB TTD limits.
 
 const PDF_MAX_BYTES = 20 * 1024 * 1024;
 const TTD_MAX_BYTES = 2 * 1024 * 1024;
+
+const PDF_CONTENT_TYPE = "application/pdf";
+const TTD_CONTENT_TYPES = ["image/png", "image/jpeg"] as const;
 
 class BerkasUploadPayloadError extends Error {
   constructor(message = "Permintaan upload Berkas tidak valid") {
@@ -34,16 +43,16 @@ class BerkasUploadPayloadError extends Error {
   }
 }
 
-function parseClientPayload(
-  raw: string | null,
+function normalizeContentType(value: string): string {
+  return value.split(";")[0]?.trim().toLowerCase() ?? "";
+}
+
+function parsePayload(
+  raw: Record<string, unknown> | null,
 ): BerkasUploadClientPayload | null {
   if (!raw) return null;
-  try {
-    const parsed = berkasUploadClientPayloadSchema.safeParse(JSON.parse(raw));
-    return parsed.success ? parsed.data : null;
-  } catch {
-    return null;
-  }
+  const parsed = berkasUploadClientPayloadSchema.safeParse(raw);
+  return parsed.success ? parsed.data : null;
 }
 
 export async function POST(request: Request) {
@@ -58,113 +67,109 @@ export async function POST(request: Request) {
       );
     }
 
-    const parsedBody = await parseJsonBody(request);
-    if ("response" in parsedBody) return parsedBody.response;
-
-    const body = parsedBody.body;
-    if (
-      typeof body !== "object" ||
-      body === null ||
-      typeof (body as { type?: unknown }).type !== "string"
-    ) {
-      return NextResponse.json(
-        { error: { message: "Permintaan upload tidak valid" } },
-        { status: 400 },
-      );
-    }
+    const body = await readUploadTicketRequest(request);
+    if (!body) return uploadRequestRejected("Permintaan upload tidak valid");
 
     try {
-      const result = await handleUpload({
-        request,
-        body: body as HandleUploadBody,
-        onBeforeGenerateToken: async (pathname, clientPayload) => {
-          const payload = parseClientPayload(clientPayload);
-          if (!payload) {
-            throw new BerkasUploadPayloadError();
-          }
+      const payload = parsePayload(body.clientPayload);
+      if (!payload) {
+        throw new BerkasUploadPayloadError();
+      }
+      const contentType = normalizeContentType(body.contentType);
 
-          if (payload.kind === "validator_ttd") {
-            if (!payload.berkasId || !payload.role) {
-              throw new BerkasUploadPayloadError();
-            }
-            if (!canValidateBerkas(auth.actor.role)) {
-              throw new BerkasForbiddenError(
-                "Anda tidak memiliki akses validasi Berkas",
-              );
-            }
-            const expectedRole = payload.role === "validasi-1" ? "1" : "2";
-            const parsedPath = parseBerkasValidationTtdPathname(pathname);
-            if (
-              !parsedPath ||
-              parsedPath.berkasId !== payload.berkasId ||
-              parsedPath.role !== expectedRole
-            ) {
-              throw new BerkasUploadPayloadError(
-                "Nama atau lokasi file tidak valid",
-              );
-            }
-            await ensureBerkasValidatorUpload(
-              auth.actor,
-              payload.berkasId,
-              payload.role,
+      if (payload.kind === "validator_ttd") {
+        if (!payload.berkasId || !payload.role) {
+          throw new BerkasUploadPayloadError();
+        }
+        if (!canValidateBerkas(auth.actor.role)) {
+          throw new BerkasForbiddenError(
+            "Anda tidak memiliki akses validasi Berkas",
+          );
+        }
+        const expectedRole = payload.role === "validasi-1" ? "1" : "2";
+        const parsedPath = parseBerkasValidationTtdPathname(body.pathname);
+        if (
+          !parsedPath ||
+          parsedPath.berkasId !== payload.berkasId ||
+          parsedPath.role !== expectedRole
+        ) {
+          throw new BerkasUploadPayloadError(
+            "Nama atau lokasi file tidak valid",
+          );
+        }
+        if (!(TTD_CONTENT_TYPES as readonly string[]).includes(contentType)) {
+          return contentTypeRejected(
+            "Tipe file TTD harus PNG atau JPEG.",
+          );
+        }
+        if (body.sizeBytes > TTD_MAX_BYTES) {
+          return declaredSizeRejected("Ukuran TTD maksimal 2 MB.");
+        }
+        await ensureBerkasValidatorUpload(
+          auth.actor,
+          payload.berkasId,
+          payload.role,
+        );
+        return await createUploadTicket({
+          visibility: "private",
+          pathname: body.pathname,
+          contentType,
+          alreadyExists: (await headBlob(body.pathname)) !== null,
+        });
+      }
+
+      ensureBerkasCreate(auth.actor);
+      if (!payload.uploadId) {
+        throw new BerkasUploadPayloadError();
+      }
+
+      const valid =
+        payload.kind === "original"
+          ? isValidBerkasUploadPathname(
+              body.pathname,
+              auth.actor.id,
+              payload.uploadId,
+              "original",
+            )
+          : isValidBerkasUploadPathname(
+              body.pathname,
+              auth.actor.id,
+              payload.uploadId,
+              "penyusun_ttd",
+              payload.urutan ?? 0,
             );
-            return {
-              allowedContentTypes: ["image/png", "image/jpeg"],
-              maximumSizeInBytes: TTD_MAX_BYTES,
-              addRandomSuffix: false,
-              allowOverwrite: false,
-              validUntil: Date.now() + 10 * 60 * 1000,
-            };
-          }
 
-          ensureBerkasCreate(auth.actor);
-          if (!payload.uploadId) {
-            throw new BerkasUploadPayloadError();
-          }
+      if (!valid) {
+        throw new BerkasUploadPayloadError(
+          "Nama atau lokasi file tidak valid",
+        );
+      }
 
-          const valid =
-            payload.kind === "original"
-              ? isValidBerkasUploadPathname(
-                  pathname,
-                  auth.actor.id,
-                  payload.uploadId,
-                  "original",
-                )
-              : isValidBerkasUploadPathname(
-                  pathname,
-                  auth.actor.id,
-                  payload.uploadId,
-                  "penyusun_ttd",
-                  payload.urutan ?? 0,
-                );
+      if (payload.kind === "original") {
+        if (contentType !== PDF_CONTENT_TYPE) {
+          return contentTypeRejected("File berkas harus berupa PDF.");
+        }
+        if (body.sizeBytes > PDF_MAX_BYTES) {
+          return declaredSizeRejected("Ukuran PDF maksimal 20 MB.");
+        }
+      } else {
+        if (!(TTD_CONTENT_TYPES as readonly string[]).includes(contentType)) {
+          return contentTypeRejected("Tipe file TTD harus PNG atau JPEG.");
+        }
+        if (body.sizeBytes > TTD_MAX_BYTES) {
+          return declaredSizeRejected("Ukuran TTD maksimal 2 MB.");
+        }
+      }
 
-          if (!valid) {
-            throw new BerkasUploadPayloadError(
-              "Nama atau lokasi file tidak valid",
-            );
-          }
-
-          return {
-            allowedContentTypes:
-              payload.kind === "original"
-                ? ["application/pdf"]
-                : ["image/png", "image/jpeg"],
-            maximumSizeInBytes:
-              payload.kind === "original" ? PDF_MAX_BYTES : TTD_MAX_BYTES,
-            addRandomSuffix: false,
-            allowOverwrite: false,
-            validUntil: Date.now() + 10 * 60 * 1000,
-          };
-        },
+      return await createUploadTicket({
+        visibility: "private",
+        pathname: body.pathname,
+        contentType,
+        alreadyExists: (await headBlob(body.pathname)) !== null,
       });
-
-      return NextResponse.json(result, { status: 200 });
     } catch (error) {
       if (error instanceof BerkasUploadPayloadError) {
-        return NextResponse.json(
-          { error: { message: error.message } },
-          { status: 400 },
-        );
+        return uploadRequestRejected(error.message);
       }
       const mapped = mapDomainError(error);
       if (mapped) return mapped;

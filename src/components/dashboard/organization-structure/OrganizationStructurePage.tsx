@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { upload } from "@vercel/blob/client";
+import { uploadFile } from "@/lib/storage/upload-client";
 import {
   CMS_IMAGE_ACCEPT_ATTRIBUTE,
   CMS_IMAGE_FORMAT_HINT,
@@ -171,19 +171,14 @@ export default function OrganizationStructurePage({
       let blobUrl: string;
       let blobPathname: string;
       try {
-        const blob = await upload(pathname, file, {
-          access: "public",
+        const blob = await uploadFile(file, CMS_UPLOAD_ENDPOINT, {
+          pathname,
           contentType:
             file.type || cmsImageDefaultMimeType(file.name) || undefined,
-          handleUploadUrl: CMS_UPLOAD_ENDPOINT,
-          multipart: false,
-          onUploadProgress: (progress) => {
-            const percentage = Number(progress.percentage);
-            if (Number.isFinite(percentage)) {
-              setUploadPercent(
-                Math.max(0, Math.min(100, Math.round(percentage))),
-              );
-            }
+          onProgress: (percentage) => {
+            setUploadPercent(
+              Math.max(0, Math.min(100, Math.round(percentage))),
+            );
           },
         });
         blobUrl = blob.url;

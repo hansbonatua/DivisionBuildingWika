@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
-import { upload } from "@vercel/blob/client";
+import { uploadFile } from "@/lib/storage/upload-client";
 import {
   BERKAS_UPLOAD_TOKEN_URL,
   PDF_MAX_BYTES,
@@ -121,12 +121,11 @@ export default function BerkasRevisiDialog({
 
       const uploadId = crypto.randomUUID();
       const pathname = buildOriginalUploadPath(actorId, uploadId);
-      const uploaded = await upload(pathname, pdfFile, {
-        access: "private",
-        handleUploadUrl: BERKAS_UPLOAD_TOKEN_URL,
-        clientPayload: JSON.stringify({ kind: "original", uploadId }),
+      const uploaded = await uploadFile(pdfFile, BERKAS_UPLOAD_TOKEN_URL, {
+        pathname,
+        clientPayload: { kind: "original", uploadId },
         contentType: "application/pdf",
-        onUploadProgress: ({ percentage }) => {
+        onProgress: (percentage) => {
           setProgress(Math.max(5, Math.round(percentage * 0.9)));
         },
       });

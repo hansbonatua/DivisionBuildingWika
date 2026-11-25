@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { upload } from "@vercel/blob/client";
+import { uploadFile } from "@/lib/storage/upload-client";
 import {
   TEMPLATE_FORM_ACCEPT_ATTRIBUTE,
   TEMPLATE_FORM_MAX_FILE_SIZE_BYTES,
@@ -560,18 +560,13 @@ function TemplateFormFields({
     if (!pathname) {
       throw new Error("INVALID_FILE_NAME");
     }
-    const blob = await upload(pathname, file, {
-      access: "private",
+    const blob = await uploadFile(file, "/api/template-form/upload", {
+      pathname,
       contentType: resolvedMimeType(file),
-      handleUploadUrl: "/api/template-form/upload",
-      multipart: true,
-      onUploadProgress: (event) => {
-        const percentage = Number(event.percentage);
-        if (Number.isFinite(percentage)) {
-          setUploadPercent(
-            Math.max(0, Math.min(100, Math.round(percentage))),
-          );
-        }
+      onProgress: (percentage) => {
+        setUploadPercent(
+          Math.max(0, Math.min(100, Math.round(percentage))),
+        );
       },
     });
     return blob.pathname;

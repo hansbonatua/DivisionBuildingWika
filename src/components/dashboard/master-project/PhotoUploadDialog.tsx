@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { upload } from "@vercel/blob/client";
+import { uploadFile } from "@/lib/storage/upload-client";
 import {
   CMS_IMAGE_ACCEPT_ATTRIBUTE,
   CMS_IMAGE_FORMAT_HINT,
@@ -174,23 +174,18 @@ export default function PhotoUploadDialog({
     setUploadingSlot(slotNumber);
     setUploadPercent(0);
     try {
-      const blob = await upload(pathname, file, {
-        access: "public",
+      const blob = await uploadFile(file, UPLOAD_ENDPOINT, {
+        pathname,
         contentType:
           file.type || cmsImageDefaultMimeType(file.name) || undefined,
-        handleUploadUrl: UPLOAD_ENDPOINT,
-        clientPayload: JSON.stringify({
+        clientPayload: {
           projectId: project.id,
           slot: slotNumber,
-        }),
-        multipart: false,
-        onUploadProgress: (progress) => {
-          const percentage = Number(progress.percentage);
-          if (Number.isFinite(percentage)) {
-            setUploadPercent(
-              Math.max(0, Math.min(100, Math.round(percentage))),
-            );
-          }
+        },
+        onProgress: (percentage) => {
+          setUploadPercent(
+            Math.max(0, Math.min(100, Math.round(percentage))),
+          );
         },
       });
 

@@ -419,6 +419,8 @@ async function verifyPrivateBlob(
     throw new BerkasValidationError(`${label} tidak ditemukan`);
   }
   if (blob.size <= 0 || blob.size > maxBytes) {
+    // Over-limit bytes never become a record: remove the object first.
+    await deleteBlob(pathname).catch(() => undefined);
     throw new BerkasValidationError(`${label} melebihi batas ukuran`);
   }
   const mimeType = normalizeMimeType(blob.contentType);

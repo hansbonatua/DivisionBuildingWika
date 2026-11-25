@@ -122,6 +122,9 @@ export async function verifyCmsUploadedImage(input: {
     );
   }
   if (metadata.size > CMS_IMAGE_MAX_BYTES) {
+    // Over-limit bytes never become a record: remove the object so a rejected
+    // upload cannot sit in the public bucket forever.
+    await deletePublicCmsBlob(blobPathname).catch(() => undefined);
     throw new CmsImageValidationError("Ukuran gambar melebihi batas 5 MB.");
   }
   if (!isCmsImageContentType(metadata.contentType)) {

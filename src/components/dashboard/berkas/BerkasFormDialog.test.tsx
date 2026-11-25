@@ -75,10 +75,24 @@ if (require.cache[clientModuleId]) {
 }
 /* eslint-enable @typescript-eslint/no-require-imports */
 
+// The dialog imports `uploadFile` from a TypeScript module, whose exports are
+// live bindings (getter-only). Replace the cached module exports with a
+// delegating wrapper so each test can install its own mock.
 /* eslint-disable @typescript-eslint/no-require-imports */
-const blobClient = require("@vercel/blob/client") as {
-  upload: (...args: unknown[]) => Promise<{ pathname: string }>;
+type UploadImpl = (
+  ...args: unknown[]
+) => Promise<{ pathname: string; url: string }>;
+let uploadImpl: UploadImpl = async () => {
+  throw new Error("uploadFile mock not installed");
 };
+const uploadModuleId = require.resolve("@/lib/storage/upload-client");
+const realUploadClient = require(uploadModuleId) as Record<string, unknown>;
+if (require.cache[uploadModuleId]) {
+  require.cache[uploadModuleId].exports = {
+    ...realUploadClient,
+    uploadFile: (...args: unknown[]) => uploadImpl(...args),
+  };
+}
 const { cleanup, fireEvent, render, screen, waitFor } =
   require("@testing-library/react") as typeof import("@testing-library/react");
 const { default: BerkasFormDialog } =
@@ -92,10 +106,10 @@ afterEach(() => {
 
 type FetchFn = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 type UploadFn = (
-  pathname: string,
   body: File,
-  options?: unknown,
-) => Promise<{ pathname: string }>;
+  tokenRoute: string,
+  options: { pathname: string },
+) => Promise<{ pathname: string; url: string }>;
 
 const CURRENT_USER = {
   id: "99999999-9999-4999-8999-999999999999",
@@ -245,8 +259,11 @@ test("respons 409 menampilkan banner error dan tombol Simpan kembali aktif", asy
   const fetchMock = installFetch(() =>
     jsonResponse({ error: { message: "Status Berkas sudah berubah." } }, 409),
   );
-  const uploadMock = mock.fn<UploadFn>(async (pathname) => ({ pathname }));
-  blobClient.upload = uploadMock as unknown as typeof blobClient.upload;
+  const uploadMock = mock.fn<UploadFn>(async (_body, _route, options) => ({
+    pathname: options.pathname,
+    url: `https://storage.test/wibex-public/${options.pathname}`,
+  }));
+  uploadImpl = uploadMock as unknown as typeof uploadImpl;
 
   const { container, onSaved } = renderForm();
   await fillForm(container, { withTtd: true });
@@ -261,8 +278,11 @@ test("respons 409 menampilkan banner error dan tombol Simpan kembali aktif", asy
 
 test("submit lengkap mengirim penyusun[0].ttdPathname sebagai string", async () => {
   const fetchMock = installFetch(() => jsonResponse({ data: { id: "berkas-1" } }, 201));
-  const uploadMock = mock.fn<UploadFn>(async (pathname) => ({ pathname }));
-  blobClient.upload = uploadMock as unknown as typeof blobClient.upload;
+  const uploadMock = mock.fn<UploadFn>(async (_body, _route, options) => ({
+    pathname: options.pathname,
+    url: `https://storage.test/wibex-public/${options.pathname}`,
+  }));
+  uploadImpl = uploadMock as unknown as typeof uploadImpl;
 
   const { container, onSaved } = renderForm();
   await fillForm(container, { withTtd: true });
@@ -288,6 +308,6 @@ test("submit lengkap mengirim penyusun[0].ttdPathname sebagai string", async () 
   assert.equal(body.validasi.length, 2);
   assert.equal(
     body.penyusun[0]!.ttdPathname,
-    uploadMock.mock.calls[1]?.arguments[0],
+    (uploadMock.mock.calls[1]?.arguments[2] as { pathname: string }).pathname,
   );
 });

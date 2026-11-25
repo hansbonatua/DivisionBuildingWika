@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import {
   isTemplateFormManageError,
   requireTemplateFormManageActor,
@@ -9,15 +8,22 @@ import {
   TEMPLATE_FORM_UPLOAD_ALLOWED_CONTENT_TYPES,
 } from "@/lib/template-form/source";
 import { isValidTemplateFormBlobPathname } from "@/lib/template-form/storage-path";
-import { isBlobClientUploadConfigured } from "@/lib/storage/blob";
-import { mapDomainError, parseJsonBody } from "../_helpers";
+import { headBlob, isBlobClientUploadConfigured } from "@/lib/storage/blob";
+import {
+  contentTypeRejected,
+  createUploadTicket,
+  declaredSizeRejected,
+  readUploadTicketRequest,
+  uploadRequestRejected,
+} from "@/lib/storage/upload-presign";
+import { mapDomainError } from "../_helpers";
 
-// Vercel Blob client-upload token route.
+// Template & Form upload ticket route.
 //
-// The bytes never pass through this function: the browser asks for an
-// authorization token here, then uploads directly to the PRIVATE store. The
-// token is constrained server-side to the Template & Form namespace, the
-// approved content types and the 50 MiB limit.
+// The bytes never pass through this function: the browser asks for a presigned
+// PUT here, uploads straight to the PRIVATE bucket. The ticket is constrained
+// server-side to the Template & Form namespace, the approved content types and
+// the 50 MiB limit.
 //
 // The record itself is created afterwards through POST /api/template-form,
 // where the stored object is verified again (existence, size, content type)
@@ -25,12 +31,12 @@ import { mapDomainError, parseJsonBody } from "../_helpers";
 
 const PATHNAME_REJECTED_MESSAGE =
   "Nama atau lokasi file tidak valid. Gunakan format file yang didukung.";
+const SIZE_REJECTED_MESSAGE = "Ukuran file maksimal 50 MB.";
+const CONTENT_TYPE_REJECTED_MESSAGE =
+  "Tipe file tidak didukung. Gunakan PDF, Word, Excel, atau PowerPoint.";
 
-class UploadPathRejectedError extends Error {
-  constructor() {
-    super(PATHNAME_REJECTED_MESSAGE);
-    this.name = "UploadPathRejectedError";
-  }
+function normalizeContentType(value: string): string {
+  return value.split(";")[0]?.trim().toLowerCase() ?? "";
 }
 
 export async function POST(request: Request) {
@@ -38,8 +44,6 @@ export async function POST(request: Request) {
     const auth = await requireTemplateFormManageActor();
     if ("response" in auth) return auth.response;
 
-    // Requires the read-write token specifically: reading may work with OIDC,
-    // but signing a browser upload token cannot.
     if (!isBlobClientUploadConfigured()) {
       return NextResponse.json(
         { error: { message: "Layanan penyimpanan file belum dikonfigurasi." } },
@@ -47,47 +51,32 @@ export async function POST(request: Request) {
       );
     }
 
-    const parsedBody = await parseJsonBody(request);
-    if ("response" in parsedBody) return parsedBody.response;
+    const body = await readUploadTicketRequest(request);
+    if (!body) return uploadRequestRejected("Permintaan upload tidak valid");
 
-    const body = parsedBody.body;
+    if (!isValidTemplateFormBlobPathname(body.pathname)) {
+      return uploadRequestRejected(PATHNAME_REJECTED_MESSAGE);
+    }
+
+    const contentType = normalizeContentType(body.contentType);
     if (
-      typeof body !== "object" ||
-      body === null ||
-      typeof (body as { type?: unknown }).type !== "string"
+      !(TEMPLATE_FORM_UPLOAD_ALLOWED_CONTENT_TYPES as readonly string[]).includes(
+        contentType,
+      )
     ) {
-      return NextResponse.json(
-        { error: { message: "Permintaan upload tidak valid" } },
-        { status: 400 },
-      );
+      return contentTypeRejected(CONTENT_TYPE_REJECTED_MESSAGE);
+    }
+    if (body.sizeBytes > TEMPLATE_FORM_MAX_FILE_SIZE_BYTES) {
+      return declaredSizeRejected(SIZE_REJECTED_MESSAGE);
     }
 
-    const result = await handleUpload({
-      request,
-      body: body as HandleUploadBody,
-      onBeforeGenerateToken: async (pathname) => {
-        if (!isValidTemplateFormBlobPathname(pathname)) {
-          throw new UploadPathRejectedError();
-        }
-        return {
-          allowedContentTypes: [...TEMPLATE_FORM_UPLOAD_ALLOWED_CONTENT_TYPES],
-          maximumSizeInBytes: TEMPLATE_FORM_MAX_FILE_SIZE_BYTES,
-          addRandomSuffix: false,
-          allowOverwrite: false,
-          // Short-lived: the browser uploads immediately after this call.
-          validUntil: Date.now() + 10 * 60 * 1000,
-        };
-      },
+    return await createUploadTicket({
+      visibility: "private",
+      pathname: body.pathname,
+      contentType,
+      alreadyExists: (await headBlob(body.pathname)) !== null,
     });
-
-    return NextResponse.json(result, { status: 200 });
   } catch (error) {
-    if (error instanceof UploadPathRejectedError) {
-      return NextResponse.json(
-        { error: { message: PATHNAME_REJECTED_MESSAGE } },
-        { status: 400 },
-      );
-    }
     const mapped = mapDomainError(error);
     if (mapped) return mapped;
     if (isTemplateFormManageError(error)) {
