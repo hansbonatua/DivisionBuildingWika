@@ -11,6 +11,6 @@ export const instagramAccounts: SocialAccount[] = [
   { username: "@ptwijayakarya", description: "Corporate Governance & Stakeholder Relations" },
 ];
 
-export function getAccountPostCount(_username: string): number {
+export function getAccountPostCount(): number {
   return 0;
 }

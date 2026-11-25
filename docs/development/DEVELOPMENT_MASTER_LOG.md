@@ -5,6 +5,105 @@ Dokumentasi audit repository ada di `docs/audit/`; dokumen ini mencatat **peruba
 
 ---
 
+## DL-2026-11-25-03 — Pembersihan Dead Code & Sinkronisasi State
+
+| Field | Nilai |
+|---|---|
+| Feature ID | lintas modul (pembersihan dead code + dokumentasi) |
+| Tanggal | 25 November 2026 |
+| Status | **IMPLEMENTED & VERIFIED (static)** — hanya menghapus simbol yang tidak terpakai dan menyinkronkan dokumen; tidak mengubah logika bisnis, skema database, atau kontrak API |
+| Commit | **belum di-commit** (instruksi: no commit/push/deploy); HEAD `c9fc8b1` — `deploy:install minIO` |
+| Branch | `main` |
+| Migration | 32 file (`0000`–`0031`); tidak ada migration dibuat, diubah, atau dijalankan |
+
+### Perubahan
+
+#### 1. Sinkronisasi `CURRENT_PROJECT_STATE.md` dengan fakta terbaru
+- Header: HEAD `dcbf13e` → **`c9fc8b1`** (`deploy:install minIO`, 25 Nov 2026 14:16 +0700); test **358 → 359**; baris **Storage** baru: MinIO (S3-compatible), bucket `wibex-public` (baca anonim) + `wibex-private` (privat), presigned PUT 10 menit.
+- Baris **Working tree** diperbaiki dari klaim "BERSIH" menjadi status sebenarnya (16 entri `git status`, belum di-commit).
+- Penyebutan storage diselaraskan: 4 titik "Vercel Blob" pada tabel modul & stack → MinIO; `@vercel/blob` ditandai **devDependency khusus `scripts/migrate-blob-to-minio.ts`** (tidak di-import `src/`); 3 penyebutan `358` → `359`.
+- Daftar environment: 7 variabel `S3_*` ditambahkan; `BLOB_READ_WRITE_TOKEN`, `CMS_BLOB_READ_WRITE_TOKEN`, `BLOB_STORE_ID`, `VERCEL_OIDC_TOKEN` dipindah ke label **legacy (hanya script migrasi)**.
+- TD-04 diperbarui: `.env.example` belum memuat 7 variabel `S3_*`.
+- Riwayat perubahan: baris 25 Nov 2026 (migrasi MinIO, audit P2, `ROADMAP.md`).
+
+#### 2. File aset dihapus (5 file, risiko nol)
+- `public/file.svg`, `public/globe.svg`, `public/next.svg`, `public/vercel.svg`, `public/window.svg` — sisa template Next.js; 0 referensi di `src/` (diverifikasi grep).
+
+#### 3. Komponen yatim dihapus (1 file)
+- `src/components/dashboard/sasaa/SasaaStatsGrid.tsx` (5,0 KB) — `export default` tanpa importer statis maupun dinamis; halaman SASAA memakai `MslSection`, `EngDbCompletionChart`, `EsgChart`, `MonthlyBarChart`, `KnowledgeTable`, dan `ProjectPhotoCarousel`, bukan komponen ini.
+
+#### 4. Dependensi dihapus (1 paket)
+- `@testing-library/user-event` di-uninstall; `devDependencies` 15 → **14**. Tidak ada `userEvent` di seluruh test.
+
+#### 5. Variabel/fungsi lokal mati dihapus (4 dari 5 temuan ESLint)
+- `src/components/landing/About.tsx` — type alias `Stat` (tidak pernah dipakai).
+- `src/components/landing/Footer.tsx` — fungsi ikon `CallIcon` (tidak pernah dipakai).
+- `src/lib/program-kerja/service.ts` — helper `assertNoteAccess` (tidak pernah dipanggil; pengecekan `canUpdateProgramNote` tetap dilakukan inline di baris 442, sehingga import tidak menjadi yatim).
+- `src/lib/demo/social-media.ts` — parameter `_username` pada `getAccountPostCount` dihapus, call-site di `SocialAccountSummary.tsx` disesuaikan menjadi `getAccountPostCount()` (perilaku identik, stub selalu mengembalikan 0).
+
+#### 6. `_passwordHash` — SENGAJA DIPERTAHANKAN
+- `src/lib/users/service.ts:52` — `const { passwordHash: _passwordHash, ...safe } = user;` adalah **pola omit keamanan**, bukan dead code. Menghapusnya akan memasukkan `passwordHash` ke objek `SafeUser` yang dikembalikan ke route handler (kebocoran hash password). Warning ESLint pada baris ini diterima sebagai konsekuensi yang disengaja.
+
+### File impacted
+- Delete: `public/{file,globe,next,vercel,window}.svg`; `src/components/dashboard/sasaa/SasaaStatsGrid.tsx`
+- Modify (kode): `src/components/landing/About.tsx`, `src/components/landing/Footer.tsx`, `src/lib/program-kerja/service.ts`, `src/lib/demo/social-media.ts`, `src/components/dashboard/social-media/SocialAccountSummary.tsx`
+- Modify (dependensi): `package.json`, `package-lock.json`
+- Modify (dokumentasi): `docs/development/CURRENT_PROJECT_STATE.md`
+- Add (dokumentasi, pass sebelumnya): `docs/development/ROADMAP.md`
+- **Tidak disentuh:** 12 foto proyek ±119 MB di `public/asset/`, 332 export internal-only, `@vercel/blob` (masih dipakai script migrasi)
+
+### Verifikasi
+| Pemeriksaan | Hasil | Sumber |
+|---|---|---|
+| `npm test` | **359/359 PASS** (76 suite, 50 file, 0 fail, 29,2s) | Freebuff |
+| `npx tsc --noEmit` | PASS (exit 0) | Freebuff |
+| `npm run build` | **PASS** — "Compiled successfully in 61s", `output: "standalone"` | Freebuff |
+| `npx eslint` (6 file kode tersentuh) | 0 error, **1 warning** (`_passwordHash`, disengaja) | Freebuff |
+| `git diff --check` | PASS (exit 0) | Freebuff |
+| Referensi tersisa | 0 untuk `SasaaStatsGrid`, `@testing-library/user-event`, dan 5 SVG | grep |
+| `git status --short` | 16 entri: 9 modified, 6 deleted, 1 untracked (`ROADMAP.md`) | Freebuff |
+
+### Batasan
+- Tidak ada commit/push/deploy; tidak ada migration/seed dijalankan.
+- Tidak ada verifikasi visual/runtime browser pada pass ini — status modul 🟡 di `FEATURE_REGISTER.md` tidak berubah.
+- Satu warning ESLint tersisa (`_passwordHash`) dan diterima secara sadar; lihat §6.
+- Pembersihan aset 131,75 MB dan 332 export internal-only **tidak** dikerjakan (menunggu verifikasi database & keputusan Owner).
+
+---
+
+## DL-2026-11-25-02 — Roadmap Pengembangan (Fase 1–4)
+
+| Field | Nilai |
+|---|---|
+| Feature ID | seluruh modul (dokumentasi) |
+| Tanggal | 25 November 2026 |
+| Status | **DOKUMENTASI** — membuat `ROADMAP.md` dan menautkannya dari dokumen kondisi; tidak mengubah kode sumber, API, database, atau migration |
+| Commit | `c9fc8b1` — `deploy:install minIO` (HEAD) |
+| Branch | `main` |
+| Working tree | bersih sebelum pass; setelah pass hanya 3 file dokumentasi berubah |
+| Migration | 32 file (`0000`–`0031`); tidak ada migration dibuat, diubah, atau dijalankan |
+
+### Perubahan
+- **`docs/development/ROADMAP.md` (baru)** — dokumen peta jalan resmi v1.0: ringkasan 4 fase + kriteria keluar, **Fase 1** (Landing, Auth/RBAC, 17 modul Core Enterprise dengan status `Production-Ready` dan 6 area 🟡), **Fase 2** (prasyarat environment, 7 langkah deploy ke Vercel, migrasi Vercel Blob → MinIO, pembersihan dead code hasil audit P2, tabel TD-01–TD-13), **Fase 3** (UAT stakeholder Dashboard SASAA + penyesuaian UI BLC), **Fase 4** (12 kandidat enhancement: notifikasi, CI/CD, CSP, scheduler retensi, SASAA lintas proyek, E2E, observability, backup MinIO, dsb.), plus risiko & aturan perubahan dokumen.
+- **`CURRENT_PROJECT_STATE.md`** — menambahkan tautan ke `ROADMAP.md` pada blok pengantar dan pada ringkasan eksekutif.
+- **`DEVELOPMENT_MASTER_LOG.md`** — entri ini; tidak ada perubahan isi historis.
+- Tidak ada perubahan pada `FEATURE_REGISTER.md` (status fitur tidak berubah pada pass ini).
+
+### Verifikasi
+| Pemeriksaan | Hasil | Sumber |
+|---|---|---|
+| `git diff --check` | PASS (exit 0) | Freebuff |
+| Perubahan kode sumber | **tidak ada** — hanya 3 file `.md` | `git status` |
+| `npm test` / `npm run build` | tidak dijalankan ulang — pass ini hanya menyentuh dokumentasi | — |
+
+### Batasan
+- Tidak ada commit/push/deploy; tidak ada migration/seed dijalankan.
+- Angka dead code pada Fase 2 mengikuti audit P2 (25 November 2026): 1 komponen yatim, 26 export nilai mati, 14 export tipe mati, 5 variabel lokal mati, 1 devDependency mati, 40 aset `public/` tak terpakai (131,75 MB). Belum ada yang dihapus.
+- Status APPLIED `0031_user_activity_logs` tetap **belum terverifikasi** (TD-07).
+- Header `CURRENT_PROJECT_STATE.md` (HEAD `dcbf13e`, 358 test, Vercel Blob) belum disinkronkan pada pass ini; roadmap memakai fakta terbaru (HEAD `c9fc8b1`, 359 test, storage MinIO).
+
+---
+
 ## DL-2026-11-25-01 — Final Audit & Peta Kondisi Proyek
 
 | Field | Nilai |

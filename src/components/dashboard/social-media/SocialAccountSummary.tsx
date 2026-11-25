@@ -22,7 +22,7 @@ export default function SocialAccountSummary({
             <div className="truncate text-[11px] text-slate-500">{account.description}</div>
           </div>
           <span className="shrink-0 rounded-full bg-background px-2.5 py-1 text-[11px] font-bold text-primary/70">
-            {counts?.[account.username] ?? getAccountPostCount(account.username)} post
+            {counts?.[account.username] ?? getAccountPostCount()} post
           </span>
         </div>
       ))}

@@ -130,13 +130,6 @@ function assertViewAccess(actor: ProgramKerjaActor): void {
   }
 }
 
-function assertNoteAccess(actor: ProgramKerjaActor): void {
-  assertActive(actor);
-  if (!canUpdateProgramNote(actor.role)) {
-    throw new ProgramKerjaForbiddenError();
-  }
-}
-
 function assertFiniteNumber(value: number, label: string): void {
   if (!Number.isFinite(value)) {
     throw new ProgramKerjaValidationError(`${label} harus angka yang valid`);

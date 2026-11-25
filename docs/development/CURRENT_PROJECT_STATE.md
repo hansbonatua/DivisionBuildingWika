@@ -2,18 +2,19 @@
 
 > **Peta kondisi proyek untuk sesi AI berikutnya.** Ditulis dari audit read-only repository pada **25 November 2026**.
 > **Aturan utama: kode adalah sumber kebenaran.** Bila dokumen ini berbeda dengan kode, kode menang dan dokumen harus diperbarui.
-> Dokumen ini **hanya** memuat kondisi; riwayat keputusan ada di `DEVELOPMENT_MASTER_LOG.md`, status per fitur di `FEATURE_REGISTER.md`.
+> Dokumen ini **hanya** memuat kondisi; riwayat keputusan ada di `DEVELOPMENT_MASTER_LOG.md`, status per fitur di `FEATURE_REGISTER.md`, dan peta jalan pengembangan (Fase 1–4) di [`ROADMAP.md`](./ROADMAP.md).
 
 | Field | Nilai |
 |---|---|
 | Terakhir diperbarui | **25 November 2026** |
-| HEAD | **`dcbf13e`** — `refactor(pre-deploy):new revision-1` (24 Nov 2026, 17:33 +0700) |
+| HEAD | **`c9fc8b1`** — `deploy:install minIO` (25 Nov 2026, 14:16 +0700) |
 | Branch | `main` |
-| Working tree | **BERSIH** (`git status` kosong, tidak ada file modified/untracked) |
+| Working tree | **ADA PERUBAHAN BELUM DI-COMMIT** — 16 entri `git status`: 9 modified (termasuk `package.json`/`package-lock.json`), 6 deleted (5 SVG Next.js + komponen yatim `SasaaStatsGrid.tsx`), 1 untracked (`ROADMAP.md`); pass ini tidak melakukan commit/push |
 | Status remote | tidak diperiksa pada pass ini (tidak ada `git fetch`); asumsikan HEAD lokal = yang akan di-push Owner |
 | Migration | **32 file** `drizzle/0000`–`0031` + `meta/_journal.json` **32 entry** |
-| Test | **358/358 PASS** (76 suite, 50 file test) — 25 November 2026 |
-| Build | **PASS** (`npm run build`, "Compiled successfully in 72s", `output: "standalone"`) — 25 November 2026 |
+| Test | **359/359 PASS** (76 suite, 50 file test) — 25 November 2026 |
+| Build | **PASS** (`npm run build`, `output: "standalone"`) — 25 November 2026 |
+| Storage | **MinIO (S3-compatible)** — bucket `wibex-public` (baca anonim) dan `wibex-private` (privat); upload via presigned PUT 10 menit, download privat via route ber-guard |
 
 ---
 
@@ -30,6 +31,8 @@
 - 6 area sudah selesai secara kode dan static-check PASS, tetapi **belum diverifikasi visual/runtime di Vercel**: Standard & Regulation, Sertifikasi Green Building, Penilaian ESG, Building Learning Center, Dashboard SASAA (+ Kelola Foto), dan revisi tampilan terbaru (sidebar, kartu SASAA, menu INNOVATION).
 - Tidak ada modul besar yang belum dimulai. Tidak ada temuan CRITICAL yang terbuka.
 
+> **Peta jalan pengembangan:** lihat [`ROADMAP.md`](./ROADMAP.md) — Fase 1 (Development) **selesai**, posisi proyek saat ini di **Fase 2 (Deployment & Stabilization)**, dilanjutkan Fase 3 (Review & Iteration) dan Fase 4 (Future Enhancements).
+
 **Skala kode saat ini**
 
 | Metrik | Jumlah |
@@ -38,7 +41,7 @@
 | Route handler API (`src/app/api/**/route.ts`) | 105 |
 | Halaman (`page.tsx`) | 69 |
 | Komponen `.tsx` | 144 |
-| File test | 50 (76 suite, 358 test) |
+| File test | 50 (76 suite, 359 test) |
 | Permission RBAC | 39 |
 | Tabel PostgreSQL | 35 |
 | Koleksi MongoDB | 5 |
@@ -56,7 +59,7 @@ Legenda: **✅ VERIFIED** = sudah diuji runtime/visual dan dikonfirmasi Owner ·
 |---|---|---|
 | Landing page publik (Hero, About, Projects, Green Building, Social, Clients, Footer) | ✅ VERIFIED | `src/app/page.tsx`, `src/components/landing/*`; data via `GET /api/<modul>/public`, empty-first (tanpa konten karangan) |
 | Navbar landing: HOME, ABOUT, OUR PROJECT, SUSTAINABILITY, **INNOVATION** | 🟡 NOT FULLY VERIFIED (khusus INNOVATION) | `src/components/landing/Navbar.tsx`; SUSTAINABILITY + INNOVATION (`https://im.dewika.id`) `target="_blank"` + `rel="noopener noreferrer"` + ikon ↗, desktop & menu HP; static check PASS, visual belum dicek |
-| CMS Hero / Our Project / Green Building / Media Sosial / Our Client | ✅ VERIFIED | MongoDB + Vercel Blob publik; **feed publik Green Building CMS masih 0 item** (lihat TD-05) |
+| CMS Hero / Our Project / Green Building / Media Sosial / Our Client | ✅ VERIFIED | MongoDB + bucket MinIO publik; **feed publik Green Building CMS masih 0 item** (lihat TD-05) |
 | Upload gambar CMS + cleanup referensi | ✅ VERIFIED | `src/lib/cms/*`, `src/lib/storage/public-image.ts` |
 
 ### 2.2 Core Enterprise
@@ -67,7 +70,7 @@ Legenda: **✅ VERIFIED** = sudah diuji runtime/visual dan dikonfirmasi Owner ·
 | RBAC + User Directory (+ posisi Manager, activity log, proteksi admin terakhir, foto profil) | ✅ VERIFIED | `src/lib/auth/permissions.ts` (39 permission, 3 lapis); migration `0025_activity_logs`, `0031_user_activity_logs` |
 | Profil mandiri (`/dashboard/profile/edit`) | ✅ VERIFIED | termasuk upload foto profil ≤2 MB (jpeg/png/webp) |
 | Program Kerja (+ RI/catatan/evidence, Summary, PDF) | ✅ VERIFIED | runtime 4 role dikonfirmasi Owner |
-| Template & Form (link + upload dokumen privat) | ✅ VERIFIED | Blob privat, download via route ber-guard |
+| Template & Form (link + upload dokumen privat) | ✅ VERIFIED | bucket MinIO privat, download via route ber-guard |
 | Master Project (direktori proyek kanonik) | ✅ VERIFIED | GIN trigram, sumber baris modul lain |
 | Engineering Databases (6 kategori + summary) | ✅ VERIFIED | — |
 | MSL Engineering (bulanan, skor, PDF V2.5) | ✅ VERIFIED · **frozen** | jangan refactor tanpa instruksi Owner |
@@ -82,7 +85,7 @@ Legenda: **✅ VERIFIED** = sudah diuji runtime/visual dan dikonfirmasi Owner ·
 | Standard & Regulation (5 submenu, tabel berjenjang, upload privat ≤20 MB) | 🟡 NOT FULLY VERIFIED | migration `0027`; visual + upload nyata belum dicek |
 | Database Green Building & ESG — Sertifikasi | 🟡 NOT FULLY VERIFIED | migration `0028`; visual belum dicek |
 | Database Green Building & ESG — Penilaian ESG (12 bulan) | 🟡 NOT FULLY VERIFIED | migration `0029`; visual + optimistic rollback belum dicek |
-| Building Learning Center (Sharing, Training, Certificate, Admin Control) | 🟡 NOT FULLY VERIFIED | migration `0030`; upload Blob nyata + visual belum dicek |
+| Building Learning Center (Sharing, Training, Certificate, Admin Control) | 🟡 NOT FULLY VERIFIED | migration `0030`; upload storage nyata + visual belum dicek |
 
 ### 2.3 Perubahan tampilan terbaru (24–25 November 2026, sudah di HEAD)
 
@@ -132,7 +135,7 @@ Sumber tunggal skema: **`src/lib/pg/schema.ts`**. Ekstensi `pg_trgm` dipakai unt
 
 | Pemeriksaan | Perintah | Hasil | Tanggal |
 |---|---|---|---|
-| Unit + komponen test | `npm test` | **358/358 PASS**, 76 suite, 50 file, exit 0 | 25 Nov 2026 |
+| Unit + komponen test | `npm test` | **359/359 PASS**, 76 suite, 50 file, exit 0 | 25 Nov 2026 |
 | TypeScript | `npx tsc --noEmit` | PASS (exit 0) | 25 Nov 2026 |
 | ESLint | `npx eslint <file berubah>` | PASS (exit 0) | 25 Nov 2026 |
 | Build produksi | `npm run build` | **PASS** — "Compiled successfully in 72s", 69 halaman, `output: "standalone"` | 25 Nov 2026 |
@@ -145,7 +148,7 @@ Sumber tunggal skema: **`src/lib/pg/schema.ts`**. Ekstensi `pg_trgm` dipakai unt
 | `next` | **16.4.6** | patch keamanan (commit `d24fa71`, `a4aa8a3`) |
 | `react` / `react-dom` | **19.3.1** | idem |
 | `zod` | 4.6.7 | perbaikan vulnerability (`a4aa8a3`) |
-| `@vercel/blob` | 2.9.0 | — |
+| `@vercel/blob` | 2.9.0 | **devDependency** — hanya untuk `scripts/migrate-blob-to-minio.ts`; tidak di-import `src/` |
 
 **Cakupan test:** logika domain murni (skor MSL, agregasi summary, permission/RBAC, schema Zod, storage path, PDF engine, navigasi sidebar) + beberapa komponen React (`@testing-library/react` + `jsdom`). **Tidak ada** E2E/Playwright, tidak ada CI — semua dijalankan manual.
 
@@ -158,7 +161,7 @@ Sumber tunggal skema: **`src/lib/pg/schema.ts`**. Ekstensi `pg_trgm` dipakai unt
 | TD-01 | HIGH | **CSP belum dipasang.** `next.config.ts` hanya memasang `X-Content-Type-Options`, `Referrer-Policy`, `X-Frame-Options`, `Permissions-Policy` | Susun CSP Report-Only → enforce (perhatikan gambar Blob remote + inline style) |
 | TD-02 | HIGH | **Belum ada CI.** `tsc`/`eslint`/`test`/`build` hanya dijalankan manual | Tambahkan pipeline (tsc + eslint + npm test) minimal untuk PR |
 | TD-03 | MEDIUM | **6 area belum diverifikasi visual/runtime Vercel:** Regulation, Sertifikasi GB, ESG, BLC, Dashboard SASAA + Kelola Foto, revisi tampilan (sidebar, kartu SASAA, INNOVATION) | Owner cek di Vercel dengan 4 role, lalu naikkan status di `FEATURE_REGISTER.md` |
-| TD-04 | MEDIUM | `.env.example` ada di disk tetapi **gitignored** (`.gitignore:44` = `.env*`) dan hanya memuat 4 variabel | Track ulang (`!.env.example`) + lengkapi 13 nama variabel |
+| TD-04 | MEDIUM | `.env.example` ada di disk tetapi **gitignored** (`.gitignore:44` = `.env*`), hanya memuat 4 variabel, dan belum memuat 7 variabel `S3_*` | Track ulang (`!.env.example`) + lengkapi seluruh nama variabel (DB, MinIO, bootstrap admin) |
 | TD-05 | MEDIUM | Feed publik **Green Building CMS masih 0 item** (empty state) | Pastikan minimal 1 sertifikat berstatus `Published` |
 | TD-06 | MEDIUM | Foto profil: blob orphan bila PATCH gagal, tanpa compare-and-set, tanpa rate limit, pesan 400 generik | Cleanup best-effort + validasi pesan |
 | TD-07 | MEDIUM | **`0031_user_activity_logs` belum tercatat APPLIED** | Konfirmasi ke database, lalu catat di dokumen |
@@ -187,7 +190,7 @@ Sumber tunggal skema: **`src/lib/pg/schema.ts`**. Ekstensi `pg_trgm` dipakai unt
 | Styling | Tailwind CSS **4.3.3** via `@tailwindcss/postcss`; **tanpa** `tailwind.config.*`; token di `src/app/globals.css` (`--primary #001f3f`, `--secondary #0061a5`, `--surface #ffffff`, `--outline #c3c6cf`, `--background #f8f9ff`) |
 | Database utama | **PostgreSQL (Neon)** via `postgres` 3.4.9 + **Drizzle ORM 0.45.4** (`drizzle-kit` 0.31.11) |
 | Database konten | **MongoDB** (`mongodb` driver 7.7.0) — 5 koleksi landing |
-| Storage | **Vercel Blob** (`@vercel/blob` 2.9.0) — publik untuk gambar CMS/foto proyek, privat untuk dokumen Template & Form, Regulation, lampiran BLC, PDF Berkas |
+| Storage | **MinIO (S3-compatible)** — `@aws-sdk/client-s3` 3.1177.0 + `@aws-sdk/s3-request-presigner`; dua endpoint (`S3_ENDPOINT_INTERNAL` untuk head/get/put/delete, `S3_ENDPOINT_PUBLIC` untuk presigned PUT + URL publik), `forcePathStyle`; bucket `wibex-public` untuk gambar CMS/foto proyek, `wibex-private` untuk dokumen Template & Form, Regulation, lampiran BLC, PDF Berkas. `@vercel/blob` hanya devDependency untuk script migrasi |
 | PDF | `pdf-lib` 1.17.1 (cover + merge + watermark), `pdfjs-dist` 6.5.438 (viewer), `jspdf` 4.2.1 + `jspdf-autotable` 5.0.9 (export client-side) |
 | Grafik | `recharts` 3.10.1 |
 | Tanda tangan | `signature_pad` 5.1.7 (TTD inline Berkas) |
@@ -199,7 +202,7 @@ Sumber tunggal skema: **`src/lib/pg/schema.ts`**. Ekstensi `pg_trgm` dipakai unt
 
 **Script:** `dev` · `build` · `start` · `lint` · `test` (`node --import tsx --test "src/**/*.test.ts" "src/**/*.test.tsx"`).
 
-**Environment variable (nama saja, jangan pernah dicetak nilainya):** `DATABASE_URL`, `DIRECT_URL`, `MONGODB_URI`, `MONGODB_DB_NAME`, `BLOB_READ_WRITE_TOKEN`, `VERCEL_OIDC_TOKEN`, `BLOB_STORE_ID`, `CMS_BLOB_READ_WRITE_TOKEN`, `ADMIN_NIP`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_NAME`, `ADMIN_POSITION`, `NODE_ENV`.
+**Environment variable (nama saja, jangan pernah dicetak nilainya):** `DATABASE_URL`, `DIRECT_URL`, `MONGODB_URI`, `MONGODB_DB_NAME`, `S3_ENDPOINT_INTERNAL`, `S3_ENDPOINT_PUBLIC`, `S3_REGION`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_BUCKET_PUBLIC`, `S3_BUCKET_PRIVATE`, `ADMIN_NIP`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_NAME`, `ADMIN_POSITION`, `NODE_ENV`. **Legacy (hanya untuk script migrasi):** `BLOB_READ_WRITE_TOKEN`, `CMS_BLOB_READ_WRITE_TOKEN`, `BLOB_STORE_ID`, `VERCEL_OIDC_TOKEN`.
 
 **Arsitektur wajib diikuti:** `Client Component → Route Handler (auth + Zod + mapping HTTP) → Service (aturan bisnis + otorisasi) → Repository (Drizzle/Mongo) → DB`. Otorisasi 3 lapis (layout guard, route, `assert*` di service). Permission terpusat di `src/lib/auth/permissions.ts`.
 
@@ -209,6 +212,7 @@ Sumber tunggal skema: **`src/lib/pg/schema.ts`**. Ekstensi `pg_trgm` dipakai unt
 
 | Tanggal | Modul / peristiwa | Commit kunci |
 |---|---|---|
+| 25 Nov 2026 | **Storage beralih dari Vercel Blob ke MinIO (S3-compatible)**: 7 token route presigned PUT, 2 bucket, script migrasi `--dry-run` · audit P2 (dead code & dependensi) · dokumen `ROADMAP.md` (Fase 1–4) | `c9fc8b1` |
 | 24 Nov 2026 | User Directory: posisi Manager, user activity log, proteksi admin terakhir, foto profil · Berkas TTD inline · Dashboard SASAA struktur baru (6 grafik, tabel KM, banner GB) · revisi sidebar (urutan, panel biru, border, rata kiri) · revisi pra-deploy | `aaa326a`, `a30c6cb`, `2382319`, `b9477c8`, `8a3270f`, `d5f9ae8`, `8964561`, `dcbf13e` |
 | 23 Nov 2026 | **Building Learning Center (BLC)** core enterprise + recap dokumentasi | `b833ca7`, `b34c30e` |
 | 20 Nov 2026 | Penyesuaian layout PDF Berkas | `d11577f` |
@@ -242,7 +246,7 @@ Detail per perubahan (file, keputusan, hasil verifikasi) ada di `DEVELOPMENT_MAS
 
 - Status APPLIED migration `0031` (dan drift schema terhadap database produksi).
 - Visual/runtime Vercel untuk 6 area pada TD-03, termasuk RBAC 4 role di modul-modul baru.
-- Alur upload Blob nyata: Regulation (PDF/Word/Excel/ZIP), BLC (thumbnail + lampiran), foto proyek SASAA, foto profil.
+- Alur upload storage (MinIO) nyata: Regulation (PDF/Word/Excel/ZIP), BLC (thumbnail + lampiran), foto proyek SASAA, foto profil.
 - Tampilan sidebar hasil redesign pada layar HP/drawer (kontras border 40%, panel biru, wrap label panjang).
 - Tampilan navbar dengan 6 item pada lebar 768–1100 px.
 - Isi database produksi (jumlah user, role, data konten), status deployment Vercel, dan domain.
